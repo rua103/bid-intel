@@ -63,7 +63,7 @@ def test_model_adapter_accepts_only_source_verified_quotes(stub_model_stream):
     assert any("忽略无法在原文中定位证据" in warning for warning in warnings)
 
 
-def test_extraction_uses_streaming_and_asks_for_usage(stub_model_stream):
+def test_extraction_uses_streaming_and_disables_thinking(stub_model_stream):
     calls = stub_model_stream("{}")
     extract_unstructured_items(filename="notice.html", text="项目名称：X", settings=model_settings())
     assert len(calls) == 1
@@ -72,13 +72,25 @@ def test_extraction_uses_streaming_and_asks_for_usage(stub_model_stream):
     body = calls[0]["json"]
     assert body["stream"] is True
     assert body["stream_options"] == {"include_usage": True}
-    # Regression guard. Measured against the configured gateway: sending
-    # "thinking": {"type": "disabled"} raised reasoning tokens 119 -> 548, tripled
-    # latency, and returned *empty* content (the whole max_tokens budget went to
-    # reasoning). "reasoning_effort": "none" behaved the same way. Neither switch
-    # may come back without re-measuring.
+    # Regression guard, measured against the configured gateway on a real notice:
+    # deepseek-v4-flash otherwise spends ~5000 reasoning tokens before emitting any
+    # JSON -- 208s per notice, and the JSON is truncated at max_tokens (six of six
+    # requests came back empty or truncated). Reasoning tokens are compared with
+    # the switch off; only this chat-template form works, so do not "simplify" it to
+    # a top-level field. Top-level "thinking"/"enable_thinking" and
+    # "reasoning_effort" were all measured as ignored (reasoning ~5000, 213-216s),
+    # and "thinking": {"type": "disabled"} returned empty content outright.
+    assert body["chat_template_kwargs"] == {"enable_thinking": False}
     assert "thinking" not in body
+    assert "enable_thinking" not in body
     assert "reasoning_effort" not in body
+
+
+def test_thinking_switch_can_be_turned_off_for_other_endpoints(stub_model_stream):
+    calls = stub_model_stream("{}")
+    settings = model_settings().model_copy(update={"model_disable_thinking": False})
+    extract_unstructured_items(filename="notice.html", text="项目名称：X", settings=settings)
+    assert "chat_template_kwargs" not in calls[0]["json"]
 
 
 def test_chunked_stream_is_reassembled_and_reasoning_content_is_dropped(stub_model_stream):

@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     model_timeout_seconds: int = 120
     # Backstop against an endless stream; generation is already bounded by max_tokens.
     model_stream_total_seconds: int = 600
+    # Measured on the configured gateway: without this, deepseek-v4-flash spends
+    # ~5000 reasoning tokens before emitting any JSON (208s per notice, and the
+    # JSON gets truncated at max_tokens). Only chat_template_kwargs works --
+    # top-level "thinking"/"enable_thinking" and "reasoning_effort" are ignored.
+    # With it: reasoning -> 0, ~35s per notice, complete JSON. Turn this off only
+    # if a new endpoint rejects the field.
+    model_disable_thinking: bool = True
     extraction_mode: str = "hybrid"
     ocr_enabled: bool = False
     ocr_language: str = "chi_sim+eng"

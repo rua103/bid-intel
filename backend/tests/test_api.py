@@ -1,6 +1,5 @@
 import json
 
-import httpx
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -29,7 +28,9 @@ def test_upload_html_extracts_items_and_searches(tmp_path, monkeypatch):
         assert search.json()[0]["product_name"] == "激光打印机"
 
 
-def test_configured_model_import_populates_relationship_queries(tmp_path, monkeypatch):
+def test_configured_model_import_populates_relationship_queries(
+    tmp_path, monkeypatch, stub_model_stream
+):
     monkeypatch.setattr(settings, "database_path", str(tmp_path / "model-api.db"))
     monkeypatch.setattr(settings, "model_base_url", "https://model.example/v1")
     monkeypatch.setattr(settings, "model_api_key", "test-key")
@@ -57,14 +58,7 @@ def test_configured_model_import_populates_relationship_queries(tmp_path, monkey
         "items": [],
     }
 
-    def fake_post(url, **kwargs):
-        request = httpx.Request("POST", url)
-        response_body = {
-            "choices": [{"message": {"content": json.dumps(model_output, ensure_ascii=False)}}]
-        }
-        return httpx.Response(200, json=response_body, request=request)
-
-    monkeypatch.setattr(httpx, "post", fake_post)
+    stub_model_stream(json.dumps(model_output, ensure_ascii=False))
     html = """<html><body>
       项目名称：设备采购项目 项目编号：X-2026 采购单位：某市中心医院
       供应商甲以120000元中标。供应商乙参与投标但未中标。

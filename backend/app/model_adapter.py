@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -55,6 +56,55 @@ def _compact(text: str) -> str:
     return re.sub(r"\s+", "", text)
 
 
+def _stream_completion(
+    endpoint: str,
+    api_key: str,
+    body: dict[str, object],
+    *,
+    read_timeout: int,
+    total_seconds: int,
+) -> tuple[str, dict[str, object]]:
+    """Read one SSE completion and return ``(content, usage)``.
+
+    ``read_timeout`` bounds the gap *between* chunks, not the whole generation.
+    A buffered response sends nothing until the model has finished, so the client
+    clock used to fire first on long notices; streaming turns that wall into an
+    inter-chunk idle limit. ``reasoning_content`` deltas are dropped on purpose so
+    chain-of-thought never reaches the extracted JSON.
+    """
+    parts: list[str] = []
+    usage: dict[str, object] = {}
+    deadline = time.monotonic() + max(1, total_seconds)
+    timeout = httpx.Timeout(connect=15, read=max(5, read_timeout), write=30, pool=15)
+    with httpx.stream(
+        "POST",
+        endpoint,
+        headers={"Authorization": f"Bearer {api_key}"},
+        json=body,
+        timeout=timeout,
+    ) as response:
+        response.raise_for_status()
+        for line in response.iter_lines():
+            if time.monotonic() > deadline:
+                raise httpx.ReadTimeout("模型流式响应超过总时长上限")
+            if not line.startswith("data:"):
+                continue
+            payload = line[5:].strip()
+            if not payload or payload == "[DONE]":
+                continue
+            try:
+                chunk = json.loads(payload)
+            except ValueError:
+                continue
+            if isinstance(chunk.get("usage"), dict):
+                usage = chunk["usage"]
+            for choice in chunk.get("choices") or []:
+                piece = (choice.get("delta") or {}).get("content")
+                if piece:
+                    parts.append(piece)
+    return "".join(parts), usage
+
+
 def extract_unstructured_items(
     *,
     filename: str,
@@ -88,7 +138,10 @@ def extract_unstructured_items(
     body = {
         "model": settings.model_name,
         "temperature": 0,
+        "max_tokens": max(256, settings.model_max_output_tokens),
         "response_format": {"type": "json_object"},
+        "stream": True,
+        "stream_options": {"include_usage": True},
         "messages": [
             {"role": "system", "content": PROMPT},
             {"role": "user", "content": f"来源文件：{filename}\n公告文本：\n{excerpt}"},
@@ -97,20 +150,24 @@ def extract_unstructured_items(
     try:
         if usage is not None:
             usage.requests += 1
-        response = httpx.post(
+        content, token_usage = _stream_completion(
             endpoint,
-            headers={"Authorization": f"Bearer {settings.model_api_key}"},
-            json=body,
-            timeout=max(5, settings.model_timeout_seconds),
+            settings.model_api_key,
+            body,
+            read_timeout=settings.model_timeout_seconds,
+            total_seconds=settings.model_stream_total_seconds,
         )
-        response.raise_for_status()
-        response_payload = response.json()
         if usage is not None:
             usage.successful_responses += 1
-            token_usage = response_payload.get("usage") or {}
             usage.prompt_tokens += int(token_usage.get("prompt_tokens") or 0)
             usage.completion_tokens += int(token_usage.get("completion_tokens") or 0)
-        content = response_payload["choices"][0]["message"]["content"]
+        if not content.strip():
+            return (
+                NoticeMetadata(),
+                [],
+                [],
+                [f"{filename}: 模型返回空内容（可能输出被截断或只返回了推理）"],
+            )
         content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content.strip(), flags=re.IGNORECASE)
         parsed = ModelExtractionPayload.model_validate(json.loads(content))
     except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
@@ -215,6 +272,7 @@ def test_model_connection(base_url: str, api_key: str, model_name: str) -> tuple
         "model": model_name.strip(),
         "temperature": 0,
         "max_tokens": 16,
+        "thinking": {"type": "disabled"},
         "messages": [{"role": "user", "content": "ping"}],
     }
     try:

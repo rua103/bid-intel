@@ -12,7 +12,12 @@ class Settings(BaseSettings):
     model_api_key: str = ""
     model_name: str = ""
     model_max_chars: int = 12000
-    model_timeout_seconds: int = 45
+    model_max_output_tokens: int = 4096
+    # Streaming read limit: the longest allowed gap between SSE chunks, not the
+    # total generation time (a buffered call used to die on the client clock).
+    model_timeout_seconds: int = 120
+    # Backstop against an endless stream; generation is already bounded by max_tokens.
+    model_stream_total_seconds: int = 600
     extraction_mode: str = "hybrid"
     ocr_enabled: bool = False
     ocr_language: str = "chi_sim+eng"

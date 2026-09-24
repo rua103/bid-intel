@@ -5,6 +5,7 @@ __pycache__/
 .data/
 node_modules/
 dist/
+.vite/
 .pytest_cache/
 .ruff_cache/
 tmp-*.json

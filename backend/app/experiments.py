@@ -9,8 +9,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import tempfile
 import time
 from collections.abc import Iterable
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -110,6 +113,20 @@ def load_manifest_notices(manifest_path: Path, *, limit: int = 3) -> list[list[S
     return notices
 
 
+def _write_report(path: Path, payload: str) -> None:
+    """Replace ``path`` atomically so an interrupted write cannot leave a half report."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(payload + "\n")
+        os.replace(temp_name, path)
+    except BaseException:
+        with suppress(OSError):
+            os.unlink(temp_name)
+        raise
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
@@ -117,7 +134,22 @@ def main() -> None:
     parser.add_argument("--max-model-calls", type=int, default=6)
     parser.add_argument("--mode", action="append", choices=VALID_MODES)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="覆盖已存在的 --output 文件；默认拒绝，以免上一次的对比结果被覆盖",
+    )
     args = parser.parse_args()
+    # Decide before spending anything: the comparison below is the expensive half
+    # (real model calls, minutes of wall clock) and the write is the half that fails
+    # predictably. Checking after the run throws away work that has already been paid
+    # for -- the failure mode this guard exists to prevent.
+    if args.output and args.output.exists() and not args.force:
+        parser.error(
+            f"输出文件已存在，已提前终止：{args.output}\n"
+            "本次运行会真实调用模型并消耗额度，因此不在跑完之后才失败。"
+            "需要覆盖请加 --force，或改用其他 --output 路径。"
+        )
     notices = load_manifest_notices(args.manifest, limit=max(1, min(args.limit, 100)))
     result = compare_extraction_modes(
         notices,
@@ -126,9 +158,7 @@ def main() -> None:
     )
     output = json.dumps(result, ensure_ascii=False, indent=2)
     if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        with args.output.open("x", encoding="utf-8", newline="\n") as stream:
-            stream.write(output + "\n")
+        _write_report(args.output, output)
     else:
         print(output)
 

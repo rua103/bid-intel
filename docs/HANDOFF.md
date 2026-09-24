@@ -17,12 +17,28 @@
 
 ## 二、现状一句话
 
-**管线通了，测试是绿的，但三个关键数字一个都还没有。**
+**管线通了，测试是绿的，模型抽取今天第一次真正跑出结果，但准确率依然无从谈起。**
 
-- ✅ 解析（HTML/DOCX/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端，全链路可用；`61 passed / ruff clean / 前端构建成功`。
-- ⚠️ **模型抽取此前一直是坏的**，今天才发现并修复（见第五节）。修复后的端到端验证在写本文时**仍在运行，尚无结果**。
+- ✅ 解析（HTML/DOCX/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端，全链路可用；`64 passed / 1 skipped / ruff clean`。
+- ✅ **模型抽取此前一直是坏的**，今天定位到三层叠加的原因并修复（见第五节），已用真实公告验证。
 - ❌ **没有人工金标**，所以没有任何可以对外宣称的准确率。
-- ❌ **速度远不达标**：当前架构下 20 条公告预计要几十分钟到数小时（见第四节 P1）。
+- ⚠️ **速度仍不达标**：单条公告 24～90 秒，20 条约 15～30 分钟（见第四节 P1）。
+
+修复前后同一份语料、同一个模型、同样 6 次请求（`docs/benchmarks/stream-compare-3.json`，基线是同目录的 `stream-compare-3-reasoning-on.json`）：
+
+| 指标 | 修复前 | 修复后 |
+|---|---|---|
+| `model` 模式标的数 | **0** | **19** |
+| `model` 模式主体数 | 0 | 2 |
+| `hybrid` 模式标的数 | 32 | 51 |
+| 输出 token | 24576 | 5494 |
+| 总耗时（6 次请求） | 1216.3s | **291.6s** |
+| 单条耗时 | 210 / 216 / 200s | **24.5 / 35.9 / 88.7s** |
+| 抽取成功的公告数 | **0 / 3** | **3 / 3** |
+
+修复前三条的失败形态分别是：**1 条返回空内容**（`可能输出被截断或只返回了推理`）、**2 条 `JSONDecodeError`**——都是输出被 `max_tokens` 截断的结果，不是网络或鉴权问题。
+
+> ⚠️ **但抽出来的字段很不完整**：那条 15 标的的公告只填了 `product_name` 和 `quantity`，`category` / `brand` / `model` / `unit_price` / `total_price` **全空**。任务一的覆盖率与准确性按七字段计，这是目前最大的失分点，**根因尚未定位**（要对着原文看模型的原始输出）。
 
 > ⚠️ 一个必须保持的习惯：本仓库里所有 `docs/benchmarks/*` 都是**开发验证**，不是官方成绩。合成压测更与模型准确率无关。
 
@@ -33,7 +49,7 @@
 | 1 | [`README.md`](../README.md) | 全局：能干什么、怎么跑起来、API 列表 |
 | 2 | [`docs/QUERY_SEMANTICS.md`](QUERY_SEMANTICS.md) | **任务二 25 分的核心**。五类查询当前的口径 + 一批**必须拿官方样例确认**的歧义 |
 | 3 | [`docs/EVALUATION.md`](EVALUATION.md) | 本地指标怎么算：Hungarian 一对一匹配、阈值、Accuracy 为何是 `TP/(TP+FP+FN)` |
-| 4 | [`docs/DEVELOPMENT_CORPUS.md`](DEVELOPMENT_CORPUS.md) | 开发集来源 + **今天排障的完整过程**（含刚修的两个 bug） |
+| 4 | [`docs/DEVELOPMENT_CORPUS.md`](DEVELOPMENT_CORPUS.md) | 开发集来源 + **今天排障的完整过程**：从"6 次请求全部超时"到跑通 19 条，含失败尝试与实测数字 |
 | 5 | 后端代码，按数据流读 | `schemas.py`（数据形状）→ `parsers.py`（解析）→ `model_adapter.py`（模型调用）→ `ingestion.py`（编排）→ `storage.py`（落库）→ `analytics.py`（五类查询）→ `main.py`（API） |
 | 6 | [`frontend/src/App.vue`](../frontend/src/App.vue)、[`AnnotationWorkbench.vue`](../frontend/src/components/AnnotationWorkbench.vue) | 前端两大块：主界面 + 人工标注工作台 |
 
@@ -71,13 +87,16 @@
 
 ### P1 · 模型抽取太慢（处理速率 5 分）
 
-`ingestion.py` 的 `_ingest_expanded()` 是「**每个 document 一次模型调用，且完全串行**」：
+`ingestion.py` 的 `_ingest_expanded()`（L183–204）是「**每个 document 一次模型调用，且完全串行**」：
 
 - 一条公告带 3 个附件 = 4 次**串行**调用；
 - 每次把**规则解析已经完美处理的表格文本**也一起塞进模型（`MODEL_MAX_CHARS` 默认 12000）；
-- 20 条公告 ≈ 60+ 次串行调用。
+- **hybrid 模式下无条件调用**——L195 的条件里没有"规则是否已覆盖"，规则抽全了照样发请求；
+- 关闭推理后实测单条 **24.5 / 35.9 / 88.7 秒**，20 条公告 ≈ 15～30 分钟。
 
-优化方向（按预期收益排序）：**只送规则未覆盖的残差文本** → **并发调用** → **按内容哈希缓存** → 按需跳过模型。
+最刺眼的一组对比（同一条表格型公告，`docs/benchmarks/stream-compare-3.json`）：**规则 0.01 秒抽 29 条，hybrid 花 90.8 秒才拿到 44 条**——多出的 15 条才是模型真正贡献的。现场演示时这个差距是看得见的。
+
+优化方向（按预期收益排序）：**规则已覆盖就跳过模型** → **只送规则未覆盖的残差文本** → **并发调用** → **按内容哈希缓存**。
 
 ### P2 · 其它已知欠账
 
@@ -87,7 +106,7 @@
 
 ## 五、今天修了什么（重要，别改回去）
 
-模型抽取此前**每次请求都失败**。两个独立原因，都已修复：
+模型抽取此前**每次请求都拿不到结果**，是**三层原因叠加**——只修前两层都不够：
 
 **① 非流式请求 → 读超时**
 `httpx` 的 `timeout` 是**读超时**（等下一块字节），非流式下服务端生成完成前不发任何字节，于是读超时退化成"整段生成总时长上限"。证据：6 次请求全部 `ReadTimeout`，耗时齐刷刷停在 **45.7~45.9 秒**。
@@ -104,7 +123,30 @@
 
 它把整个 `max_tokens` 预算烧在推理上，`content` 返回空串——既会造成"抽不出来"，也会因生成过久而先撞超时。**已删除，并加了回归测试锁死。**
 
-> 🚫 **不要**再往请求里加 `thinking` 或 `reasoning_effort`。要加必须先重新实测这三个数字。
+**③ 推理 token 吃掉输出预算 ← 真正卡住抽取的那一层**
+
+> ⚠️ **上面那张表最后一行是个陷阱。** "不带任何参数就正常"是**十几个 token 的短 ping**测出来的。换成**真实公告**（12000 字符输入、要求输出完整 JSON）后，不带参数依然会先烧掉约 **5000 个推理 token**，再撞上 `max_tokens=4096`，输出被截断——表现出来就是"一条都抽不出来"。三条真实公告各耗 **200～216 秒**，全部 0 条结果，失败形态是 **1 条空内容 + 2 条 `JSONDecodeError`**（见 `docs/benchmarks/stream-compare-3-reasoning-on.json`）。
+
+真正有效的开关是 **`chat_template_kwargs`**（同一网关、同一条真实公告）：
+
+| 写法 | 推理 token | 单条耗时 | 结果 |
+|---|---|---|---|
+| `chat_template_kwargs: {enable_thinking: false}` | **0** | **~35s** | JSON 完整 ✅ |
+| 顶层 `thinking` | ~5000 | ~213s | 截断 ❌ |
+| 顶层 `enable_thinking` | ~5000 | ~213s | 截断 ❌ |
+| 顶层 `reasoning_effort` | ~5000 | ~213s | 截断 ❌ |
+
+**三个顶层字段全部被网关忽略**，只有 chat-template 形式生效。`model_adapter.py` 里因此写的是：
+
+```python
+body["chat_template_kwargs"] = {"enable_thinking": False}
+```
+
+由 `MODEL_DISABLE_THINKING` 控制（默认 `true`）；换到不接受该字段的端点时才设为 `false`。
+
+> 🚫 **不要**把它"简化"成顶层 `thinking` / `enable_thinking` / `reasoning_effort`——实测三个都无效。
+> 🚫 **不要**再加 `thinking: {"type": "disabled"}`——实测返回空内容。
+> `tests/test_model_adapter.py` 已锁死这个 payload 形状。要改必须先重新实测上表。
 
 ## 六、队友不写代码也能做的事
 
@@ -147,5 +189,5 @@ npm run dev
 1. **不要把 `backend/.data/` 或 `backend/.env` 打包外发**——`model_config.json` 里是**明文 API Key**（已 gitignore，不会被提交，但别手动发出去）。
 2. **不要**把 `docs/benchmarks/*` 说成官方成绩；合成数据与模型准确率无关。
 3. **不要**把自动抽取结果当金标；标注集与验证集要分开。
-4. **不要**给模型请求加回 `thinking` / `reasoning_effort`（见第五节）。
+4. **不要**给模型请求加回顶层 `thinking` / `enable_thinking` / `reasoning_effort`，也**不要**把 `chat_template_kwargs` 那个写法"简化"掉（见第五节）。
 5. 官方数据到手前，**不要**对外宣称任何准确率数字。

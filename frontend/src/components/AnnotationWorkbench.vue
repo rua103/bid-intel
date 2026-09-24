@@ -16,6 +16,7 @@ const error = ref('')
 const report = ref(null)
 const markdown = ref('')
 const reviewed = ref(false)
+const reviewedSnapshot = ref(null)
 const notice = computed(() => gold.value?.notices?.[activeNotice.value])
 const pkg = computed(() => notice.value?.packages?.[activePackage.value])
 const source = computed(() => sources.value.find(s => s.notice_id === notice.value?.notice_id))
@@ -24,21 +25,61 @@ const clone = value => JSON.parse(JSON.stringify(value))
 const uid = prefix => `${prefix}-${crypto.randomUUID()}`
 const storageKey = 'bid-intel-annotation-v1'
 
-function resetReport() { report.value = null; markdown.value = ''; reviewed.value = false }
+function resetReport() { report.value = null; markdown.value = '' }
+function restoreReviewStatus(value) {
+  reviewed.value = value?.status === 'reviewed'
+  reviewedSnapshot.value = reviewed.value ? JSON.stringify(value) : null
+}
+function setReviewed(value) {
+  reviewed.value = value
+  if (gold.value) gold.value.status = value ? 'reviewed' : 'draft'
+  reviewedSnapshot.value = value ? JSON.stringify(gold.value) : null
+  resetReport()
+}
+function findItem(dataset, noticeId, packageId, itemId) {
+  return dataset?.notices?.find(entry => entry.notice_id === noticeId)
+    ?.packages?.find(entry => entry.package_id === packageId)
+    ?.items?.find(entry => entry.item_id === itemId)
+}
+const fieldErrors = computed(() => (report.value?.alignments || []).flatMap(alignment =>
+  Object.entries(alignment.fields)
+    .filter(([, status]) => ['wrong', 'missing', 'extra'].includes(status))
+    .map(([field, status]) => ({
+      noticeId: alignment.notice_id,
+      packageId: alignment.package_id,
+      field: fields.find(([key]) => key === field)?.[1] || field,
+      status: { wrong: '值错误', missing: '漏提', extra: '多提' }[status],
+      goldValue: findItem(gold.value, alignment.notice_id, alignment.package_id, alignment.gold_item_id)?.[field] ?? null,
+      predictedValue: findItem(predictions.value, alignment.notice_id, alignment.package_id, alignment.predicted_item_id)?.[field] ?? null,
+    }))
+))
 watch(activeNotice, () => { activePackage.value = 0 })
 watch(gold, () => {
   if (gold.value) {
-    resetReport()
-    gold.value.status = 'draft'
+    if (reviewedSnapshot.value && JSON.stringify(gold.value) !== reviewedSnapshot.value) {
+      reviewedSnapshot.value = null
+      reviewed.value = false
+      gold.value.status = 'draft'
+      resetReport()
+    } else if (!reviewedSnapshot.value) {
+      resetReport()
+    }
     try { localStorage.setItem(storageKey, JSON.stringify({ gold: gold.value, predictions: predictions.value, sources: sources.value })) }
     catch { message.value = '浏览器草稿空间不足，请立即导出 gold JSON 保存。' }
+  }
+}, { deep: true })
+watch(predictions, () => {
+  resetReport()
+  if (gold.value) {
+    try { localStorage.setItem(storageKey, JSON.stringify({ gold: gold.value, predictions: predictions.value, sources: sources.value })) }
+    catch { message.value = '浏览器草稿空间不足，请立即导出 JSON 保存。' }
   }
 }, { deep: true })
 
 onMounted(() => {
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) || 'null')
-    if (saved?.gold) { gold.value = saved.gold; predictions.value = saved.predictions; sources.value = saved.sources || []; message.value = '已恢复浏览器中的标注草稿。' }
+    if (saved?.gold) { restoreReviewStatus(saved.gold); gold.value = saved.gold; predictions.value = saved.predictions; sources.value = saved.sources || []; message.value = '已恢复浏览器中的标注数据。' }
   } catch { message.value = '旧草稿无法恢复，请导入之前导出的 JSON。' }
 })
 
@@ -58,6 +99,7 @@ async function generate() {
     const response = await fetch(`${props.apiBase}/api/v1/evaluation/draft?mode=${mode.value}`, { method: 'POST', body })
     const data = await response.json()
     if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
+    reviewedSnapshot.value = null; reviewed.value = false; resetReport()
     predictions.value = clone(data.predictions); sources.value = data.sources
     gold.value = clone(data.gold); activeNotice.value = 0; activePackage.value = 0
     message.value = `已生成 ${gold.value.notices.length} 条待核验草稿。${data.orphan_files.length ? ` ${data.orphan_files.length} 个附件未匹配，需单独处理。` : ''}`
@@ -73,6 +115,7 @@ async function loadJson(event, target) {
     if (data.schema_version !== '1.0' || !Array.isArray(data.notices)) throw new Error('请使用 schema_version 为 1.0 的评测 JSON。')
     if (target === 'gold') {
       if (!['draft', 'reviewed'].includes(data.status)) throw new Error('请导入 gold，不是预测结果。')
+      restoreReviewStatus(data)
       gold.value = data; sources.value = []; activeNotice.value = 0; activePackage.value = 0
     } else {
       if (data.status !== 'predicted') throw new Error('预测 JSON 的 status 应为 predicted。')
@@ -148,13 +191,16 @@ async function evaluate() {
           <p class="annotation-note">中标方应同时列入投标主体。联合体保留原文整体身份；不要把同一笔中标金额重复分配给各成员。</p>
         </div>
       </div>
-      <label class="review-check"><input v-model="reviewed" type="checkbox" />我已对照原文核验本文件全部 {{ gold.notices.length }} 条公告，补齐遗漏并删除错误候选。</label>
+      <label class="review-check"><input :checked="reviewed" type="checkbox" @change="setReviewed($event.target.checked)" />我已对照原文核验本文件全部 {{ gold.notices.length }} 条公告，补齐遗漏并删除错误候选。</label>
       <div class="annotation-toolbar"><button class="secondary" @click="download(reviewed ? 'gold.reviewed.json' : 'gold.draft.json', preparedGold())">导出 {{ reviewed ? '已核验 gold' : 'gold 草稿' }}</button><button class="secondary" :disabled="!predictions" @click="download('predictions.json', predictions)">导出原始预测</button><button class="primary" :disabled="!reviewed || !predictions || busy" @click="evaluate">计算指标与报告</button></div>
     </div>
     <div v-if="report" class="evaluation-results">
       <p class="annotation-warning">以下为本地验证口径：准确率 = TP / (TP + FP + FN)，非官方评分。加权值 = 准确率 × 0.4 + 精确率 × 0.3 + 召回率 × 0.3。N/A 表示无可评分样本。</p>
       <div class="metric-grid"><div v-for="[key, label] in [['accuracy','字段准确率'],['precision','字段精确率'],['recall','字段召回率'],['f1','字段 F1'],['weighted_score','字段加权值']]" :key="key"><small>{{ label }}</small><strong>{{ metric(report.field_micro[key]) }}</strong></div></div>
       <div class="table-wrap"><table><thead><tr><th>粒度</th><th>TP / FP / FN</th><th>准确率</th><th>精确率</th><th>召回率</th><th>F1</th></tr></thead><tbody><tr v-for="[name, result] in Object.entries({ ...report.by_field, records: report.records, ...report.entities })" :key="name"><td>{{ fields.find(([key]) => key === name)?.[1] || name }}</td><td>{{ result.tp }} / {{ result.fp }} / {{ result.fn }}</td><td>{{ metric(result.accuracy) }}</td><td>{{ metric(result.precision) }}</td><td>{{ metric(result.recall) }}</td><td>{{ metric(result.f1) }}</td></tr></tbody></table></div>
+      <h4>逐字段错误（{{ fieldErrors.length }}）</h4>
+      <div v-if="fieldErrors.length" class="table-wrap"><table><thead><tr><th>公告 / 采购包</th><th>字段</th><th>错误类型</th><th>人工答案</th><th>系统答案</th></tr></thead><tbody><tr v-for="(entry, index) in fieldErrors" :key="index"><td>{{ entry.noticeId }} / {{ entry.packageId }}</td><td>{{ entry.field }}</td><td>{{ entry.status }}</td><td>{{ entry.goldValue ?? '—' }}</td><td>{{ entry.predictedValue ?? '—' }}</td></tr></tbody></table></div>
+      <p v-else class="annotation-note">没有发现标的物七字段错误。实体差异请结合上表的实体指标核对原文。</p>
       <div class="annotation-toolbar"><button class="secondary" @click="download('evaluation-report.json', report)">导出报告 JSON</button><button class="secondary" @click="download('evaluation-report.md', markdown, 'text/markdown')">导出 Markdown 报告</button></div>
     </div>
   </section>

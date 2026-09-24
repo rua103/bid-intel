@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS bid_participations (
     organization_id INTEGER NOT NULL REFERENCES organizations(id),
     raw_name TEXT NOT NULL,
     outcome TEXT NOT NULL DEFAULT 'unknown',
+    consortium_members_json TEXT NOT NULL DEFAULT '[]',
     source_file TEXT,
     source_location TEXT,
     source_evidence TEXT,
@@ -102,13 +103,22 @@ CREATE INDEX IF NOT EXISTS idx_awards_org ON awards(organization_id, package_id)
 """
 
 
+class _ClosingConnection(sqlite3.Connection):
+    """Make ``with connect(...)`` release Windows file handles after commit."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        result = super().__exit__(exc_type, exc_value, traceback)
+        self.close()
+        return result
+
+
 def _db_path(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
 
 
 def connect(path: Path) -> sqlite3.Connection:
-    connection = sqlite3.connect(_db_path(path))
+    connection = sqlite3.connect(_db_path(path), factory=_ClosingConnection)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
@@ -123,6 +133,11 @@ def initialize(path: Path) -> None:
             }
             if "source_evidence" not in columns:
                 connection.execute(f"ALTER TABLE {table} ADD COLUMN source_evidence TEXT")
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(bid_participations)")}
+        if "consortium_members_json" not in columns:
+            connection.execute(
+                "ALTER TABLE bid_participations ADD COLUMN consortium_members_json TEXT NOT NULL DEFAULT '[]'"
+            )
 
 
 def _decimal_text(value: Decimal | None) -> str | None:
@@ -200,21 +215,26 @@ def save_import(path: Path, result: ImportResult, source_text: str = "") -> Impo
             ),
         )
         project_id = int(project_cursor.lastrowid)
-        package_cursor = connection.execute(
-            """INSERT INTO packages(project_id, package_code, package_name, package_award_total)
-               VALUES (?, 'default', NULL, ?)""",
-            (project_id, _decimal_text(result.metadata.announced_total_award)),
-        )
-        package_id = int(package_cursor.lastrowid)
+        codes = sorted({row.package_code for row in [*result.items, *result.participants]}) or ["default"]
+        package_ids = {}
+        for code in codes:
+            package_cursor = connection.execute(
+                """INSERT INTO packages(project_id, package_code, package_name, package_award_total)
+                   VALUES (?, ?, NULL, ?)""",
+                (project_id, code, _decimal_text(result.metadata.announced_total_award)
+                 if len(codes) == 1 else None),
+            )
+            package_ids[code] = int(package_cursor.lastrowid)
         for participant in result.participants:
+            package_id = package_ids[participant.package_code]
             organization_id = _upsert_organization(
                 connection, participant.organization_name, notice_id
             )
             connection.execute(
                 """INSERT OR IGNORE INTO bid_participations (
                     package_id, organization_id, raw_name, outcome,
-                    source_file, source_location, source_evidence
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    source_file, source_location, source_evidence, consortium_members_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     package_id,
                     organization_id,
@@ -223,6 +243,7 @@ def save_import(path: Path, result: ImportResult, source_text: str = "") -> Impo
                     participant.source_file,
                     participant.source_location,
                     participant.source_evidence,
+                    json.dumps(participant.consortium_members, ensure_ascii=False),
                 ),
             )
             if participant.outcome == "winner":
@@ -242,6 +263,7 @@ def save_import(path: Path, result: ImportResult, source_text: str = "") -> Impo
                     ),
                 )
         for item in result.items:
+            package_id = package_ids[item.package_code]
             connection.execute(
                 """INSERT INTO procurement_items (
                     notice_id, package_id, product_name, category, brand, model,

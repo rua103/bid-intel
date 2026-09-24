@@ -15,6 +15,8 @@ from app.config import (
     save_model_config,
     settings,
 )
+from app.evaluation_api import router as evaluation_router
+from app.graph import sqlite_graph
 from app.ingestion import import_batch, import_notice
 from app.model_adapter import test_model_connection
 from app.parsers import SourceDocument
@@ -47,6 +49,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(evaluation_router)
+
+
+@app.get("/api/v1/graph")
+def get_graph(limit: int = Query(default=50, ge=1, le=200)):
+    return sqlite_graph(settings.resolved_database_path, limit=limit)
 
 
 @app.get("/api/v1/health")

@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "status": "predicted",
+  "notices": [
+    {
+      "notice_id": "notice-demo-001",
+      "packages": [
+        {
+          "package_id": "default",
+          "items": [
+            {
+              "item_id": "prediction-run-001/item-0001",
+              "product_name": "激光打印机",
+              "category": "办公设备",
+              "brand": "品牌乙",
+              "model": "X-1",
+              "unit_price": "1000.00",
+              "quantity": 2,
+              "total_price": "2000.00"
+            }
+          ],
+          "buyer": {"entity_id": "prediction-buyer-1", "name": "示例市采购中心"},
+          "winners": [
+            {"entity_id": "prediction-winner-1", "name": "示例供应商甲", "award_amount": "2000.01"}
+          ],
+          "bidders": [
+            {"entity_id": "prediction-winner-1", "name": "示例供应商甲", "outcome": "winner"},
+            {"entity_id": "prediction-bidder-2", "name": "示例供应商乙", "outcome": "nonwinner"}
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ItemCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    package_code: str = Field(default="default", min_length=1)
     product_name: str | None = None
     category: str | None = None
     brand: str | None = None
@@ -31,6 +32,8 @@ class NoticeMetadata(BaseModel):
 
 
 class ParticipantCandidate(BaseModel):
+    package_code: str = Field(default="default", min_length=1)
+    consortium_members: list[str] = Field(default_factory=list)
     organization_name: str
     outcome: Literal["winner", "nonwinner", "unknown"] = "unknown"
     award_amount: Decimal | None = None
@@ -78,6 +81,7 @@ class ExtractionPayload(BaseModel):
 
 
 class ModelItemPayload(BaseModel):
+    package_code: str = Field(default="default", min_length=1)
     product_name: str | None = None
     category: str | None = None
     brand: str | None = None
@@ -90,6 +94,8 @@ class ModelItemPayload(BaseModel):
 
 
 class ModelParticipantPayload(BaseModel):
+    package_code: str = Field(default="default", min_length=1)
+    consortium_members: list[str] = Field(default_factory=list)
     organization_name: str
     outcome: Literal["winner", "nonwinner", "unknown"] = "unknown"
     award_amount: Decimal | None = None

@@ -1,5 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import AnnotationWorkbench from './components/AnnotationWorkbench.vue'
+import RelationshipGraph from './components/RelationshipGraph.vue'
 
 const apiBase = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
 const selectedFiles = ref([])
@@ -411,6 +413,8 @@ onMounted(async () => {
       <p v-if="analyticsError" class="error">{{ analyticsError }}</p>
     </section>
 
+    <AnnotationWorkbench :api-base="apiBase" />
+    <RelationshipGraph :api-base="apiBase" :refresh-key="health?.notices_imported || 0" />
     <footer>数据抽取为候选结果，进入竞赛验证集前应进行人工抽样核验。<span>数据留痕 · 结果可核验 · 关系可追溯</span></footer>
   </main>
 </template>

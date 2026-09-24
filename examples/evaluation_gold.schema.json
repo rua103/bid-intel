@@ -1,0 +1,308 @@
+{
+  "$defs": {
+    "EvaluationBidder": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "winner",
+            "nonwinner",
+            "unknown"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "outcome"
+      ],
+      "title": "EvaluationBidder",
+      "type": "object"
+    },
+    "EvaluationEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name"
+      ],
+      "title": "EvaluationEntity",
+      "type": "object"
+    },
+    "EvaluationItem": {
+      "additionalProperties": false,
+      "properties": {
+        "item_id": {
+          "title": "Item Id",
+          "type": "string"
+        },
+        "product_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Product Name"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Category"
+        },
+        "brand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Brand"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Model"
+        },
+        "unit_price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Unit Price"
+        },
+        "quantity": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Quantity"
+        },
+        "total_price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Price"
+        }
+      },
+      "required": [
+        "item_id",
+        "product_name",
+        "category",
+        "brand",
+        "model",
+        "unit_price",
+        "quantity",
+        "total_price"
+      ],
+      "title": "EvaluationItem",
+      "type": "object"
+    },
+    "EvaluationNotice": {
+      "additionalProperties": false,
+      "properties": {
+        "notice_id": {
+          "title": "Notice Id",
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/$defs/EvaluationPackage"
+          },
+          "title": "Packages",
+          "type": "array"
+        }
+      },
+      "required": [
+        "notice_id",
+        "packages"
+      ],
+      "title": "EvaluationNotice",
+      "type": "object"
+    },
+    "EvaluationPackage": {
+      "additionalProperties": false,
+      "properties": {
+        "package_id": {
+          "title": "Package Id",
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/EvaluationItem"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "buyer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EvaluationEntity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "winners": {
+          "items": {
+            "$ref": "#/$defs/EvaluationWinner"
+          },
+          "title": "Winners",
+          "type": "array"
+        },
+        "bidders": {
+          "items": {
+            "$ref": "#/$defs/EvaluationBidder"
+          },
+          "title": "Bidders",
+          "type": "array"
+        }
+      },
+      "required": [
+        "package_id",
+        "items",
+        "buyer",
+        "winners",
+        "bidders"
+      ],
+      "title": "EvaluationPackage",
+      "type": "object"
+    },
+    "EvaluationWinner": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "award_amount": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Award Amount"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "award_amount"
+      ],
+      "title": "EvaluationWinner",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "notices": {
+      "items": {
+        "$ref": "#/$defs/EvaluationNotice"
+      },
+      "title": "Notices",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "reviewed"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "notices",
+    "status"
+  ],
+  "title": "GoldDataset",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Structural schema. Python validators additionally enforce scoped ID uniqueness, nonempty identifiers/entities/items, and supported finite numeric forms. See docs/EVALUATION.md."
+}

@@ -9,6 +9,8 @@
 - SQLite 保存采购单位、项目、采购包、投标主体、中标记录和标的物；支持标的物与主体检索。
 - 已实现赛题要求的五类关系查询，具体统计定义及待官方样例确认的歧义见 `docs/QUERY_SEMANTICS.md`。
 - Vue 页面支持导入、检索和关系分析结果展示。
+- 已加入人工标注工作台：从材料生成规则/模型/混合草稿，逐条修正七字段及主体，导出独立的 `gold`/`predictions` JSON 并计算本地指标。
+- 已加入合成压测、真实公开开发集采集器、SQLite 图谱投影和可选 Neo4j 导出；这些结果均明确标注为开发验证，不是官方成绩。
 - 模型适配层支持配置合规的 OpenAI-compatible Qwen/DeepSeek 服务；未配置模型时，只做可解释的表格列映射，不猜测缺失字段。
 - 后端测试、代码检查和前端构建已通过；当前还没有用官方数据验证准确率或查询基准。
 
@@ -47,6 +49,8 @@ npm run dev
 - `POST /api/v1/notices/import-batch`：上传包含多份 HTML 公告及配套附件的 ZIP，按文件名共同前缀分组导入并返回耗时、未匹配附件和逐公告摘要。
 - `GET /api/v1/items`：按产品名、品牌、品目和型号检索。
 - `GET /api/v1/organizations`：查看可用于关系查询的主体。
+- `GET /api/v1/evaluation/schema`、`POST /api/v1/evaluation/draft`、`POST /api/v1/evaluation/run`：标注草稿、gold/predictions 评测和报告导出。
+- `GET /api/v1/graph`：读取 SQLite 图谱可视化投影。
 - `GET /api/v1/analytics/buyers/{buyer_id}/awardees`
 - `GET /api/v1/analytics/buyers/{buyer_id}/bidders`
 - `GET /api/v1/analytics/suppliers/{supplier_id}/co-bidders`
@@ -58,7 +62,7 @@ npm run dev
 
 ## 下一步
 
-1. 获取官方训练数据和允许使用的模型 API 配置，导入样本并核验公告与附件分组。
-2. 人工标注一小批验证数据，测量七个标的物字段的准确率、精确率和召回率，再改进抽取与名称归一化。
+1. 用标注工作台核验真实开发集，并把训练/提示调优集与留出验证集分开。
+2. 根据验证集测量七个标的物字段的准确率、精确率和召回率，再改进抽取与名称归一化。
 3. 根据官方样例确认五类关系查询的计数和金额口径，并逐条对照基准答案。
 4. 增加图片 OCR、复杂 PDF 表格支持和人工核验/指标报告，再准备演示与提交材料。

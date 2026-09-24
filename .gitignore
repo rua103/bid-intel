@@ -7,6 +7,8 @@ node_modules/
 dist/
 .pytest_cache/
 .ruff_cache/
+tmp-*.json
+tmp-*.md
 *.egg-info/
 .env.*
 !.env.example

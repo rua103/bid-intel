@@ -1,0 +1,1436 @@
+{
+  "schema_version": 1,
+  "purpose": "development_mode_comparison_not_accuracy_evaluation",
+  "modes": [
+    "rules",
+    "model",
+    "hybrid"
+  ],
+  "notice_count": 3,
+  "model_name": "deepseek-v4-pro",
+  "elapsed_seconds": 274.6039,
+  "model_usage": {
+    "requests": 6,
+    "successful_responses": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "max_calls": 6,
+    "exhausted": false
+  },
+  "totals": {
+    "rules": {
+      "notices": 3,
+      "items_found": 32,
+      "participants_found": 0,
+      "warnings": 3
+    },
+    "model": {
+      "notices": 3,
+      "items_found": 0,
+      "participants_found": 0,
+      "warnings": 3
+    },
+    "hybrid": {
+      "notices": 3,
+      "items_found": 32,
+      "participants_found": 0,
+      "warnings": 3
+    }
+  },
+  "notices": {
+    "rules": [
+      {
+        "notice_id": 0,
+        "source_files": [
+          "912477ae89e3b441.html"
+        ],
+        "items_found": 0,
+        "participants_found": 0,
+        "warnings": [
+          "规则基线：不调用模型；仅提取表格标的与明确标签元数据"
+        ],
+        "elapsed_seconds": 0.0215,
+        "item_fields": {
+          "product_name": 0,
+          "category": 0,
+          "brand": 0,
+          "model": 0,
+          "quantity": 0,
+          "unit_price": 0,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "912477ae89e3b441.html"
+          ],
+          "items_found": 0,
+          "items": [],
+          "metadata": {
+            "project_name": null,
+            "project_number": "330381263161240000010-ZRCG20261019 二、",
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "规则基线：不调用模型；仅提取表格标的与明确标签元数据"
+          ]
+        }
+      },
+      {
+        "notice_id": 0,
+        "source_files": [
+          "78552f907a9bc527.html"
+        ],
+        "items_found": 3,
+        "participants_found": 0,
+        "warnings": [
+          "规则基线：不调用模型；仅提取表格标的与明确标签元数据"
+        ],
+        "elapsed_seconds": 0.0084,
+        "item_fields": {
+          "product_name": 3,
+          "category": 3,
+          "brand": 3,
+          "model": 3,
+          "quantity": 3,
+          "unit_price": 3,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "78552f907a9bc527.html"
+          ],
+          "items_found": 3,
+          "items": [
+            {
+              "package_code": "default",
+              "product_name": "便携式电动起立床",
+              "category": "A02320800",
+              "brand": "人来康复",
+              "model": "RLRF212",
+              "quantity": "1",
+              "quantity_unit": "(套)",
+              "unit_price": "13000.00",
+              "total_price": null,
+              "source_file": "78552f907a9bc527.html",
+              "source_location": "table:3/row:2",
+              "source_evidence": "A02320800 | A02320800 物理治疗、康复及体育治疗仪器设备 | 便携式电动起立床 | 人来康复 | RLRF212 | 1(套) | 13,000.00",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "default",
+              "product_name": "中药熏蒸治疗仪",
+              "category": "A02320800",
+              "brand": "倍益康",
+              "model": "13000，QL/XZ -IIA",
+              "quantity": "2",
+              "quantity_unit": "(套)",
+              "unit_price": "18000.00",
+              "total_price": null,
+              "source_file": "78552f907a9bc527.html",
+              "source_location": "table:3/row:3",
+              "source_evidence": "A02320800 | A02320800 物理治疗、康复及体育治疗仪器设备 | 中药熏蒸治疗仪 | 倍益康 | 13000，QL/XZ -IIA | 2(套) | 18,000.00",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "default",
+              "product_name": "主被动训练仪",
+              "category": "A02320800",
+              "brand": "人来康复",
+              "model": "上肢：RLMP405；下肢：RLMP402",
+              "quantity": "10",
+              "quantity_unit": "(套)",
+              "unit_price": "45500.00",
+              "total_price": null,
+              "source_file": "78552f907a9bc527.html",
+              "source_location": "table:3/row:4",
+              "source_evidence": "A02320800 | A02320800 物理治疗、康复及体育治疗仪器设备 | 主被动训练仪 | 人来康复 | 上肢：RLMP405；下肢：RLMP402 | 10(套) | 45,500.00",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            }
+          ],
+          "metadata": {
+            "project_name": null,
+            "project_number": "N5103012026000302 二、",
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "规则基线：不调用模型；仅提取表格标的与明确标签元数据"
+          ]
+        }
+      },
+      {
+        "notice_id": 0,
+        "source_files": [
+          "031f976924d449e1.html"
+        ],
+        "items_found": 29,
+        "participants_found": 0,
+        "warnings": [
+          "规则基线：不调用模型；仅提取表格标的与明确标签元数据"
+        ],
+        "elapsed_seconds": 0.0081,
+        "item_fields": {
+          "product_name": 29,
+          "category": 0,
+          "brand": 0,
+          "model": 0,
+          "quantity": 13,
+          "unit_price": 0,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "031f976924d449e1.html"
+          ],
+          "items_found": 29,
+          "items": [
+            {
+              "package_code": "三、中标情况",
+              "product_name": "三、中标情况",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:10",
+              "source_evidence": "三、中标情况",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "包号 采购内容 供应商名称 地 址 中标金额 单位 备注信息 豫政采(2)20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "product_name": "包号 采购内容 供应商名称 地 址 中标金额 单位 备注信息 豫政采(2)20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2",
+              "quantity_unit": ")20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:11",
+              "source_evidence": "包号 采购内容 供应商名称 地 址 中标金额 单位 备注信息 豫政采(2)20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元 | 包号 | 采购内容 | 供应商名称 | 地 址 | 中标金额 | 单位 | 备注信息 | 豫政采(2)20261526-1 | 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 | 河南诺舟科技发展有限公司 | 河南省郑州市金水区姚砦路133号12号楼2404室 | 1,166,000.00 | 元 | 评审总得分:96.25分 | 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元 | 序号 | 名称 | 品牌（如有） | 规格型号 | 数量 | 单价 | 1 | 见附件 | 见附件 | 见附件 | 见附件 | 见附件元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "包号",
+              "product_name": "包号",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:12",
+              "source_evidence": "包号 | 采购内容 | 供应商名称 | 地 址 | 中标金额 | 单位 | 备注信息",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "豫政采(2)20261526-1",
+              "product_name": "豫政采(2)20261526-1",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2",
+              "quantity_unit": ")20261526-1",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:13",
+              "source_evidence": "豫政采(2)20261526-1 | 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 | 河南诺舟科技发展有限公司 | 河南省郑州市金水区姚砦路133号12号楼2404室 | 1,166,000.00 | 元 | 评审总得分:96.25分",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "product_name": "序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": "见附件 见附件 见附件 见附件 见附件元",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:14",
+              "source_evidence": "序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元 | 序号 | 名称 | 品牌（如有） | 规格型号 | 数量 | 单价 | 1 | 见附件 | 见附件 | 见附件 | 见附件 | 见附件元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "序号",
+              "product_name": "序号",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:15",
+              "source_evidence": "序号 | 名称 | 品牌（如有） | 规格型号 | 数量 | 单价",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "1",
+              "product_name": "1",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:16",
+              "source_evidence": "1 | 见附件 | 见附件 | 见附件 | 见附件 | 见附件元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "四、评审专家名单",
+              "product_name": "四、评审专家名单",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:17",
+              "source_evidence": "四、评审专家名单",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "张征荣、易明林、祝卿、杨世清、刘恒（采购人代表）",
+              "product_name": "张征荣、易明林、祝卿、杨世清、刘恒（采购人代表）",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:18",
+              "source_evidence": "张征荣、易明林、祝卿、杨世清、刘恒（采购人代表）",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "五、代理服务收费标准及金额：",
+              "product_name": "五、代理服务收费标准及金额：",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:19",
+              "source_evidence": "五、代理服务收费标准及金额：",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "收费标准：采购代理机构按照计价格[2002]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "product_name": "收费标准：采购代理机构按照计价格[2002]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2002",
+              "quantity_unit": "]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:20",
+              "source_evidence": "收费标准：采购代理机构按照计价格[2002]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "收费金额：11,778.00元",
+              "product_name": "收费金额：11,778.00元",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "11778.00",
+              "quantity_unit": "元",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:21",
+              "source_evidence": "收费金额：11,778.00元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "六、中标公告发布的媒介及中标公告期限",
+              "product_name": "六、中标公告发布的媒介及中标公告期限",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:22",
+              "source_evidence": "六、中标公告发布的媒介及中标公告期限",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "本次中标公告在《河南省政府采购网》《中国政府采购网》、《河南省公共资源交易中心网》上发布，中标公告期限为1个工作日。",
+              "product_name": "本次中标公告在《河南省政府采购网》《中国政府采购网》、《河南省公共资源交易中心网》上发布，中标公告期限为1个工作日。",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": "个工作日。",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:23",
+              "source_evidence": "本次中标公告在《河南省政府采购网》《中国政府采购网》、《河南省公共资源交易中心网》上发布，中标公告期限为1个工作日。",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "七、其他补充事宜",
+              "product_name": "七、其他补充事宜",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:24",
+              "source_evidence": "七、其他补充事宜",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "各有关当事人如对结果有异议，可以在公告期结束之日起七个工作日内，按照采购文件规定的方式提交质疑函。逾期提交的质疑函将不予受理。",
+              "product_name": "各有关当事人如对结果有异议，可以在公告期结束之日起七个工作日内，按照采购文件规定的方式提交质疑函。逾期提交的质疑函将不予受理。",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:25",
+              "source_evidence": "各有关当事人如对结果有异议，可以在公告期结束之日起七个工作日内，按照采购文件规定的方式提交质疑函。逾期提交的质疑函将不予受理。",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "八、凡对本次公告内容提出询问，请按以下方式联系",
+              "product_name": "八、凡对本次公告内容提出询问，请按以下方式联系",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:26",
+              "source_evidence": "八、凡对本次公告内容提出询问，请按以下方式联系",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "1. 采购人信息",
+              "product_name": "1. 采购人信息",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": ". 采购人信息",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:27",
+              "source_evidence": "1. 采购人信息",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "名称：河南省科学院材料研究所",
+              "product_name": "名称：河南省科学院材料研究所",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:28",
+              "source_evidence": "名称：河南省科学院材料研究所",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "地址：河南省郑州市高新区长椿路6号3号楼",
+              "product_name": "地址：河南省郑州市高新区长椿路6号3号楼",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "6",
+              "quantity_unit": "号3号楼",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:29",
+              "source_evidence": "地址：河南省郑州市高新区长椿路6号3号楼",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系人：潘正伟",
+              "product_name": "联系人：潘正伟",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:30",
+              "source_evidence": "联系人：潘正伟",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系方式：18616010890",
+              "product_name": "联系方式：18616010890",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "18616010890",
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:31",
+              "source_evidence": "联系方式：18616010890",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "2.采购代理机构信息（如有）",
+              "product_name": "2.采购代理机构信息（如有）",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2",
+              "quantity_unit": ".采购代理机构信息（如有）",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:32",
+              "source_evidence": "2.采购代理机构信息（如有）",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "名称：中兴豫建设管理有限公司",
+              "product_name": "名称：中兴豫建设管理有限公司",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:33",
+              "source_evidence": "名称：中兴豫建设管理有限公司",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "地址：郑州市建业总部港D座",
+              "product_name": "地址：郑州市建业总部港D座",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:34",
+              "source_evidence": "地址：郑州市建业总部港D座",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系人：郑宁飞、郜琳娜、韩嵘",
+              "product_name": "联系人：郑宁飞、郜琳娜、韩嵘",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:35",
+              "source_evidence": "联系人：郑宁飞、郜琳娜、韩嵘",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系方式：0371-86258838、13592672705",
+              "product_name": "联系方式：0371-86258838、13592672705",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "371",
+              "quantity_unit": "-86258838、13592672705",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:36",
+              "source_evidence": "联系方式：0371-86258838、13592672705",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "3.项目联系方式",
+              "product_name": "3.项目联系方式",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "3",
+              "quantity_unit": ".项目联系方式",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:37",
+              "source_evidence": "3.项目联系方式",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "项目联系人：郑宁飞、郜琳娜、韩嵘",
+              "product_name": "项目联系人：郑宁飞、郜琳娜、韩嵘",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:38",
+              "source_evidence": "项目联系人：郑宁飞、郜琳娜、韩嵘",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            }
+          ],
+          "metadata": {
+            "project_name": null,
+            "project_number": "豫财招标采购-2026-1094 2、采购",
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "规则基线：不调用模型；仅提取表格标的与明确标签元数据"
+          ]
+        }
+      }
+    ],
+    "model": [
+      {
+        "notice_id": 0,
+        "source_files": [
+          "912477ae89e3b441.html"
+        ],
+        "items_found": 0,
+        "participants_found": 0,
+        "warnings": [
+          "912477ae89e3b441.html: 模型抽取失败（ReadTimeout）"
+        ],
+        "elapsed_seconds": 45.9078,
+        "item_fields": {
+          "product_name": 0,
+          "category": 0,
+          "brand": 0,
+          "model": 0,
+          "quantity": 0,
+          "unit_price": 0,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "912477ae89e3b441.html"
+          ],
+          "items_found": 0,
+          "items": [],
+          "metadata": {
+            "project_name": null,
+            "project_number": null,
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "912477ae89e3b441.html: 模型抽取失败（ReadTimeout）"
+          ]
+        }
+      },
+      {
+        "notice_id": 0,
+        "source_files": [
+          "78552f907a9bc527.html"
+        ],
+        "items_found": 0,
+        "participants_found": 0,
+        "warnings": [
+          "78552f907a9bc527.html: 模型抽取失败（ReadTimeout）"
+        ],
+        "elapsed_seconds": 45.7763,
+        "item_fields": {
+          "product_name": 0,
+          "category": 0,
+          "brand": 0,
+          "model": 0,
+          "quantity": 0,
+          "unit_price": 0,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "78552f907a9bc527.html"
+          ],
+          "items_found": 0,
+          "items": [],
+          "metadata": {
+            "project_name": null,
+            "project_number": null,
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "78552f907a9bc527.html: 模型抽取失败（ReadTimeout）"
+          ]
+        }
+      },
+      {
+        "notice_id": 0,
+        "source_files": [
+          "031f976924d449e1.html"
+        ],
+        "items_found": 0,
+        "participants_found": 0,
+        "warnings": [
+          "031f976924d449e1.html: 模型抽取失败（ReadTimeout）"
+        ],
+        "elapsed_seconds": 45.7641,
+        "item_fields": {
+          "product_name": 0,
+          "category": 0,
+          "brand": 0,
+          "model": 0,
+          "quantity": 0,
+          "unit_price": 0,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "031f976924d449e1.html"
+          ],
+          "items_found": 0,
+          "items": [],
+          "metadata": {
+            "project_name": null,
+            "project_number": null,
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "031f976924d449e1.html: 模型抽取失败（ReadTimeout）"
+          ]
+        }
+      }
+    ],
+    "hybrid": [
+      {
+        "notice_id": 0,
+        "source_files": [
+          "912477ae89e3b441.html"
+        ],
+        "items_found": 0,
+        "participants_found": 0,
+        "warnings": [
+          "912477ae89e3b441.html: 模型抽取失败（ReadTimeout）"
+        ],
+        "elapsed_seconds": 45.7823,
+        "item_fields": {
+          "product_name": 0,
+          "category": 0,
+          "brand": 0,
+          "model": 0,
+          "quantity": 0,
+          "unit_price": 0,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "912477ae89e3b441.html"
+          ],
+          "items_found": 0,
+          "items": [],
+          "metadata": {
+            "project_name": null,
+            "project_number": "330381263161240000010-ZRCG20261019 二、",
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "912477ae89e3b441.html: 模型抽取失败（ReadTimeout）"
+          ]
+        }
+      },
+      {
+        "notice_id": 0,
+        "source_files": [
+          "78552f907a9bc527.html"
+        ],
+        "items_found": 3,
+        "participants_found": 0,
+        "warnings": [
+          "78552f907a9bc527.html: 模型抽取失败（ReadTimeout）"
+        ],
+        "elapsed_seconds": 45.6678,
+        "item_fields": {
+          "product_name": 3,
+          "category": 3,
+          "brand": 3,
+          "model": 3,
+          "quantity": 3,
+          "unit_price": 3,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "78552f907a9bc527.html"
+          ],
+          "items_found": 3,
+          "items": [
+            {
+              "package_code": "default",
+              "product_name": "便携式电动起立床",
+              "category": "A02320800",
+              "brand": "人来康复",
+              "model": "RLRF212",
+              "quantity": "1",
+              "quantity_unit": "(套)",
+              "unit_price": "13000.00",
+              "total_price": null,
+              "source_file": "78552f907a9bc527.html",
+              "source_location": "table:3/row:2",
+              "source_evidence": "A02320800 | A02320800 物理治疗、康复及体育治疗仪器设备 | 便携式电动起立床 | 人来康复 | RLRF212 | 1(套) | 13,000.00",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "default",
+              "product_name": "中药熏蒸治疗仪",
+              "category": "A02320800",
+              "brand": "倍益康",
+              "model": "13000，QL/XZ -IIA",
+              "quantity": "2",
+              "quantity_unit": "(套)",
+              "unit_price": "18000.00",
+              "total_price": null,
+              "source_file": "78552f907a9bc527.html",
+              "source_location": "table:3/row:3",
+              "source_evidence": "A02320800 | A02320800 物理治疗、康复及体育治疗仪器设备 | 中药熏蒸治疗仪 | 倍益康 | 13000，QL/XZ -IIA | 2(套) | 18,000.00",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "default",
+              "product_name": "主被动训练仪",
+              "category": "A02320800",
+              "brand": "人来康复",
+              "model": "上肢：RLMP405；下肢：RLMP402",
+              "quantity": "10",
+              "quantity_unit": "(套)",
+              "unit_price": "45500.00",
+              "total_price": null,
+              "source_file": "78552f907a9bc527.html",
+              "source_location": "table:3/row:4",
+              "source_evidence": "A02320800 | A02320800 物理治疗、康复及体育治疗仪器设备 | 主被动训练仪 | 人来康复 | 上肢：RLMP405；下肢：RLMP402 | 10(套) | 45,500.00",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            }
+          ],
+          "metadata": {
+            "project_name": null,
+            "project_number": "N5103012026000302 二、",
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "78552f907a9bc527.html: 模型抽取失败（ReadTimeout）"
+          ]
+        }
+      },
+      {
+        "notice_id": 0,
+        "source_files": [
+          "031f976924d449e1.html"
+        ],
+        "items_found": 29,
+        "participants_found": 0,
+        "warnings": [
+          "031f976924d449e1.html: 模型抽取失败（ReadTimeout）"
+        ],
+        "elapsed_seconds": 45.6659,
+        "item_fields": {
+          "product_name": 29,
+          "category": 0,
+          "brand": 0,
+          "model": 0,
+          "quantity": 13,
+          "unit_price": 0,
+          "total_price": 0
+        },
+        "result": {
+          "notice_id": 0,
+          "source_files": [
+            "031f976924d449e1.html"
+          ],
+          "items_found": 29,
+          "items": [
+            {
+              "package_code": "三、中标情况",
+              "product_name": "三、中标情况",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:10",
+              "source_evidence": "三、中标情况",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "包号 采购内容 供应商名称 地 址 中标金额 单位 备注信息 豫政采(2)20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "product_name": "包号 采购内容 供应商名称 地 址 中标金额 单位 备注信息 豫政采(2)20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2",
+              "quantity_unit": ")20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:11",
+              "source_evidence": "包号 采购内容 供应商名称 地 址 中标金额 单位 备注信息 豫政采(2)20261526-1 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 河南诺舟科技发展有限公司 河南省郑州市金水区姚砦路133号12号楼2404室 1,166,000.00 元 评审总得分:96.25分 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元 | 包号 | 采购内容 | 供应商名称 | 地 址 | 中标金额 | 单位 | 备注信息 | 豫政采(2)20261526-1 | 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 | 河南诺舟科技发展有限公司 | 河南省郑州市金水区姚砦路133号12号楼2404室 | 1,166,000.00 | 元 | 评审总得分:96.25分 | 序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元 | 序号 | 名称 | 品牌（如有） | 规格型号 | 数量 | 单价 | 1 | 见附件 | 见附件 | 见附件 | 见附件 | 见附件元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "包号",
+              "product_name": "包号",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:12",
+              "source_evidence": "包号 | 采购内容 | 供应商名称 | 地 址 | 中标金额 | 单位 | 备注信息",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "豫政采(2)20261526-1",
+              "product_name": "豫政采(2)20261526-1",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2",
+              "quantity_unit": ")20261526-1",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:13",
+              "source_evidence": "豫政采(2)20261526-1 | 河南省科学院材料研究所实验室新型发光材料合成平台建设项目 | 河南诺舟科技发展有限公司 | 河南省郑州市金水区姚砦路133号12号楼2404室 | 1,166,000.00 | 元 | 评审总得分:96.25分",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "product_name": "序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": "见附件 见附件 见附件 见附件 见附件元",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:14",
+              "source_evidence": "序号 名称 品牌（如有） 规格型号 数量 单价 1 见附件 见附件 见附件 见附件 见附件元 | 序号 | 名称 | 品牌（如有） | 规格型号 | 数量 | 单价 | 1 | 见附件 | 见附件 | 见附件 | 见附件 | 见附件元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "序号",
+              "product_name": "序号",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:15",
+              "source_evidence": "序号 | 名称 | 品牌（如有） | 规格型号 | 数量 | 单价",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "1",
+              "product_name": "1",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:16",
+              "source_evidence": "1 | 见附件 | 见附件 | 见附件 | 见附件 | 见附件元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "四、评审专家名单",
+              "product_name": "四、评审专家名单",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:17",
+              "source_evidence": "四、评审专家名单",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "张征荣、易明林、祝卿、杨世清、刘恒（采购人代表）",
+              "product_name": "张征荣、易明林、祝卿、杨世清、刘恒（采购人代表）",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:18",
+              "source_evidence": "张征荣、易明林、祝卿、杨世清、刘恒（采购人代表）",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "五、代理服务收费标准及金额：",
+              "product_name": "五、代理服务收费标准及金额：",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:19",
+              "source_evidence": "五、代理服务收费标准及金额：",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "收费标准：采购代理机构按照计价格[2002]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "product_name": "收费标准：采购代理机构按照计价格[2002]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2002",
+              "quantity_unit": "]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:20",
+              "source_evidence": "收费标准：采购代理机构按照计价格[2002]1980号、发改价格[2003]857号和发改价格[2011]534号文件中货物类标准的70%向中标人收取。",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "收费金额：11,778.00元",
+              "product_name": "收费金额：11,778.00元",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "11778.00",
+              "quantity_unit": "元",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:21",
+              "source_evidence": "收费金额：11,778.00元",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "六、中标公告发布的媒介及中标公告期限",
+              "product_name": "六、中标公告发布的媒介及中标公告期限",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:22",
+              "source_evidence": "六、中标公告发布的媒介及中标公告期限",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "本次中标公告在《河南省政府采购网》《中国政府采购网》、《河南省公共资源交易中心网》上发布，中标公告期限为1个工作日。",
+              "product_name": "本次中标公告在《河南省政府采购网》《中国政府采购网》、《河南省公共资源交易中心网》上发布，中标公告期限为1个工作日。",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": "个工作日。",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:23",
+              "source_evidence": "本次中标公告在《河南省政府采购网》《中国政府采购网》、《河南省公共资源交易中心网》上发布，中标公告期限为1个工作日。",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "七、其他补充事宜",
+              "product_name": "七、其他补充事宜",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:24",
+              "source_evidence": "七、其他补充事宜",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "各有关当事人如对结果有异议，可以在公告期结束之日起七个工作日内，按照采购文件规定的方式提交质疑函。逾期提交的质疑函将不予受理。",
+              "product_name": "各有关当事人如对结果有异议，可以在公告期结束之日起七个工作日内，按照采购文件规定的方式提交质疑函。逾期提交的质疑函将不予受理。",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:25",
+              "source_evidence": "各有关当事人如对结果有异议，可以在公告期结束之日起七个工作日内，按照采购文件规定的方式提交质疑函。逾期提交的质疑函将不予受理。",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "八、凡对本次公告内容提出询问，请按以下方式联系",
+              "product_name": "八、凡对本次公告内容提出询问，请按以下方式联系",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:26",
+              "source_evidence": "八、凡对本次公告内容提出询问，请按以下方式联系",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "1. 采购人信息",
+              "product_name": "1. 采购人信息",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "quantity_unit": ". 采购人信息",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:27",
+              "source_evidence": "1. 采购人信息",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "名称：河南省科学院材料研究所",
+              "product_name": "名称：河南省科学院材料研究所",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:28",
+              "source_evidence": "名称：河南省科学院材料研究所",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "地址：河南省郑州市高新区长椿路6号3号楼",
+              "product_name": "地址：河南省郑州市高新区长椿路6号3号楼",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "6",
+              "quantity_unit": "号3号楼",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:29",
+              "source_evidence": "地址：河南省郑州市高新区长椿路6号3号楼",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系人：潘正伟",
+              "product_name": "联系人：潘正伟",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:30",
+              "source_evidence": "联系人：潘正伟",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系方式：18616010890",
+              "product_name": "联系方式：18616010890",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "18616010890",
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:31",
+              "source_evidence": "联系方式：18616010890",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "2.采购代理机构信息（如有）",
+              "product_name": "2.采购代理机构信息（如有）",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "2",
+              "quantity_unit": ".采购代理机构信息（如有）",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:32",
+              "source_evidence": "2.采购代理机构信息（如有）",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "名称：中兴豫建设管理有限公司",
+              "product_name": "名称：中兴豫建设管理有限公司",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:33",
+              "source_evidence": "名称：中兴豫建设管理有限公司",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "地址：郑州市建业总部港D座",
+              "product_name": "地址：郑州市建业总部港D座",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:34",
+              "source_evidence": "地址：郑州市建业总部港D座",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系人：郑宁飞、郜琳娜、韩嵘",
+              "product_name": "联系人：郑宁飞、郜琳娜、韩嵘",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:35",
+              "source_evidence": "联系人：郑宁飞、郜琳娜、韩嵘",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "联系方式：0371-86258838、13592672705",
+              "product_name": "联系方式：0371-86258838、13592672705",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "371",
+              "quantity_unit": "-86258838、13592672705",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:36",
+              "source_evidence": "联系方式：0371-86258838、13592672705",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "3.项目联系方式",
+              "product_name": "3.项目联系方式",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": "3",
+              "quantity_unit": ".项目联系方式",
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:37",
+              "source_evidence": "3.项目联系方式",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            },
+            {
+              "package_code": "项目联系人：郑宁飞、郜琳娜、韩嵘",
+              "product_name": "项目联系人：郑宁飞、郜琳娜、韩嵘",
+              "category": null,
+              "brand": null,
+              "model": null,
+              "quantity": null,
+              "quantity_unit": null,
+              "unit_price": null,
+              "total_price": null,
+              "source_file": "031f976924d449e1.html",
+              "source_location": "table:2/row:38",
+              "source_evidence": "项目联系人：郑宁飞、郜琳娜、韩嵘",
+              "extraction_method": "table_header_mapping",
+              "confidence": 0.7
+            }
+          ],
+          "metadata": {
+            "project_name": null,
+            "project_number": "豫财招标采购-2026-1094 2、采购",
+            "procurement_unit": null,
+            "project_budget": null,
+            "announced_total_award": null
+          },
+          "participants": [],
+          "warnings": [
+            "031f976924d449e1.html: 模型抽取失败（ReadTimeout）"
+          ]
+        }
+      }
+    ]
+  }
+}

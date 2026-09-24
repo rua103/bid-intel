@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     model_base_url: str = ""
     model_api_key: str = ""
     model_name: str = ""
+    model_max_chars: int = 12000
+    model_timeout_seconds: int = 45
+    extraction_mode: str = "hybrid"
+    ocr_enabled: bool = False
+    ocr_language: str = "chi_sim+eng"
+    ocr_timeout_seconds: int = 30
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -58,11 +64,11 @@ def save_model_config(model_base_url: str, model_api_key: str, model_name: str) 
 
 def effective_settings() -> Settings:
     stored = load_model_config()
-    return Settings(
-        model_base_url=stored.get("model_base_url") or settings.model_base_url,
-        model_api_key=stored.get("model_api_key") or settings.model_api_key,
-        model_name=stored.get("model_name") or settings.model_name,
-    )
+    return settings.model_copy(update={
+        "model_base_url": stored.get("model_base_url") or settings.model_base_url,
+        "model_api_key": stored.get("model_api_key") or settings.model_api_key,
+        "model_name": stored.get("model_name") or settings.model_name,
+    })
 
 
 def mask_api_key(key: str) -> str:

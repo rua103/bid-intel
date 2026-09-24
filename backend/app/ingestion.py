@@ -4,7 +4,7 @@ import re
 import time
 from pathlib import PurePosixPath
 
-from app.config import effective_settings
+from app.config import Settings, effective_settings
 from app.model_adapter import extract_unstructured_items
 from app.parsers import SourceDocument, expand_uploads, extract_metadata, parse_document
 from app.schemas import (
@@ -18,6 +18,44 @@ from app.schemas import (
 from app.storage import save_import
 
 
+def _merge_model_items(
+    rules: list[ItemCandidate], modeled: list[ItemCandidate], warnings: list[str],
+) -> list[ItemCandidate]:
+    """Fill unambiguous same-document rows without duplicating table/model records."""
+    result = list(rules)
+    def key(value: str | None) -> str:
+        return "".join((value or "").split()).casefold()
+
+    fields = ("product_name", "category", "brand", "model", "quantity", "quantity_unit",
+              "unit_price", "total_price")
+    for candidate in modeled:
+        matches = [i for i, row in enumerate(result)
+                   if row.package_code == candidate.package_code
+                   and key(row.product_name) and key(row.product_name) == key(candidate.product_name)
+                   and (not row.model or not candidate.model or key(row.model) == key(candidate.model))]
+        if len(matches) != 1:
+            if len(matches) > 1:
+                warnings.append(f"模型行无法唯一对齐表格，请核验：{candidate.product_name}")
+            else:
+                result.append(candidate)
+            continue
+        index = matches[0]
+        row = result[index]
+        changes = {field: getattr(candidate, field) for field in fields
+                   if getattr(row, field) is None and getattr(candidate, field) is not None}
+        conflicts = [field for field in fields if getattr(row, field) is not None
+                     and getattr(candidate, field) is not None
+                     and str(getattr(row, field)).casefold() != str(getattr(candidate, field)).casefold()]
+        if conflicts:
+            warnings.append(f"表格与模型字段不一致，保留表格值待核验：{candidate.product_name} / {','.join(conflicts)}")
+        if changes:
+            changes.update(extraction_method="hybrid_source_verified",
+                           source_evidence="\n".join(filter(None, (row.source_evidence,
+                                                                    candidate.source_evidence))))
+            result[index] = row.model_copy(update=changes)
+    return result
+
+
 def _deduplicate(items: list[ItemCandidate]) -> list[ItemCandidate]:
     output: list[ItemCandidate] = []
     seen: set[tuple[str | None, ...]] = set()
@@ -25,6 +63,7 @@ def _deduplicate(items: list[ItemCandidate]) -> list[ItemCandidate]:
         key = tuple(
             (value or "").strip().casefold()
             for value in (
+                item.package_code,
                 item.product_name,
                 item.category,
                 item.brand,
@@ -44,9 +83,9 @@ def _deduplicate(items: list[ItemCandidate]) -> list[ItemCandidate]:
 def _deduplicate_participants(
     participants: list[ParticipantCandidate], warnings: list[str]
 ) -> list[ParticipantCandidate]:
-    result: dict[str, ParticipantCandidate] = {}
+    result: dict[tuple[str, str], ParticipantCandidate] = {}
     for participant in participants:
-        key = "".join(participant.organization_name.split()).casefold()
+        key = (participant.package_code, "".join(participant.organization_name.split()).casefold())
         prior = result.get(key)
         if prior is None or prior.outcome == "unknown" and participant.outcome != "unknown":
             result[key] = participant
@@ -116,7 +155,8 @@ def group_notice_documents(
 
 
 def _ingest_expanded(
-    expanded: list[SourceDocument], warnings: list[str], database_path
+    expanded: list[SourceDocument], warnings: list[str], database_path=None,
+    *, extraction_mode: str | None = None, model_settings: Settings | None = None,
 ) -> ImportResult:
     if not expanded:
         raise ValueError("没有找到可解析的公告或附件")
@@ -131,16 +171,29 @@ def _ingest_expanded(
     participants: list[ParticipantCandidate] = []
     texts: list[str] = []
     model_metadata = NoticeMetadata()
-    model_settings = effective_settings()
+    model_settings = model_settings or effective_settings()
+    mode = extraction_mode or model_settings.extraction_mode
+    if mode not in {"rules", "model", "hybrid"}:
+        raise ValueError("抽取模式必须是 rules、model 或 hybrid")
     model_is_configured = bool(
         model_settings.model_base_url and model_settings.model_api_key and model_settings.model_name
     )
+    if mode == "model" and not model_is_configured:
+        raise ValueError("纯模型模式需要先配置 Qwen/DeepSeek 接口")
     for document in expanded:
-        text, parsed_items, parse_warnings = parse_document(document)
+        parse_options = {}
+        if model_settings.ocr_enabled:
+            parse_options = {
+                "ocr_enabled": True, "ocr_language": model_settings.ocr_language,
+                "ocr_timeout_seconds": model_settings.ocr_timeout_seconds,
+            }
+        text, parsed_items, parse_warnings = parse_document(document, **parse_options)
+        if mode == "model":
+            parsed_items = []
         if text:
             texts.append(text)
-        if text and model_is_configured and (document == primary_document or not parsed_items):
-            include_participants = document == primary_document
+        if text and model_is_configured and mode != "rules":
+            include_participants = True
             parsed_metadata, model_items, model_participants, model_warnings = (
                 extract_unstructured_items(
                     filename=document.filename,
@@ -149,20 +202,26 @@ def _ingest_expanded(
                     include_participants=include_participants,
                 )
             )
-            parsed_items.extend(model_items)
+            if mode == "hybrid":
+                parsed_items = _merge_model_items(parsed_items, model_items, parse_warnings)
+            else:
+                parsed_items = model_items
             participants.extend(model_participants)
-            if include_participants:
+            if document == primary_document:
                 model_metadata = parsed_metadata
             parse_warnings.extend(model_warnings)
         items.extend(parsed_items)
         warnings.extend(parse_warnings)
-    metadata = extract_metadata(" ".join(texts))
+    metadata = extract_metadata(" ".join(texts)) if mode != "model" else NoticeMetadata()
     metadata_values = {
-        field: getattr(metadata, field) or getattr(model_metadata, field)
+        field: (getattr(metadata, field) if getattr(metadata, field) is not None
+                else getattr(model_metadata, field))
         for field in NoticeMetadata.model_fields
     }
     metadata = NoticeMetadata(**metadata_values)
-    if not model_is_configured:
+    if mode == "rules":
+        warnings.append("规则基线：不调用模型；仅提取表格标的与明确标签元数据")
+    elif not model_is_configured:
         warnings.append("未配置合规 Qwen/DeepSeek 模型；投标主体和非表格标的尚未自动抽取")
     deduplicated_items = _deduplicate(items)
     deduplicated_participants = _deduplicate_participants(participants, warnings)
@@ -175,10 +234,13 @@ def _ingest_expanded(
         participants=deduplicated_participants,
         warnings=list(dict.fromkeys(warnings)),
     )
-    return save_import(database_path, result)
+    return save_import(database_path, result) if database_path is not None else result
 
 
-def import_notice(files: list[SourceDocument], database_path) -> ImportResult:
+def extract_notice(
+    files: list[SourceDocument], *, extraction_mode: str | None = None,
+    model_settings: Settings | None = None,
+) -> ImportResult:
     if not files:
         raise ValueError("至少上传一个公告或附件文件")
     expanded, warnings = expand_uploads(files)
@@ -187,10 +249,21 @@ def import_notice(files: list[SourceDocument], database_path) -> ImportResult:
     )
     if html_count > 1:
         raise ValueError("每次导入请对应一条公告；当前 ZIP 中检测到多份 HTML，请使用批量导入接口")
-    return _ingest_expanded(expanded, warnings, database_path)
+    return _ingest_expanded(
+        expanded, warnings, extraction_mode=extraction_mode, model_settings=model_settings,
+    )
 
 
-def import_batch(files: list[SourceDocument], database_path) -> BatchImportResult:
+def import_notice(
+    files: list[SourceDocument], database_path, *, extraction_mode: str | None = None,
+) -> ImportResult:
+    result = extract_notice(files, extraction_mode=extraction_mode)
+    return save_import(database_path, result)
+
+
+def import_batch(
+    files: list[SourceDocument], database_path, *, extraction_mode: str | None = None,
+) -> BatchImportResult:
     if not files:
         raise ValueError("至少上传一个公告数据 ZIP")
     started = time.perf_counter()
@@ -200,7 +273,9 @@ def import_batch(files: list[SourceDocument], database_path) -> BatchImportResul
     errors: list[str] = []
     for group in groups:
         try:
-            imported = _ingest_expanded(group, list(archive_warnings), database_path)
+            imported = _ingest_expanded(
+                group, list(archive_warnings), database_path, extraction_mode=extraction_mode,
+            )
             summaries.append(
                 BatchNoticeSummary(
                     notice_id=imported.notice_id,

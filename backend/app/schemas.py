@@ -69,6 +69,7 @@ class BatchImportResult(BaseModel):
     total_participants_found: int
     elapsed_seconds: float
     orphan_files: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
     notices: list[BatchNoticeSummary] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 

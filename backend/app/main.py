@@ -15,11 +15,13 @@ from app.config import (
     save_model_config,
     settings,
 )
+from app.datasets import DatabasePath
+from app.datasets import router as datasets_router
 from app.evaluation_api import router as evaluation_router
 from app.graph import sqlite_graph
 from app.ingestion import import_batch, import_notice
 from app.model_adapter import test_model_connection
-from app.parsers import SourceDocument
+from app.parsers import SourceDocument, parser_capabilities
 from app.schemas import (
     BatchImportResult,
     ModelConfigPayload,
@@ -61,16 +63,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(evaluation_router)
+app.include_router(datasets_router)
+
+
+@app.get("/api/v1/parser-capabilities")
+def get_parser_capabilities():
+    return parser_capabilities()
 
 
 @app.get("/api/v1/graph")
-def get_graph(limit: int = Query(default=50, ge=1, le=200)):
-    return sqlite_graph(settings.resolved_database_path, limit=limit)
+def get_graph(database_path: DatabasePath, limit: int = Query(default=50, ge=1, le=200)):
+    return sqlite_graph(database_path, limit=limit)
 
 
 @app.get("/api/v1/health")
-def health() -> dict[str, str | int]:
-    return {"status": "ok", "notices_imported": count_notices(settings.resolved_database_path)}
+def health(database_path: DatabasePath) -> dict[str, str | int]:
+    return {"status": "ok", "notices_imported": count_notices(database_path)}
 
 
 def _model_config_response(base_url: str, api_key: str, name: str) -> ModelConfigResponse:
@@ -131,25 +139,30 @@ async def _read_uploads(files: list[UploadFile], max_upload_mb: int) -> list[Sou
 
 
 @app.post("/api/v1/notices/import")
-async def import_uploaded_notice(files: Annotated[list[UploadFile], File()]):
+async def import_uploaded_notice(
+    database_path: DatabasePath, files: Annotated[list[UploadFile], File()],
+):
     source_documents = await _read_uploads(files, settings.max_upload_mb)
     try:
-        return await run_in_threadpool(import_notice, source_documents, settings.resolved_database_path)
+        return await run_in_threadpool(import_notice, source_documents, database_path)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/notices/import-batch", response_model=BatchImportResult)
-async def import_uploaded_batch(files: Annotated[list[UploadFile], File()]):
+async def import_uploaded_batch(
+    database_path: DatabasePath, files: Annotated[list[UploadFile], File()],
+):
     source_documents = await _read_uploads(files, settings.max_batch_upload_mb)
     try:
-        return await run_in_threadpool(import_batch, source_documents, settings.resolved_database_path)
+        return await run_in_threadpool(import_batch, source_documents, database_path)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/items")
 def get_items(
+    database_path: DatabasePath,
     query: str | None = None,
     category: str | None = None,
     brand: str | None = None,
@@ -157,7 +170,7 @@ def get_items(
     limit: int = Query(default=100, ge=1, le=500),
 ) -> list[dict]:
     return search_items(
-        settings.resolved_database_path,
+        database_path,
         query=query,
         category=category,
         brand=brand,
@@ -167,46 +180,52 @@ def get_items(
 
 
 @app.get("/api/v1/organizations")
-def get_organizations(query: str | None = None, limit: int = Query(default=100, ge=1, le=500)):
-    return analytics.list_organizations(settings.resolved_database_path, query=query, limit=limit)
+def get_organizations(
+    database_path: DatabasePath, query: str | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    return analytics.list_organizations(database_path, query=query, limit=limit)
 
 
 @app.get("/api/v1/analytics/buyers/{buyer_id}/awardees")
-def get_buyer_awardees(buyer_id: int):
-    return analytics.buyer_awardees(settings.resolved_database_path, buyer_id)
+def get_buyer_awardees(database_path: DatabasePath, buyer_id: int):
+    return analytics.buyer_awardees(database_path, buyer_id)
 
 
 @app.get("/api/v1/analytics/buyers/{buyer_id}/bidders")
 def get_buyer_bidders(
+    database_path: DatabasePath,
     buyer_id: int,
     include_winners: bool = True,
     top: int = Query(default=5, ge=1, le=100),
 ):
     return analytics.buyer_bidders(
-        settings.resolved_database_path, buyer_id, include_winners=include_winners, top=top
+        database_path, buyer_id, include_winners=include_winners, top=top
     )
 
 
 @app.get("/api/v1/analytics/suppliers/{supplier_id}/co-bidders")
-def get_supplier_co_bidders(supplier_id: int, top: int = Query(default=5, ge=1, le=100)):
-    return analytics.supplier_co_bidders(settings.resolved_database_path, supplier_id, top=top)
+def get_supplier_co_bidders(
+    database_path: DatabasePath, supplier_id: int, top: int = Query(default=5, ge=1, le=100),
+):
+    return analytics.supplier_co_bidders(database_path, supplier_id, top=top)
 
 
 @app.post("/api/v1/analytics/common-buyers")
-def get_common_award_buyers(selection: OrganizationSelection):
+def get_common_award_buyers(database_path: DatabasePath, selection: OrganizationSelection):
     try:
         return analytics.common_award_buyers(
-            settings.resolved_database_path, selection.organization_ids
+            database_path, selection.organization_ids
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/analytics/common-projects")
-def get_common_bid_projects(selection: OrganizationSelection):
+def get_common_bid_projects(database_path: DatabasePath, selection: OrganizationSelection):
     try:
         return analytics.common_bid_packages(
-            settings.resolved_database_path, selection.organization_ids
+            database_path, selection.organization_ids
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

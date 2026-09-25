@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     ocr_enabled: bool = False
     ocr_language: str = "chi_sim+eng"
     ocr_timeout_seconds: int = 30
+    libreoffice_path: str = ""
+    document_conversion_timeout_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

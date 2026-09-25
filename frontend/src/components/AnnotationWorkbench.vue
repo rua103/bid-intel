@@ -158,7 +158,7 @@ async function evaluate() {
     <div class="panel-heading"><div><span class="step">05</span><h3>人工标注与质量评测</h3></div><span class="hint">gold 与预测分开保存 · 修改后需重新核验</span></div>
     <p class="annotation-note">上传材料会分别生成空白 gold 标注表和自动预测结果。请对照原文独立填写 gold；空白表示原文未披露，金额统一为元。自动抽取结果不能直接作为人工标准答案。</p>
     <div class="annotation-toolbar">
-      <label class="file-picker">选择标注材料<input type="file" multiple accept=".html,.htm,.zip,.docx,.xlsx,.pdf,.txt,.png,.jpg,.jpeg" @change="files = Array.from($event.target.files || [])" /></label>
+      <label class="file-picker">选择标注材料<input type="file" multiple accept=".html,.htm,.zip,.doc,.docx,.xls,.xlsx,.pdf,.txt,.png,.jpg,.jpeg" @change="files = Array.from($event.target.files || [])" /></label>
       <select v-model="mode" aria-label="草稿抽取方案"><option value="rules">表格规则（不调用模型）</option><option value="model">纯模型（调用已配置 API）</option><option value="hybrid">规则 + 模型（调用已配置 API）</option></select>
       <button class="primary" :disabled="!files.length || busy" @click="generate">{{ busy ? '处理中…' : `生成草稿${files.length ? `（${files.length} 文件）` : ''}` }}</button>
       <label class="file-picker">导入 gold JSON<input type="file" accept=".json" @change="loadJson($event, 'gold')" /></label>

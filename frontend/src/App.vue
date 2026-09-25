@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import AnnotationWorkbench from './components/AnnotationWorkbench.vue'
 import RelationshipGraph from './components/RelationshipGraph.vue'
 import { resolveApiBase } from './utils/browser.js'
+import { createDatasetClient } from './utils/datasets.js'
 
 const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location)
 const selectedFiles = ref([])
@@ -11,6 +12,15 @@ const notice = ref(null)
 const batchResult = ref(null)
 const error = ref('')
 const health = ref(null)
+const datasets = ref([])
+const datasetId = ref('default')
+const datasetName = ref('')
+const datasetError = ref('')
+const datasetReady = ref(false)
+const datasetCreating = ref(false)
+const capabilities = ref(null)
+let datasetVersion = 0
+const datasetFetch = createDatasetClient(() => datasetId.value, () => datasetVersion)
 const searchText = ref('')
 const searchBrand = ref('')
 const searchCategory = ref('')
@@ -39,10 +49,11 @@ const statusText = computed(() => {
 
 async function refreshHealth() {
   try {
-    const response = await fetch(`${apiBase}/api/v1/health`)
+    const response = await datasetFetch(`${apiBase}/api/v1/health`)
     if (!response.ok) throw new Error('后端暂不可用')
     health.value = await response.json()
-  } catch {
+  } catch (cause) {
+    if (cause.name === 'AbortError') return
     health.value = null
   }
 }
@@ -62,7 +73,7 @@ async function importNotice() {
   const body = new FormData()
   for (const file of selectedFiles.value) body.append('files', file)
   try {
-    const response = await fetch(`${apiBase}/api/v1/notices/import`, { method: 'POST', body })
+    const response = await datasetFetch(`${apiBase}/api/v1/notices/import`, { method: 'POST', body })
     const payload = await response.json()
     if (!response.ok) throw new Error(payload.detail || '导入失败')
     notice.value = payload
@@ -71,6 +82,7 @@ async function importNotice() {
     await searchItems()
     await refreshOrganizations()
   } catch (cause) {
+    if (cause.name === 'AbortError') return
     error.value = cause.message || '导入失败，请检查文件和后端服务'
   } finally {
     uploading.value = false
@@ -86,7 +98,7 @@ async function importBatch() {
   const body = new FormData()
   for (const file of selectedFiles.value) body.append('files', file)
   try {
-    const response = await fetch(`${apiBase}/api/v1/notices/import-batch`, { method: 'POST', body })
+    const response = await datasetFetch(`${apiBase}/api/v1/notices/import-batch`, { method: 'POST', body })
     const payload = await response.json()
     if (!response.ok) throw new Error(payload.detail || '批量导入失败')
     batchResult.value = payload
@@ -95,6 +107,7 @@ async function importBatch() {
     await searchItems()
     await refreshOrganizations()
   } catch (cause) {
+    if (cause.name === 'AbortError') return
     error.value = cause.message || '批量导入失败，请检查文件和后端服务'
   } finally {
     uploading.value = false
@@ -107,21 +120,23 @@ async function searchItems() {
   if (searchBrand.value.trim()) query.set('brand', searchBrand.value.trim())
   if (searchCategory.value.trim()) query.set('category', searchCategory.value.trim())
   try {
-    const response = await fetch(`${apiBase}/api/v1/items?${query}`)
+    const response = await datasetFetch(`${apiBase}/api/v1/items?${query}`)
     if (!response.ok) throw new Error('检索失败')
     items.value = await response.json()
     searched.value = true
   } catch (cause) {
+    if (cause.name === 'AbortError') return
     error.value = cause.message
   }
 }
 
 async function refreshOrganizations() {
   try {
-    const response = await fetch(`${apiBase}/api/v1/organizations?limit=500`)
+    const response = await datasetFetch(`${apiBase}/api/v1/organizations?limit=500`)
     if (!response.ok) throw new Error('主体列表读取失败')
     organizations.value = await response.json()
   } catch (cause) {
+    if (cause.name === 'AbortError') return
     analyticsError.value = cause.message
   }
 }
@@ -192,6 +207,7 @@ async function testModelConfig() {
 }
 
 async function runScene(scene) {
+  const version = datasetVersion
   analyticsLoading.value = scene
   analyticsError.value = ''
   let url = ''
@@ -209,21 +225,85 @@ async function runScene(scene) {
     }
   }
   try {
-    const response = await fetch(url, options)
+    const response = await datasetFetch(url, options)
     const payload = await response.json()
     if (!response.ok) throw new Error(payload.detail || '查询失败')
     analyticsResults.value = { ...analyticsResults.value, [scene]: payload }
   } catch (cause) {
+    if (cause.name === 'AbortError') return
     analyticsError.value = cause.message || '关系查询失败'
   } finally {
-    analyticsLoading.value = ''
+    if (version === datasetVersion) analyticsLoading.value = ''
   }
 }
 
+async function refreshDatasets() {
+  const response = await fetch(apiBase + '/api/v1/datasets')
+  if (!response.ok) throw new Error('数据集列表读取失败')
+  datasets.value = await response.json()
+}
+
+async function createDataset() {
+  if (!datasetName.value.trim() || uploading.value) return
+  datasetCreating.value = true
+  datasetError.value = ''
+  try {
+    const response = await fetch(apiBase + '/api/v1/datasets', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: datasetName.value.trim() }),
+    })
+    const payload = await response.json()
+    if (!response.ok) throw new Error('新建数据集失败，请检查名称或服务状态')
+    datasets.value.push(payload)
+    datasetReady.value = true
+    datasetId.value = payload.id
+    datasetName.value = ''
+  } catch (cause) {
+    datasetError.value = cause.message
+  } finally {
+    datasetCreating.value = false
+  }
+}
+
+watch(datasetId, () => {
+  datasetVersion += 1
+  health.value = null
+  items.value = []
+  organizations.value = []
+  notice.value = null
+  batchResult.value = null
+  selectedFiles.value = []
+  selectedBuyerId.value = ''
+  selectedSupplierId.value = ''
+  selectedSupplierIds.value = []
+  searchText.value = ''
+  searchBrand.value = ''
+  searchCategory.value = ''
+  searched.value = false
+  analyticsResults.value = {}
+  analyticsLoading.value = ''
+  analyticsError.value = ''
+  error.value = ''
+  try { localStorage.setItem('bidintel.dataset', datasetId.value) } catch { /* session only */ }
+  if (datasetReady.value) Promise.all([refreshHealth(), searchItems(), refreshOrganizations()])
+}, { flush: 'sync' })
+
 onMounted(async () => {
-  await refreshHealth()
-  await searchItems()
-  await refreshOrganizations()
+  try {
+    await refreshDatasets()
+    let saved
+    try { saved = localStorage.getItem('bidintel.dataset') } catch { /* default dataset */ }
+    if (saved && datasets.value.some(row => row.id === saved)) datasetId.value = saved
+    else if (saved && saved !== 'default') datasetError.value = '原先的数据集已不存在，当前显示默认数据集，请核对后再导入。'
+    datasetReady.value = true
+    await Promise.all([refreshHealth(), searchItems(), refreshOrganizations()])
+  } catch (cause) {
+    datasetError.value = cause.message
+  }
+  try {
+    const response = await fetch(apiBase + '/api/v1/parser-capabilities')
+    if (response.ok) capabilities.value = await response.json()
+  } catch { /* report capability status as unknown */ }
   await loadModelConfig()
 })
 </script>
@@ -265,16 +345,38 @@ onMounted(async () => {
       <p v-if="modelMessage" class="notice" :class="{ 'is-error': modelMessageIsError }">{{ modelMessage }}</p>
     </section>
 
+    <section class="panel dataset-panel">
+      <div class="panel-heading"><div><h3>当前数据集</h3></div><span class="hint">导入、检索和五类查询使用同一数据集</span></div>
+      <div class="config-grid">
+        <label><span>选择数据集</span><select v-model="datasetId" :disabled="uploading || datasetCreating || !datasetReady">
+          <option v-for="row in datasets" :key="row.id" :value="row.id">{{ row.name }}</option>
+        </select></label>
+        <label><span>新数据集名称</span><input v-model="datasetName" maxlength="100" placeholder="如：官方数据第一轮" :disabled="uploading || datasetCreating" /></label>
+      </div>
+      <div class="button-row"><button class="secondary" :disabled="uploading || datasetCreating || !datasetName.trim()" @click="createDataset">{{ datasetCreating ? '正在创建…' : '新建空数据集并切换' }}</button></div>
+      <p class="batch-note">正式数据导入前先新建空数据集。原有数据会保留，可随时切回查看。标注工作台使用独立的 JSON 文件。</p>
+      <p v-if="uploading" class="batch-note">导入期间固定使用当前数据集，完成后可切换。</p>
+      <p v-if="datasetError" class="error">{{ datasetError }}</p>
+    </section>
+
     <section class="panel import-panel">
       <div class="panel-heading">
         <div><span class="step">01</span><h3>导入公告材料</h3></div>
         <span class="hint">HTML 公告，可同时选择该公告对应的 ZIP 附件</span>
       </div>
-      <label class="dropzone">
-        <input type="file" multiple accept=".html,.htm,.zip,.docx,.xlsx,.pdf,.txt" @change="onFileChange" />
+      <div class="warning-list" v-if="!capabilities || !capabilities.legacy_doc || !capabilities.legacy_xls || !capabilities.pdf_tables || !capabilities.pdf_render || !capabilities.image_ocr">
+        <p v-if="!capabilities">解析能力尚未确认，请检查后端连接。</p>
+        <template v-else>
+          <p v-if="!capabilities.legacy_doc">旧版 DOC 暂不可用：请安装 LibreOffice 并设置 LIBREOFFICE_PATH。</p>
+          <p v-if="!capabilities.legacy_xls || !capabilities.pdf_tables || !capabilities.pdf_render">附件依赖不完整：请重新安装后端依赖，检查 xlrd、pdfplumber、pypdfium2。</p>
+          <p v-if="!capabilities.image_ocr">未检测到 Tesseract。扫描件及图片需要安装 OCR 引擎与语言包，并启用 OCR_ENABLED。</p>
+        </template>
+      </div>
+      <label class="dropzone" :key="datasetId">
+        <input type="file" multiple accept=".html,.htm,.zip,.doc,.docx,.xls,.xlsx,.pdf,.txt,.png,.jpg,.jpeg,.tif,.tiff,.bmp" @change="onFileChange" />
         <span class="upload-icon">↑</span>
         <strong>{{ selectedFiles.length ? `已选择 ${selectedFiles.length} 个文件` : '选择公告文件或拖入文件' }}</strong>
-        <small>支持 HTML、ZIP、DOCX、XLSX、PDF、TXT；本次选择按一条公告处理</small>
+        <small>支持 HTML、ZIP、DOC/DOCX、XLS/XLSX、PDF、TXT、图片；本次选择按一条公告处理</small>
         <div v-if="selectedFiles.length" class="file-list">
           <span v-for="file in selectedFiles" :key="file.name">{{ file.name }}</span>
         </div>
@@ -282,8 +384,8 @@ onMounted(async () => {
       <div class="form-footer">
         <p>表格列名映射可直接提取；扫描件与复杂 PDF 会标记为待处理。</p>
         <div class="button-row">
-          <button class="secondary" :disabled="!selectedFiles.length || uploading" @click="importBatch">批量导入 ZIP</button>
-          <button class="primary" :disabled="!selectedFiles.length || uploading" @click="importNotice">
+          <button class="secondary" :disabled="!selectedFiles.length || uploading || !datasetReady" @click="importBatch">批量导入 ZIP</button>
+          <button class="primary" :disabled="!selectedFiles.length || uploading || !datasetReady" @click="importNotice">
             {{ uploading ? '正在解析…' : '导入单条公告' }} <span>↗</span>
           </button>
         </div>
@@ -318,11 +420,15 @@ onMounted(async () => {
         <div><small>处理时间</small><strong>{{ batchResult.elapsed_seconds }} 秒</strong></div>
         <div><small>未匹配附件</small><strong>{{ batchResult.orphan_files.length }}</strong></div>
       </div>
-      <div v-if="batchResult.orphan_files.length || batchResult.errors.length" class="warning-list">
+      <div v-if="batchResult.orphan_files.length || batchResult.errors.length || batchResult.warnings?.length" class="warning-list">
+        <p v-for="warning in batchResult.warnings || []" :key="warning">{{ warning }}</p>
         <p v-for="file in batchResult.orphan_files" :key="file">附件未能按文件名匹配公告：{{ file }}</p>
         <p v-for="entry in batchResult.errors" :key="entry">{{ entry }}</p>
       </div>
-      <p class="batch-note">可按公告标题查看每条记录的解析警告和候选字段来源。</p>
+      <details v-for="row in batchResult.notices" :key="row.notice_id" class="batch-note">
+        <summary>{{ row.source_files[0] }} · {{ row.items_found }} 条标的 · {{ row.warnings.length }} 条提示</summary>
+        <p v-for="warning in row.warnings" :key="warning">{{ warning }}</p>
+      </details>
     </section>
 
     <section class="panel records-panel">
@@ -415,7 +521,7 @@ onMounted(async () => {
     </section>
 
     <AnnotationWorkbench :api-base="apiBase" />
-    <RelationshipGraph :api-base="apiBase" :refresh-key="health?.notices_imported || 0" />
+    <RelationshipGraph v-if="datasetReady" :api-base="apiBase" :dataset-id="datasetId" :refresh-key="health?.notices_imported || 0" />
     <footer>数据抽取为候选结果，进入竞赛验证集前应进行人工抽样核验。<span>数据留痕 · 结果可核验 · 关系可追溯</span></footer>
   </main>
 </template>

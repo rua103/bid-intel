@@ -5,10 +5,12 @@ import importlib.util
 import io
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
 import unicodedata
 import zipfile
+import zlib
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -19,6 +21,7 @@ from docx import Document
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
+from app.legacy_documents import DocumentConversionError, convert_doc, libreoffice_executable
 from app.schemas import ItemCandidate, NoticeMetadata
 
 MAX_ARCHIVE_DEPTH = 3
@@ -61,7 +64,7 @@ class SourceDocument:
 
 
 def _clean(value: object) -> str:
-    return re.sub(r"\s+", " ", str(value or "")).strip()
+    return re.sub(r"\s+", " ", str(value) if value is not None else "").strip()
 
 
 def _header_key(value: object) -> str:
@@ -290,7 +293,29 @@ def _xlsx_tables(content: bytes, filename: str) -> tuple[str, list[ItemCandidate
         if parsed:
             table_index += 1
             items.extend(parsed)
+    workbook.close()
     return _clean(" ".join(chunks)), items
+
+
+def _xls_tables(content: bytes, filename: str) -> tuple[str, list[ItemCandidate]]:
+    import xlrd
+
+    workbook = xlrd.open_workbook(file_contents=content, on_demand=True)
+    chunks: list[str] = []
+    items: list[ItemCandidate] = []
+    try:
+        for index, sheet in enumerate(workbook.sheets(), start=1):
+            # Keep numeric zero (e.g. a free item).
+            rows = [[str(cell.value) if cell.ctype == xlrd.XL_CELL_NUMBER
+                     else _clean(cell.value) for cell in row] for row in sheet.get_rows()]
+            chunks.extend('\t'.join(row) for row in rows if any(row))
+            parsed = parse_item_tables(rows, source_file=filename, table_index=index)
+            for item in parsed:
+                item.extraction_method = 'xls_table_header_mapping'
+            items.extend(parsed)
+        return '\n'.join(chunks), items
+    finally:
+        workbook.release_resources()
 
 
 def parser_capabilities() -> dict[str, bool]:
@@ -299,6 +324,8 @@ def parser_capabilities() -> dict[str, bool]:
         "pdf_tables": importlib.util.find_spec("pdfplumber") is not None,
         "pdf_render": importlib.util.find_spec("pypdfium2") is not None,
         "image_ocr": shutil.which("tesseract") is not None,
+        "legacy_doc": libreoffice_executable() is not None,
+        "legacy_xls": importlib.util.find_spec("xlrd") is not None,
     }
 
 
@@ -359,12 +386,12 @@ def _pdf_text(
         except Exception as exc:  # noqa: BLE001
             warnings.append(f"{filename}: PDF 表格解析失败（{type(exc).__name__}），保留文本结果")
     else:
-        warnings.append(f"{filename}: 未安装可选 pdfplumber，PDF 仅提取文本")
+        warnings.append(f"{filename}: 缺少 pdfplumber，请重装后端依赖；本次 PDF 仅提取文本")
     if scan_pages:
         if not ocr_enabled:
             warnings.append(f"{filename}: 第 {','.join(map(str, scan_pages))} 页无可提取文本，OCR 未启用")
         elif not importlib.util.find_spec("pypdfium2"):
-            warnings.append(f"{filename}: 扫描页 OCR 需要可选 pypdfium2 渲染组件")
+            warnings.append(f"{filename}: 缺少 pypdfium2 渲染组件，请重装后端依赖")
         else:
             renderer = importlib.import_module("pypdfium2").PdfDocument(content)
             try:
@@ -401,6 +428,24 @@ def parse_document(
     try:
         if suffix in {".html", ".htm"}:
             text, items = _html_tables(document.content, document.filename)
+        elif suffix in {".doc", ".xls"}:
+            # Some public attachments use Office suffixes for HTML or OOXML.
+            leading = document.content.lstrip(b'\xef\xbb\xbf \t\r\n')[:1024].lower()
+            if re.search(br'<(?:!doctype\s+html|html|table|head|body)\b', leading):
+                text, items = _html_tables(document.content, document.filename)
+                warnings.append(f"{document.filename}: 实际为 HTML，已按内容解析")
+            elif document.content.startswith(b'PK\x03\x04'):
+                parser = _docx_tables if suffix == '.doc' else _xlsx_tables
+                text, items = parser(document.content, document.filename)
+                warnings.append(f"{document.filename}: 实际为 OOXML，已按内容解析")
+            elif suffix == '.xls':
+                text, items = _xls_tables(document.content, document.filename)
+            else:
+                text, items = _docx_tables(convert_doc(document.content), document.filename)
+                for item in items:
+                    item.extraction_method = 'doc_converted_table_header_mapping'
+                if text and not items:
+                    warnings.append(f"{document.filename}: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型")
         elif suffix == ".docx":
             text, items = _docx_tables(document.content, document.filename)
         elif suffix == ".xlsx":
@@ -427,9 +472,41 @@ def parse_document(
             items = []
         else:
             return "", [], [f"暂不支持附件格式：{document.filename}"]
+    except DocumentConversionError as exc:
+        return "", [], [f"解析失败：{document.filename}（{exc}）"]
     except Exception as exc:  # noqa: BLE001 - isolate individual corrupt attachments
         return "", [], [f"解析失败：{document.filename}（{type(exc).__name__}）"]
+    if not text.strip() and not items and not warnings:
+        warnings.append(f"{document.filename}: 未解析出文本或表格，请检查空文件、加密或扫描内容")
     return text.strip(), items, warnings
+
+
+def _zip_member_name(info: zipfile.ZipInfo, warnings: list[str]) -> str:
+    if info.flag_bits & 0x800:
+        return info.filename
+    raw = info.orig_filename.encode('cp437')
+    # Info-ZIP Unicode Path overrides a legacy name only when its CRC matches.
+    extra = info.extra
+    while len(extra) >= 4:
+        kind, size = struct.unpack_from('<HH', extra)
+        payload, extra = extra[4:4 + size], extra[4 + size:]
+        if kind == 0x7075 and len(payload) >= 5 and payload[0] == 1:
+            if struct.unpack_from('<I', payload, 1)[0] == zlib.crc32(raw):
+                try:
+                    return payload[5:].decode('utf-8')
+                except UnicodeDecodeError:
+                    pass
+            warnings.append(f"ZIP Unicode 文件名校验失败，尝试原始编码：{info.filename}")
+    for encoding in ('utf-8', 'gb18030'):
+        try:
+            name = raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        if name != info.filename:
+            warnings.append(f"ZIP 文件名按 {encoding} 解码：{name}")
+        return name
+    warnings.append(f"ZIP 文件名编码无法确定，保留原名，请核验附件归属：{info.filename}")
+    return info.filename
 
 
 def expand_uploads(files: list[SourceDocument]) -> tuple[list[SourceDocument], list[str]]:
@@ -455,17 +532,28 @@ def expand_uploads(files: list[SourceDocument]) -> tuple[list[SourceDocument], l
                 members = [info for info in archive.infolist() if not info.is_dir()]
                 if len(expanded) + len(members) > MAX_ARCHIVE_FILES:
                     raise ValueError("压缩包文件数量超过限制")
+                seen_names: set[str] = set()
                 for info in members:
+                    name = _zip_member_name(info, warnings).replace('\\', '/')
+                    if name in seen_names:
+                        warnings.append(f"ZIP 解码后文件名重复，跳过后续同名文件：{document.filename}!/{name}")
+                        continue
+                    seen_names.add(name)
                     # Do not write archive paths to disk; names are kept only as provenance.
                     if info.file_size > MAX_EXPANDED_BYTES:
-                        warnings.append(f"跳过超大压缩文件：{info.filename}")
+                        warnings.append(f"跳过超大压缩文件：{name}")
+                        continue
+                    try:
+                        content = archive.read(info)
+                    except (zipfile.BadZipFile, RuntimeError, NotImplementedError, OSError):
+                        warnings.append(f"ZIP 成员读取失败（损坏、加密或压缩算法不支持）：{name}")
                         continue
                     nested = SourceDocument(
-                        filename=f"{document.filename}!/{info.filename}",
-                        content=archive.read(info),
+                        filename=f"{document.filename}!/{name}",
+                        content=content,
                     )
                     visit(nested, depth + 1)
-        except zipfile.BadZipFile:
+        except (zipfile.BadZipFile, UnicodeDecodeError):
             warnings.append(f"压缩包损坏或格式无效：{document.filename}")
 
     for uploaded in files:

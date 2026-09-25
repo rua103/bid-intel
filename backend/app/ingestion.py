@@ -332,6 +332,9 @@ def import_batch(
         raise ValueError("至少上传一个公告数据 ZIP")
     started = time.perf_counter()
     expanded, archive_warnings = expand_uploads(files)
+    if not expanded:
+        detail = '；'.join(archive_warnings) or '上传材料为空'
+        raise ValueError(f'未找到可处理的公告或附件：{detail}')
     groups, orphans = group_notice_documents(expanded)
     summaries: list[BatchNoticeSummary] = []
     errors: list[str] = []
@@ -358,6 +361,10 @@ def import_batch(
         total_participants_found=sum(row.participants_found for row in summaries),
         elapsed_seconds=round(time.perf_counter() - started, 3),
         orphan_files=orphans,
+        warnings=archive_warnings + (
+            [f"{len(orphans)} 个附件未能唯一匹配公告，未导入，请检查文件名或分批上传"]
+            if orphans else []
+        ),
         notices=summaries,
         errors=errors,
     )

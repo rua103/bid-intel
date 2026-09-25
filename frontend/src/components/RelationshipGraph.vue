@@ -1,9 +1,11 @@
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
+import { createDatasetClient } from '../utils/datasets.js'
 
 const props = defineProps({
   apiBase: { type: String, required: true },
+  datasetId: { type: String, default: 'default' },
   limit: { type: Number, default: 100 },
   refreshKey: { type: [String, Number], default: 0 },
 })
@@ -13,6 +15,8 @@ const loading = ref(false)
 const error = ref('')
 const graph = ref(null)
 let chart = null
+let version = 0
+const datasetFetch = createDatasetClient(() => props.datasetId, () => version)
 
 const colors = ['#166534', '#155e75', '#9a3412', '#6b21a8']
 
@@ -48,19 +52,21 @@ function render() {
 }
 
 async function load() {
+  const current = ++version
   loading.value = true
   error.value = ''
   try {
-    const response = await fetch(`${props.apiBase}/api/v1/graph?limit=${Math.max(1, props.limit)}`)
+    const response = await datasetFetch(`${props.apiBase}/api/v1/graph?limit=${Math.max(1, props.limit)}`)
     const result = await response.json()
     if (!response.ok) throw new Error(result.detail || '关系图读取失败')
     graph.value = result
     await nextTick()
     render()
   } catch (cause) {
+    if (cause.name === 'AbortError') return
     error.value = cause.message || '关系图读取失败'
   } finally {
-    loading.value = false
+    if (current === version) loading.value = false
   }
 }
 
@@ -71,8 +77,13 @@ onMounted(() => {
   window.addEventListener('resize', resize)
   load()
 })
-watch(() => props.refreshKey, load)
+watch(() => [props.datasetId, props.refreshKey], () => {
+  graph.value = null
+  chart?.clear()
+  load()
+}, { flush: 'sync' })
 onBeforeUnmount(() => {
+  version += 1
   window.removeEventListener('resize', resize)
   chart?.dispose()
 })

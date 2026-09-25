@@ -29,7 +29,7 @@
 
 ## 二、现在到哪了
 
-- ✅ **全链路可用**：解析（HTML/DOCX/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。`92 passed / 1 skipped / ruff clean`。
+- ✅ **全链路可用**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。`114 passed / 1 skipped / ruff clean`。
 - ✅ **模型抽取已修好**并用真实公告验证（原本 0 条 → 19 条）。**P0 七项已完成本地回归**，验收边界见 [`CHANGELOG.md`](CHANGELOG.md)。
 - ❌ **没有人工金标**，所以没有任何可以对外宣称的准确率。
 - ⚠️ **速度不达标**：单条公告 24～90 秒。优化前先读第七节。
@@ -64,6 +64,8 @@ npm run dev
 模型配置**可以直接在网页「模型配置」面板填**（写入 `backend/.data/model_config.json`，重启不丢；`backend/.env` 作兜底默认值）。页面只显示打码尾号。
 
 > ⚠️ **导入接口没有 mode 参数，默认走 `hybrid`**（[`config.py`](../backend/app/config.py)）。配好模型后点一次导入，**每份文档**都会真实调用一次模型——一条带 3 个附件的公告会串行卡 1.5～6 分钟，且界面上没有进度反馈。
+
+正式材料导入前，请先按 [DATA_INTAKE.md](DATA_INTAKE.md) 部署 LibreOffice（DOC）与基础 PDF/XLS 依赖，并在网页新建空数据集。默认数据集保留原有数据；每次请求独立选择库，模型配置仍为全局。扫描 OCR 仍需系统级 Tesseract 和语言包。
 
 ## 四、建议的阅读顺序
 
@@ -205,7 +207,7 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q             # 期望 92 passed, 1 skipped
+./.venv/Scripts/python.exe -m pytest -q             # 期望 114 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 

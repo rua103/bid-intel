@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import AnnotationWorkbench from './components/AnnotationWorkbench.vue'
 import RelationshipGraph from './components/RelationshipGraph.vue'
+import { resolveApiBase } from './utils/browser.js'
 
-const apiBase = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000'
+const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location)
 const selectedFiles = ref([])
 const uploading = ref(false)
 const notice = ref(null)

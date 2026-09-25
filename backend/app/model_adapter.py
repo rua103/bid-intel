@@ -147,6 +147,10 @@ def extract_unstructured_items(
             {"role": "user", "content": f"来源文件：{filename}\n公告文本：\n{excerpt}"},
         ],
     }
+    if settings.model_disable_thinking:
+        # Must be a chat-template kwarg. Top-level "thinking"/"enable_thinking" and
+        # "reasoning_effort" are all ignored by the configured gateway (measured).
+        body["chat_template_kwargs"] = {"enable_thinking": False}
     try:
         if usage is not None:
             usage.requests += 1

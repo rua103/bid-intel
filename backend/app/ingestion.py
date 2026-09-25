@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import time
+import unicodedata
 from pathlib import PurePosixPath
 
 from app.config import Settings, effective_settings
@@ -21,38 +22,92 @@ from app.storage import save_import
 def _merge_model_items(
     rules: list[ItemCandidate], modeled: list[ItemCandidate], warnings: list[str],
 ) -> list[ItemCandidate]:
-    """Fill unambiguous same-document rows without duplicating table/model records."""
+    """Align original rule/model rows once; never consume an appended model row."""
     result = list(rules)
+
     def key(value: str | None) -> str:
-        return "".join((value or "").split()).casefold()
+        return "".join(unicodedata.normalize("NFKC", value or "").split()).casefold()
+
+    def same_item(row: ItemCandidate, candidate: ItemCandidate) -> bool:
+        return bool(
+            row.source_file == candidate.source_file
+            and key(row.product_name)
+            and key(row.product_name) == key(candidate.product_name)
+            and (not row.model or not candidate.model or key(row.model) == key(candidate.model))
+        )
+
+    def numbers_compatible(row: ItemCandidate, candidate: ItemCandidate) -> bool:
+        return all(
+            getattr(row, field) is None or getattr(candidate, field) is None
+            or getattr(row, field) == getattr(candidate, field)
+            for field in ("quantity", "unit_price", "total_price")
+        )
+
+    unmatched_rules = set(range(len(rules)))
+    unmatched_models = set(range(len(modeled)))
+    pairs: dict[int, int] = {}
+    # Known equal packages have priority over a missing package. A pair must be
+    # unique in both directions so the outcome cannot depend on model row order.
+    for exact_package in (True, False):
+        edges: dict[int, list[int]] = {}
+        for m in sorted(unmatched_models):
+            candidate = modeled[m]
+            matches = []
+            for r in sorted(unmatched_rules):
+                row = rules[r]
+                known_equal = (row.package_code != "default"
+                               and key(row.package_code) == key(candidate.package_code))
+                missing = "default" in (row.package_code, candidate.package_code)
+                package_matches = known_equal if exact_package else missing
+                if not same_item(row, candidate) or not package_matches:
+                    continue
+                # With a missing package, conflicting amounts cannot identify
+                # the same row. Known packages can retain a flagged field conflict.
+                if exact_package or numbers_compatible(row, candidate):
+                    matches.append(r)
+            if len(matches) > 1:
+                compatible = [r for r in matches if numbers_compatible(rules[r], candidate)]
+                matches = compatible or matches
+            edges[m] = matches
+        for m, matches in edges.items():
+            if len(matches) != 1:
+                continue
+            r = matches[0]
+            if sum(r in possible for possible in edges.values()) != 1:
+                continue
+            pairs[m] = r
+            unmatched_rules.remove(r)
+            unmatched_models.remove(m)
 
     fields = ("product_name", "category", "brand", "model", "quantity", "quantity_unit",
               "unit_price", "total_price")
-    for candidate in modeled:
-        matches = [i for i, row in enumerate(result)
-                   if row.package_code == candidate.package_code
-                   and key(row.product_name) and key(row.product_name) == key(candidate.product_name)
-                   and (not row.model or not candidate.model or key(row.model) == key(candidate.model))]
-        if len(matches) != 1:
-            if len(matches) > 1:
+    for m, candidate in enumerate(modeled):
+        if m not in pairs:
+            if any(same_item(row, candidate) and (
+                key(row.package_code) == key(candidate.package_code)
+                or "default" in (row.package_code, candidate.package_code)
+            ) for row in rules):
                 warnings.append(f"模型行无法唯一对齐表格，请核验：{candidate.product_name}")
-            else:
-                result.append(candidate)
+            result.append(candidate)
             continue
-        index = matches[0]
-        row = result[index]
+        index = pairs[m]
+        row = rules[index]
         changes = {field: getattr(candidate, field) for field in fields
                    if getattr(row, field) is None and getattr(candidate, field) is not None}
+        if row.package_code == "default" and candidate.package_code != "default":
+            changes["package_code"] = candidate.package_code
         conflicts = [field for field in fields if getattr(row, field) is not None
                      and getattr(candidate, field) is not None
-                     and str(getattr(row, field)).casefold() != str(getattr(candidate, field)).casefold()]
+                     and (key(getattr(row, field)) if isinstance(getattr(row, field), str)
+                          else str(getattr(row, field)).casefold())
+                     != (key(getattr(candidate, field)) if isinstance(getattr(candidate, field), str)
+                         else str(getattr(candidate, field)).casefold())]
         if conflicts:
             warnings.append(f"表格与模型字段不一致，保留表格值待核验：{candidate.product_name} / {','.join(conflicts)}")
-        if changes:
-            changes.update(extraction_method="hybrid_source_verified",
-                           source_evidence="\n".join(filter(None, (row.source_evidence,
-                                                                    candidate.source_evidence))))
-            result[index] = row.model_copy(update=changes)
+        changes.update(extraction_method="hybrid_source_verified",
+                       source_evidence="\n".join(dict.fromkeys(filter(None, (
+                           row.source_evidence, candidate.source_evidence)))))
+        result[index] = row.model_copy(update=changes)
     return result
 
 
@@ -191,7 +246,10 @@ def _ingest_expanded(
         if mode == "model":
             parsed_items = []
         if text:
-            texts.append(text)
+            if document == primary_document:
+                texts.insert(0, text)
+            else:
+                texts.append(text)
         if text and model_is_configured and mode != "rules":
             include_participants = True
             parsed_metadata, model_items, model_participants, model_warnings = (
@@ -212,7 +270,13 @@ def _ingest_expanded(
             parse_warnings.extend(model_warnings)
         items.extend(parsed_items)
         warnings.extend(parse_warnings)
-    metadata = extract_metadata(" ".join(texts)) if mode != "model" else NoticeMetadata()
+    rule_metadata = {}
+    if mode != "model":
+        for text in texts:
+            for field, value in extract_metadata(text).model_dump().items():
+                if value is not None:
+                    rule_metadata.setdefault(field, value)
+    metadata = NoticeMetadata(**rule_metadata)
     metadata_values = {
         field: (getattr(metadata, field) if getattr(metadata, field) is not None
                 else getattr(model_metadata, field))

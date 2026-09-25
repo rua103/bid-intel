@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "status": "predicted",
+  "notices": [
+    {
+      "notice_id": "4d56e89bd9129dcdb6d1",
+      "packages": [
+        {
+          "package_id": "A01",
+          "items": [
+            {
+              "item_id": "item-1",
+              "product_name": "会议平板",
+              "category": "信息化设备",
+              "brand": "视源",
+              "model": "MAXHUB V6",
+              "quantity": "2",
+              "unit_price": "18500",
+              "total_price": "37000"
+            }
+          ],
+          "buyer": {
+            "entity_id": "buyer-1",
+            "name": "东江市政务服务中心"
+          },
+          "winners": [],
+          "bidders": []
+        }
+      ]
+    },
+    {
+      "notice_id": "657789a5c1a309b0f67e",
+      "packages": [
+        {
+          "package_id": "A01",
+          "items": [
+            {
+              "item_id": "item-1",
+              "product_name": "教师用笔记本电脑",
+              "category": "计算机设备",
+              "brand": "联想",
+              "model": "ThinkBook 14 G6",
+              "quantity": "10",
+              "unit_price": "7800",
+              "total_price": "78000"
+            },
+            {
+              "item_id": "item-2",
+              "product_name": "黑白激光打印机",
+              "category": "办公设备",
+              "brand": "奔图",
+              "model": "P3305DN",
+              "quantity": "5",
+              "unit_price": "2100",
+              "total_price": "10500"
+            }
+          ],
+          "buyer": {
+            "entity_id": "buyer-1",
+            "name": "南河市职业学校"
+          },
+          "winners": [],
+          "bidders": []
+        },
+        {
+          "package_id": "A02",
+          "items": [
+            {
+              "item_id": "item-3",
+              "product_name": "短焦投影机",
+              "category": "教学专用仪器",
+              "brand": "爱普生",
+              "model": "CB-760Wi",
+              "quantity": "1",
+              "unit_price": "31000",
+              "total_price": "31000"
+            }
+          ],
+          "buyer": {
+            "entity_id": "buyer-1",
+            "name": "南河市职业学校"
+          },
+          "winners": [],
+          "bidders": []
+        }
+      ]
+    },
+    {
+      "notice_id": "318697b9422c1485a8b4",
+      "packages": [
+        {
+          "package_id": "A01",
+          "items": [
+            {
+              "item_id": "item-1",
+              "product_name": "数据治理服务",
+              "category": "信息技术服务",
+              "brand": null,
+              "model": null,
+              "quantity": "1",
+              "unit_price": "86000",
+              "total_price": "86000"
+            },
+            {
+              "item_id": "item-2",
+              "product_name": "数据治理培训",
+              "category": "培训服务",
+              "brand": null,
+              "model": null,
+              "quantity": "4",
+              "unit_price": "4500",
+              "total_price": "18000"
+            }
+          ],
+          "buyer": {
+            "entity_id": "buyer-1",
+            "name": "西岭区政务服务管理局"
+          },
+          "winners": [],
+          "bidders": []
+        }
+      ]
+    }
+  ]
+}

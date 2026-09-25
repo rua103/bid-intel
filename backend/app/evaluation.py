@@ -585,4 +585,8 @@ def render_markdown(report: EvaluationReport) -> str:
         "逐条匹配与错误字段请查看配套 JSON 的 alignments。",
         "",
     ]
+    if report.warnings:
+        lines += ["## 核验提示", ""]
+        lines += [f"- {warning}" for warning in report.warnings]
+        lines.append("")
     return "\n".join(lines)

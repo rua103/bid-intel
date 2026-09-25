@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     database_path: str = ".data/bidintel.db"
     max_upload_mb: int = 50
     max_batch_upload_mb: int = 500
+    cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     model_base_url: str = ""
     model_api_key: str = ""
     model_name: str = ""
@@ -18,6 +19,13 @@ class Settings(BaseSettings):
     model_timeout_seconds: int = 120
     # Backstop against an endless stream; generation is already bounded by max_tokens.
     model_stream_total_seconds: int = 600
+    # Measured on the configured gateway: without this, deepseek-v4-flash spends
+    # ~5000 reasoning tokens before emitting any JSON (208s per notice, and the
+    # JSON gets truncated at max_tokens). Only chat_template_kwargs works --
+    # top-level "thinking"/"enable_thinking" and "reasoning_effort" are ignored.
+    # With it: reasoning -> 0, ~35s per notice, complete JSON. Turn this off only
+    # if a new endpoint rejects the field.
+    model_disable_thinking: bool = True
     extraction_mode: str = "hybrid"
     ocr_enabled: bool = False
     ocr_language: str = "chi_sim+eng"

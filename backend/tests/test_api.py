@@ -1,9 +1,49 @@
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import settings
 from app.main import app
+
+
+def test_cors_allows_private_lan_frontend_and_rejects_unlisted_public_origins():
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/v1/health",
+            headers={
+                "Origin": "http://192.168.1.45:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert response.status_code == 200
+        assert response.headers["access-control-allow-origin"] == "http://192.168.1.45:5173"
+        assert response.headers["access-control-allow-credentials"] == "true"
+
+        external = client.options(
+            "/api/v1/health",
+            headers={
+                "Origin": "https://reviewer.example.com",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        assert "access-control-allow-origin" not in external.headers
+
+
+@pytest.mark.parametrize("origin,allowed", [
+    ("http://10.2.3.4:5173", True),
+    ("http://172.16.1.2:5173", True),
+    ("http://172.31.1.2:5173", True),
+    ("http://172.32.1.2:5173", False),
+    ("https://192.168.1.20.example.com", False),
+])
+def test_cors_private_origin_boundaries(origin, allowed):
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/v1/evaluation/run",
+            headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
+        )
+        assert (response.headers.get("access-control-allow-origin") == origin) is allowed
 
 
 def test_upload_html_extracts_items_and_searches(tmp_path, monkeypatch):

@@ -1,0 +1,198 @@
+{
+  "date": "2026-09-25",
+  "purpose": "P0 deterministic regression verification; not accuracy evaluation",
+  "external_model_requests": 0,
+  "corpus_checks": [
+    {
+      "source": "031f976924d449e1.html",
+      "sha256": "ba4aa2b93d95feb9a3a5fe1c7e327a9f6dea119a9817192b3de40d5654497856",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "2b5edf684f3fe393.html",
+      "sha256": "d3af6a2fbcf596b8f7d765bd7f536e74296fd34c4707e18ab9a33367d53e21d1",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "34a70b9c52cbb0f2.html",
+      "sha256": "6afd993751764e699e4171941466abde291ee127bf4b3666cc405e50151d8dba",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 1
+    },
+    {
+      "source": "36fead55a4d6d837.html",
+      "sha256": "3189b18cd9fa5c5c9d71c8a102d3a30d543ce78cbf8e578236b798fd187419bc",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 1
+    },
+    {
+      "source": "44b32dc62a584d30.html",
+      "sha256": "b67fb9b809c6ed5ebb43997401b25ecf00d944ebbe58cdd45824674f826b9a67",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "5892141485cb803d.html",
+      "sha256": "49e5ada30741f5c8265d17fb7688fc61ed46ae18342a8a29fb752f5490271476",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "5ecceb8fc6349c75.html",
+      "sha256": "5a22beaa667e27c2ea6a17be85b2ac1385cec465d9204b306ecb6464a0cd0116",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 1
+    },
+    {
+      "source": "78552f907a9bc527.html",
+      "sha256": "eb22243bbdfcd45e158969d79e1ca6678d2b1d52b7aeb9b0b9e9c2e76c22ddd4",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 3
+    },
+    {
+      "source": "7e645a669bd411a0.html",
+      "sha256": "c6278c39aa738fb0b84888da2503bf408905bfe65bb610afe57253e2d30333fc",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 1
+    },
+    {
+      "source": "912477ae89e3b441.html",
+      "sha256": "994e4439998934809591e9e1d4b7b8b53ce30f999c595f3a4c49b17f52eb90cb",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 1
+    },
+    {
+      "source": "a96c2cc49efff1fe.html",
+      "sha256": "e7b391aebf79be56872064348c3db536d5dd3fdda4ebe9246feb0ede79e217fa",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "b03767ada35db28c.html",
+      "sha256": "ab7708d69c7536a6d4782724e8b01380f1e0bb2f9c9709471ffe62920087a66a",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "b632644ecd9ad341.html",
+      "sha256": "a1576f10bf207196a6541eacf83bdc9f1a2118318c2314fc11b0184f34e2fc60",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "d3778fbec952695b.html",
+      "sha256": "d66df94aff4409091dbd705de92a44c30ff18ade7f59f14298d71acd99a5280f",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "dddd0faab7371cec.html",
+      "sha256": "07ad8fe29990606745b9501b6261229bd3ee8a97547d475f7af7a531b131f428",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "def70369923e22b4.html",
+      "sha256": "5dbe065478a58ecc0693918494ce4b18923e017d60ef104d43ac6ef13e2a9279",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 1
+    },
+    {
+      "source": "e695f9d5967925d2.html",
+      "sha256": "591636cbeba77eedad70c94645f81fdf40e04d8e6ce84c48f36c698ce3bc8612",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 2
+    },
+    {
+      "source": "e8ce8c9b3bb0284e.html",
+      "sha256": "7fa49cdbcca90c0dd83e4f68c1fe98a87a9e48b74c18023485afa315cabec29c",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    },
+    {
+      "source": "ed0d6c8884634d70.html",
+      "sha256": "e670ad16fe631ae2702b0bd0689d0265c7d635e9376b51040a85332fa6c0d819",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 3
+    },
+    {
+      "source": "fde38bb8739d27ef.html",
+      "sha256": "f10de3906ee6d4f8323b5ba17feaec1393d0f240d3f3704a7cbc59964d0b534a",
+      "project_name_matches_header": true,
+      "procurement_unit_matches_header": true,
+      "award_matches_header_yuan": true,
+      "rules_items": 0
+    }
+  ],
+  "archived_report": "stream-compare-3.json",
+  "archived_report_sha256": "7ae0bdcb0a98af03fb139192290c90e4105d6758966dbd90ffe2335a7f0aab19",
+  "merge_replays": [
+    {
+      "source": "912477ae89e3b441.html",
+      "rules_items": 1,
+      "archived_model_items": 1,
+      "hybrid_items": 1,
+      "packages": [
+        "default"
+      ]
+    },
+    {
+      "source": "78552f907a9bc527.html",
+      "rules_items": 3,
+      "archived_model_items": 3,
+      "hybrid_items": 3,
+      "packages": [
+        "合同包1"
+      ]
+    },
+    {
+      "source": "031f976924d449e1.html",
+      "rules_items": 0,
+      "archived_model_items": 15,
+      "hybrid_items": 15,
+      "packages": [
+        "豫政采(2)20261526-1"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { annotationId } from '../utils/browser.js'
 
 const props = defineProps({ apiBase: { type: String, required: true } })
 const fields = [ ['product_name', '产品 / 服务'], ['category', '品目'], ['brand', '品牌'], ['model', '规格型号'], ['quantity', '数量'], ['unit_price', '单价（元）'], ['total_price', '总价（元）'] ]
@@ -16,15 +17,21 @@ const error = ref('')
 const report = ref(null)
 const markdown = ref('')
 const reviewed = ref(false)
+const confirmIdenticalGold = ref(false)
 const notice = computed(() => gold.value?.notices?.[activeNotice.value])
 const pkg = computed(() => notice.value?.packages?.[activePackage.value])
 const source = computed(() => sources.value.find(s => s.notice_id === notice.value?.notice_id))
 const metric = value => value == null ? 'N/A' : `${(value * 100).toFixed(2)}%`
 const clone = value => JSON.parse(JSON.stringify(value))
-const uid = prefix => `${prefix}-${crypto.randomUUID()}`
+const uid = annotationId
 const storageKey = 'bid-intel-annotation-v1'
 
-function resetReport() { report.value = null; markdown.value = ''; reviewed.value = false }
+function resetReport() {
+  report.value = null
+  markdown.value = ''
+  reviewed.value = false
+  confirmIdenticalGold.value = false
+}
 watch(activeNotice, () => { activePackage.value = 0 })
 watch(gold, () => {
   if (gold.value) {
@@ -60,7 +67,7 @@ async function generate() {
     if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
     predictions.value = clone(data.predictions); sources.value = data.sources
     gold.value = clone(data.gold); activeNotice.value = 0; activePackage.value = 0
-    message.value = `已生成 ${gold.value.notices.length} 条待核验草稿。${data.orphan_files.length ? ` ${data.orphan_files.length} 个附件未匹配，需单独处理。` : ''}`
+    message.value = `已生成 ${gold.value.notices.length} 条空白 gold 标注表；预测结果已单独保存。请对照原文独立填写 gold。${data.orphan_files.length ? ` ${data.orphan_files.length} 个附件未匹配，需单独处理。` : ''}`
   } catch (cause) { error.value = cause.message }
   finally { busy.value = false }
 }
@@ -107,7 +114,8 @@ async function evaluate() {
   body.append('gold', new Blob([JSON.stringify(preparedGold())], { type: 'application/json' }), 'gold.json')
   body.append('predictions', new Blob([JSON.stringify(predictions.value)], { type: 'application/json' }), 'predictions.json')
   try {
-    const response = await fetch(`${props.apiBase}/api/v1/evaluation/run`, { method: 'POST', body })
+    const query = confirmIdenticalGold.value ? '?allow_identical_gold=true' : ''
+    const response = await fetch(`${props.apiBase}/api/v1/evaluation/run${query}`, { method: 'POST', body })
     const data = await response.json()
     if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
     report.value = data.report; markdown.value = data.markdown
@@ -119,7 +127,7 @@ async function evaluate() {
 <template>
   <section id="annotation" class="panel annotation-panel">
     <div class="panel-heading"><div><span class="step">05</span><h3>人工标注与质量评测</h3></div><span class="hint">gold 与预测分开保存 · 修改后需重新核验</span></div>
-    <p class="annotation-note">上传材料生成候选草稿，对照原文逐条修正。空白表示原文未披露；金额统一为元。自动抽取结果不能直接作为人工标准答案。</p>
+    <p class="annotation-note">上传材料会分别生成空白 gold 标注表和自动预测结果。请对照原文独立填写 gold；空白表示原文未披露，金额统一为元。自动抽取结果不能直接作为人工标准答案。</p>
     <div class="annotation-toolbar">
       <label class="file-picker">选择标注材料<input type="file" multiple accept=".html,.htm,.zip,.docx,.xlsx,.pdf,.txt,.png,.jpg,.jpeg" @change="files = Array.from($event.target.files || [])" /></label>
       <select v-model="mode" aria-label="草稿抽取方案"><option value="rules">表格规则（不调用模型）</option><option value="model">纯模型（调用已配置 API）</option><option value="hybrid">规则 + 模型（调用已配置 API）</option></select>
@@ -148,10 +156,12 @@ async function evaluate() {
           <p class="annotation-note">中标方应同时列入投标主体。联合体保留原文整体身份；不要把同一笔中标金额重复分配给各成员。</p>
         </div>
       </div>
-      <label class="review-check"><input v-model="reviewed" type="checkbox" />我已对照原文核验本文件全部 {{ gold.notices.length }} 条公告，补齐遗漏并删除错误候选。</label>
+      <label class="review-check"><input v-model="reviewed" type="checkbox" />我已对照原文独立填写并核验本文件全部 {{ gold.notices.length }} 条公告。</label>
+      <label v-if="reviewed" class="review-check"><input v-model="confirmIdenticalGold" type="checkbox" />如果 gold 与预测完全一致，我已再次独立核对原文；允许报告完美匹配。</label>
       <div class="annotation-toolbar"><button class="secondary" @click="download(reviewed ? 'gold.reviewed.json' : 'gold.draft.json', preparedGold())">导出 {{ reviewed ? '已核验 gold' : 'gold 草稿' }}</button><button class="secondary" :disabled="!predictions" @click="download('predictions.json', predictions)">导出原始预测</button><button class="primary" :disabled="!reviewed || !predictions || busy" @click="evaluate">计算指标与报告</button></div>
     </div>
     <div v-if="report" class="evaluation-results">
+      <p v-for="warning in report.warnings" :key="warning" class="annotation-warning">{{ warning }}</p>
       <p class="annotation-warning">以下为本地验证口径：准确率 = TP / (TP + FP + FN)，非官方评分。加权值 = 准确率 × 0.4 + 精确率 × 0.3 + 召回率 × 0.3。N/A 表示无可评分样本。</p>
       <div class="metric-grid"><div v-for="[key, label] in [['accuracy','字段准确率'],['precision','字段精确率'],['recall','字段召回率'],['f1','字段 F1'],['weighted_score','字段加权值']]" :key="key"><small>{{ label }}</small><strong>{{ metric(report.field_micro[key]) }}</strong></div></div>
       <div class="table-wrap"><table><thead><tr><th>粒度</th><th>TP / FP / FN</th><th>准确率</th><th>精确率</th><th>召回率</th><th>F1</th></tr></thead><tbody><tr v-for="[name, result] in Object.entries({ ...report.by_field, records: report.records, ...report.entities })" :key="name"><td>{{ fields.find(([key]) => key === name)?.[1] || name }}</td><td>{{ result.tp }} / {{ result.fp }} / {{ result.fn }}</td><td>{{ metric(result.accuracy) }}</td><td>{{ metric(result.precision) }}</td><td>{{ metric(result.recall) }}</td><td>{{ metric(result.f1) }}</td></tr></tbody></table></div>

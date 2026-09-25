@@ -44,7 +44,18 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        origin.strip()
+        for origin in settings.cors_allowed_origins.split(",")
+        if origin.strip()
+    ],
+    # Vite is intentionally exposed on the LAN for demos. Restrict the default
+    # dynamic allowance to RFC1918 hosts; use CORS_ALLOWED_ORIGINS for hosted UI domains.
+    allow_origin_regex=(
+        r"^https?://(?:(?:localhost|127(?:\.\d{1,3}){3})|"
+        r"(?:10(?:\.\d{1,3}){3})|(?:192\.168(?:\.\d{1,3}){2})|"
+        r"(?:172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}))(?:\:\d{1,5})?$"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

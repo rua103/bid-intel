@@ -4,13 +4,23 @@ from __future__ import annotations
 
 import hashlib
 import json
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
-from app.evaluation import GoldDataset, evaluate_dataset, render_markdown
+from app.evaluation import (
+    ITEM_FIELDS,
+    GoldDataset,
+    PredictionDataset,
+    evaluate_dataset,
+    normalize_name,
+    normalize_number,
+    normalized_field,
+    render_markdown,
+)
 from app.ingestion import extract_notice, group_notice_documents
 from app.parsers import SourceDocument, expand_uploads, parse_document
 from app.schemas import ImportResult
@@ -40,11 +50,73 @@ def result_notice(result: ImportResult, notice_id: str) -> dict:
     return {"notice_id": notice_id, "packages": packages}
 
 
+def gold_skeleton(predicted_notice: dict) -> dict:
+    """Create a blank annotation scaffold without copying extracted values into gold."""
+    return {
+        "notice_id": predicted_notice["notice_id"],
+        "packages": [
+            {
+                "package_id": package["package_id"],
+                "items": [],
+                "buyer": None,
+                "winners": [],
+                "bidders": [],
+            }
+            for package in predicted_notice["packages"]
+        ],
+    }
+
+
+def has_gold_annotations(gold: GoldDataset) -> bool:
+    return any(
+        package.items or package.buyer is not None or package.winners or package.bidders
+        for notice in gold.notices
+        for package in notice.packages
+    )
+
+
+def same_evaluation_content(gold: GoldDataset, predictions: PredictionDataset) -> bool:
+    """Compare scored content independent of row IDs and JSON list ordering."""
+    def signature(value: object) -> str:
+        # 2, 2.0 and 2.000 are the same value, regardless of JSON serialization.
+        return repr(value.normalize() if isinstance(value, Decimal) else value)
+
+    def item_signature(item: object) -> tuple:
+        return tuple(
+            (field, signature(normalized_field(field, getattr(item, field))))
+            for field in ITEM_FIELDS
+        )
+
+    def dataset_signature(dataset: GoldDataset | PredictionDataset) -> tuple:
+        notices = []
+        for notice in dataset.notices:
+            packages = []
+            for package in notice.packages:
+                buyer = normalize_name(package.buyer.name) if package.buyer else None
+                items = tuple(sorted((item_signature(item) for item in package.items), key=repr))
+                winners = tuple(sorted(
+                    (
+                        normalize_name(person.name),
+                        signature(normalize_number(person.award_amount, monetary=True)),
+                    )
+                    for person in package.winners
+                ))
+                bidders = tuple(sorted(
+                    (normalize_name(person.name), person.outcome)
+                    for person in package.bidders
+                ))
+                packages.append((package.package_id, buyer, items, winners, bidders))
+            notices.append((notice.notice_id, tuple(sorted(packages, key=repr))))
+        return tuple(sorted(notices, key=repr))
+
+    return dataset_signature(gold) == dataset_signature(predictions)
+
+
 def annotation_seed(files: list[SourceDocument], mode: str = "rules") -> dict:
     expanded, warnings = expand_uploads(files)
     html = [doc for doc in expanded if doc.filename.lower().endswith((".html", ".htm"))]
     groups, orphans = group_notice_documents(expanded) if len(html) > 1 else ([expanded], [])
-    notices, sources = [], []
+    gold_notices, predicted_notices, sources = [], [], []
     seen = set()
     for group in groups:
         if not group:
@@ -56,16 +128,19 @@ def annotation_seed(files: list[SourceDocument], mode: str = "rules") -> dict:
             continue
         seen.add(notice_id)
         result = extract_notice(group, extraction_mode=mode)
-        notices.append(result_notice(result, notice_id))
+        predicted_notice = result_notice(result, notice_id)
+        predicted_notices.append(predicted_notice)
+        gold_notices.append(gold_skeleton(predicted_notice))
         sources.append({"notice_id": notice_id, "files": result.source_files,
                         "text": "\n\n".join(
                             f"【{doc.filename}】\n{parse_document(doc)[0]}" for doc in group),
                         "evidence": [row.model_dump(mode="json") for row in result.items],
                         "warnings": result.warnings})
-    if not notices:
+    if not predicted_notices:
         raise ValueError("没有找到可解析的公告")
-    return {"gold": {"schema_version": "1.0", "status": "draft", "notices": notices},
-            "predictions": {"schema_version": "1.0", "status": "predicted", "notices": notices},
+    return {"gold": {"schema_version": "1.0", "status": "draft", "notices": gold_notices},
+            "predictions": {"schema_version": "1.0", "status": "predicted",
+                            "notices": predicted_notices},
             "sources": sources, "warnings": warnings, "orphan_files": orphans,
             "mode": mode}
 
@@ -97,6 +172,7 @@ async def make_draft(
 async def run_evaluation(
     gold: Annotated[UploadFile, File()], predictions: Annotated[UploadFile, File()],
     allow_draft: bool = Query(default=False),
+    allow_identical_gold: bool = Query(default=False),
 ):
     values = []
     for uploaded in (gold, predictions):
@@ -108,7 +184,18 @@ async def run_evaluation(
         except (ValueError, UnicodeError) as exc:
             raise HTTPException(status_code=422, detail="请上传 UTF-8 标注和预测 JSON") from exc
     try:
-        report = await run_in_threadpool(evaluate_dataset, *values, allow_draft=allow_draft)
+        gold_dataset = GoldDataset.model_validate(values[0])
+        prediction_dataset = PredictionDataset.model_validate(values[1])
+        if not has_gold_annotations(gold_dataset):
+            raise ValueError("gold 中没有人工标注记录；请先对照原文录入标的或主体后再评测")
+        identical = same_evaluation_content(gold_dataset, prediction_dataset)
+        if not allow_identical_gold and identical:
+            raise ValueError("gold 与 predictions 内容完全一致；如已独立对照原文复核，请显式确认后重试")
+        report = await run_in_threadpool(
+            evaluate_dataset, gold_dataset, prediction_dataset, allow_draft=allow_draft
+        )
+        if identical:
+            report.warnings.append("gold 与预测内容完全一致；调用方已显式声明独立核验，系统无法代替人工证明。")
         return {"report": report.model_dump(mode="json"), "markdown": render_markdown(report)}
     except (ValueError, ValidationError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

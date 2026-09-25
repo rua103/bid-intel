@@ -3,6 +3,8 @@
 > 写给接手本仓库编码工作的 AI agent。假设你没有任何上下文，且**不应该**重新发现已经付过代价的知识。
 >
 > 读完本文后，你的任务清单在 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md)。本文只讲**环境、状态、红线和已解决的坑**。
+>
+> **2026-09-25 状态更新**：P0 七项已补修并通过本地回归，见 [P0 验收记录](P0_VERIFICATION.md)，相关修改随本次提交保存。下文旧提交快照仅供追溯，接手时以 `git status` 和 `git log` 为准。
 
 ## 0. 一句话
 
@@ -16,7 +18,7 @@
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q          # 期望 64 passed, 1 skipped
+./.venv/Scripts/python.exe -m pytest -q          # 当前 92 passed, 1 skipped
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 
@@ -30,8 +32,8 @@ cd backend
 
 ## 2. 仓库状态
 
-- 分支 `main`，**领先 `origin/main` 6 个提交，尚未推送**。推之前先问用户。
-- 工作区干净。
+- P0 提交前的快照：分支 `main` 领先 `origin/main` 7 个提交，HEAD 为 `8eb05e9`；P0 修复在其后提交。
+- 本次只保存本地提交，未推送；后续推送前先问用户。工作区状态以 `git status` 为准。
 - 最近提交：
 
 ```

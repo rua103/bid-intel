@@ -6,7 +6,7 @@
 >
 > **本文只列问题，不写修复方案。** 每条给出定位、影响和成本估算，改完请把「状态」一栏更新掉。
 >
-> **2026-09-25 更新**：P0 七项已完成本地回归验证，详见 [P0 验收记录](P0_VERIFICATION.md)。下文问题描述、旧代码行号和旧实验数字保留为修复前证据，不代表当前结果。首轮 P0 修改曾漏掉多包合并、重复表头和元数据跨行污染，现已补修并增加回归测试。
+> **2026-09-25 更新**：P0 七项已完成本地回归验证，验收边界与证据见 [`CHANGELOG.md`](CHANGELOG.md)。下文问题描述、旧代码行号和旧实验数字保留为修复前证据，不代表当前结果。首轮 P0 修改曾漏掉多包合并、重复表头和元数据跨行污染，现已补修并增加回归测试。
 
 ## 零、优先级总表
 
@@ -80,7 +80,7 @@ hybrid   6 items: [前三项, 同样的三项再来一遍]
 
 对照组：[`evaluation_cli.py:35-36`](../backend/app/evaluation_cli.py) 有 `if len(inputs) != 2: raise ValueError("gold and predictions must be separate files")`，Web 路径没有同类保护。全后端唯一能产出 `status: predicted` 文件的地方就是 `evaluation_api.py:68`——**predictions 天然等于 gold**。
 
-**影响**：直接威胁任务一"提取准确性"15 分的叙事与答辩诚信。评委问一句"你的 gold 和 predictions 是同一份文件吗"就当场穿帮。而 [`HANDOFF.md`](HANDOFF.md) 第八节红线第 3 条本就写着"不要把自动抽取结果当金标"，工具却把错误路径做成了最短路径。
+**影响**：直接威胁任务一"提取准确性"15 分的叙事与答辩诚信。评委问一句"你的 gold 和 predictions 是同一份文件吗"就当场穿帮。而 [`ONBOARDING.md`](ONBOARDING.md) 第五节红线第 5 条本就写着"不要把自动抽取结果当金标"，工具却把错误路径做成了最短路径。
 
 ### 1.4 表头别名缺 CCGP 标准列名 · 已修 · 小时
 
@@ -345,7 +345,7 @@ hybrid   6 items: [前三项, 同样的三项再来一遍]
 
 赛题八：基准数据集（约 1000 条，含附件）由命题方统一发放。当前语料是自采的 20 条 ccgp **纯 HTML、零附件**，因此"附件归属""附件型公告""扫描件"这些官方数据的常态形态在开发集里**毫无代表性**。
 
-> ⚠️ [`HANDOFF.md`](HANDOFF.md) 断言「官方数据到了只是换语料，管线一行不用改」——**这个结论没有证据**，且与 `parsers.py` 对 `.doc`/`.xls` 直接返回「暂不支持」的事实相矛盾。该断言需修正。
+> ⚠️ **不要以为「官方数据到了只是换语料，管线一行不用改」。** 这个说法曾在旧文档里出现过，**没有证据**，且与 `parsers.py` 对 `.doc`/`.xls` 直接返回「暂不支持」的事实相矛盾。官方数据的常态形态（含附件、扫描件、多包）在自采开发集里毫无代表性。
 
 ### 4.4 现场演示三件套全缺 · high · 天
 
@@ -395,26 +395,31 @@ hybrid   6 items: [前三项, 同样的三项再来一遍]
 
 ## 五、文档
 
-### 5.1 已修复（本次提交 `1b0de1d`）
+### 5.1 已解决（2026-09-25 文档重构）
 
-以下条目在本次审查前后已修正，**保留在此仅供追溯**：
+原先同一个事实散落在 2-4 份文档里，且存在**编号撞车**——旧 `HANDOFF.md` 用 P0-1/P0-2/P0-3 指代「实体归一化 / 无金标 / 查询口径」，与本文的 P0-1～P0-7 **完全不是一回事**。同一个仓库里说"P0-1"会指两个东西。
 
-- ✅ `HANDOFF.md` 把"关闭推理"的结论写反（说"已删除、不要再加"，实际代码正是靠这个开关才抽得出数据）
-- ✅ `HANDOFF.md` 写「修复后验证仍在运行，尚无结果」，实际早已跑完
-- ✅ `HANDOFF.md` 测试数字过期（`61 passed` → `64 passed / 1 skipped`）
-- ✅ `HANDOFF.md` 阅读指引说 `DEVELOPMENT_CORPUS.md` 含"今天排障的完整过程"，实际该文件停在修复前
-- ✅ `DEVELOPMENT_CORPUS.md` 整节「超时跟进」过期，且对当前请求体的描述是错的
-- ✅ `DEVELOPMENT_CORPUS.md` 未引用成功的两份 benchmark
+已重构为三份职责单一的文档：
+
+| 现在 | 内容 |
+|---|---|
+| [`ONBOARDING.md`](ONBOARDING.md) | 接手必读（人 + AI agent 共用）：怎么跑、红线、已解决的坑、性能优化判据 |
+| [`CHANGELOG.md`](CHANGELOG.md) | 历史决策、验收边界、排查经过（按日期倒序） |
+| [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) | 本文——唯一的问题清单 |
+
+删除 `HANDOFF.md`、`AGENT_BRIEF.md`、`P0_VERIFICATION.md`、`DEVELOPMENT_CORPUS.md`，内容按性质并入上述三份，无信息丢失（经过 → CHANGELOG，结论 → ONBOARDING）。
+
+顺带修正的过时陈述：
+
+- ✅ README 把**已实现**的 OCR 列为待办 → 改为说明开关与 Tesseract 依赖
+- ✅ README 从未说明导入默认走 `hybrid` 且接口无 mode 参数 → 已补警告
+- ✅ 旧 HANDOFF 把"关闭推理"的结论写反、写「修复后验证仍在运行」、测试数字停在 `61 passed` → 相关内容已按当前事实重写
 
 ### 5.2 待修
 
 | 问题 | 证据 | 成本 |
 |---|---|---|
-| **README 把已实现的 OCR 列为待办** | [`README.md:68`](../README.md) 写「增加图片 OCR…」，实际 [`parsers.py:210-233`](../backend/app/parsers.py) 是完整的 Tesseract 调用，[`parsers.py:268-294`](../backend/app/parsers.py) 对无文本页逐页 OCR，开关在 [`config.py:29-31`](../backend/app/config.py)。同时 README **没写 OCR 依赖系统级 Tesseract + chi_sim** | 小时 |
-| **README 从未说明导入默认走 hybrid** | [`config.py:28`](../backend/app/config.py) 默认 hybrid，[`ingestion.py:195`](../backend/app/ingestion.py) 对每个 document 无条件调用模型，而 [`main.py:122-128`](../backend/app/main.py) 的导入接口**没有 mode 参数**。配好模型后点一次导入 = 一条带 3 附件的公告卡 1.5-6 分钟 | 小时 |
 | **QUERY_SEMANTICS 低估已实现能力** | [`QUERY_SEMANTICS.md:8`](QUERY_SEMANTICS.md) 写「拿到官方样例后再实现多包映射」，实际 [`storage.py:218-226`](../backend/app/storage.py) 已按 `package_code` 建多包行 | 小时 |
-| **HANDOFF 前端打包数字对不上** | [`HANDOFF.md`](HANDOFF.md) 写 gzip 383 KB，实测 381,794 字节 = 372.8 KB | 分钟 |
-| **HANDOFF 的「换语料即可」断言无证据** | 见 4.3 | 小时 |
 
 ---
 

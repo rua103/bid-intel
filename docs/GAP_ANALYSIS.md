@@ -325,7 +325,7 @@ hybrid   6 items: [前三项, 同样的三项再来一遍]
 
 ### 3.10 echarts 全量引入且首屏同步加载 · low · 小时
 
-**证据**：[`RelationshipGraph.vue:3`](../frontend/src/components/RelationshipGraph.vue) `import * as echarts from 'echarts'`（无按需引入）。构建产物 1,140,485 字节，gzip 381,794 字节；bundle 里打进了用不到的 treemap/radar/sunburst/candlestick/sankey/gauge/themeRiver。且该组件由 [`App.vue:417`](../frontend/src/App.vue) 首屏直接渲染，无懒加载。
+**证据**：[`RelationshipGraph.vue:3`](../frontend/src/components/RelationshipGraph.vue) `import * as echarts from 'echarts'`（无按需引入）。构建产物 **1,143.32 kB，gzip 384.03 kB**（2026-09-25 重新测量；此数字随每次前端改动漂移，引用前请自己跑一次 `npm run build`）；bundle 里打进了用不到的 treemap/radar/sunburst/candlestick/sankey/gauge/themeRiver。且该组件由 [`App.vue:417`](../frontend/src/App.vue) 首屏直接渲染，无懒加载。
 
 ### 3.11 单页长滚动、无路由无导航 · low · 小时
 

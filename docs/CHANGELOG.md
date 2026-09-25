@@ -6,6 +6,46 @@
 
 ---
 
+## 2026-09-25 · 收口两条悬挂分支
+
+远端积了两条各自从 `a95be2f` 分出的单提交分支，**都落后 main 10 个提交**。处理方式不同，因为风险不同。
+
+### `origin/main2` — 直接合并 ✅
+
+`52d4359 feat: add examples and synthetic test data`，452 行纯新增（`examples/gold.reviewed.json`、`examples/predictions.json`、3 个合成公告 HTML）。试合无冲突，且这些路径在 main 上都不存在。已 `--no-ff` 合并。
+
+### `origin/code` — **不合并**，只挑拣 ⚠️
+
+`83c1d6c fix: preserve reviewed gold and show field errors`，试合**冲突**。更危险的是：它的"顺手解法"会**静默回退两个 P0 修复**——
+
+| 分支里的改动 | 会覆盖掉 | 后果 |
+|---|---|---|
+| `uid` 改回 `crypto.randomUUID()`、删掉 `import { annotationId }` | P0-5 | 局域网 http 下标注按钮全部抛异常 |
+| 删掉 `confirmIdenticalGold` | P0-3 | gold 与 predictions 完全相同时不再需要显式确认 |
+| 提示语改回「已生成 N 条待核验草稿」 | P0-3 | 掩盖"gold 是空白表、预测单独存"的语义 |
+
+**根因**：它从 `a95be2f` 分出去时 P0 工作还没发生。在它的上下文里"改回原样"是中性操作，在现在的 main 上却是回退修复。
+
+**移植了什么**（`AnnotationWorkbench.vue`）：
+
+- `fieldErrors` 计算属性 + `findItem` 辅助函数——把 `report.alignments` 里 `wrong`/`missing`/`extra` 的字段摊平成表格
+- 评测结果区新增「逐字段错误」表：公告 / 采购包、字段、错误类型、**人工答案 vs 系统答案**并排
+- `watch(predictions)` —— 只导入预测 JSON 也能持久化到 localStorage
+
+**没移植什么**：`uid`、`confirmIdenticalGold`、提示语，以及 `restoreReviewStatus`/`setReviewed`（那套"导入已核验 gold 就恢复勾选"的做法与 P0-3 的保守方向相反——main 现在会在任何 gold 变动后强制重新核验）。
+
+### 验证
+
+- 后端 `92 passed, 1 skipped`；ruff `All checks passed`
+- 前端 `npm test` 2 passed；`npm run build` 通过
+- 显式确认 P0 修复仍在：`annotationId` 2 处、`confirmIdenticalGold` 4 处、`allow_identical_gold` 1 处、直接调用 `crypto.randomUUID()` **0 处**
+
+### 教训
+
+**分支落后越多，合并时越容易把已修的 bug 带回来**，而且冲突解决看起来是"顺手"的。收口前必须逐条确认：这个 diff 相对**当前** main 会改掉什么，而不是相对它的分叉点。上面那张表就是这么查出来的——用 `git diff origin/main origin/code`，不是 `git diff <分叉点> origin/code`。
+
+---
+
 ## 2026-09-25 · P0-1～P0-7 修复与验收
 
 本次完成缺口清单中的 P0-1～P0-7。

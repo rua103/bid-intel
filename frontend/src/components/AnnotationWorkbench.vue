@@ -32,6 +32,26 @@ function resetReport() {
   reviewed.value = false
   confirmIdenticalGold.value = false
 }
+function findItem(dataset, noticeId, packageId, itemId) {
+  return dataset?.notices?.find(entry => entry.notice_id === noticeId)
+    ?.packages?.find(entry => entry.package_id === packageId)
+    ?.items?.find(entry => entry.item_id === itemId)
+}
+// Flattens the per-field verdicts the report already carries into rows a reviewer can act on,
+// showing the human answer next to the system answer. Only wrong/missing/extra are listed;
+// "correct" and "empty" are not errors.
+const fieldErrors = computed(() => (report.value?.alignments || []).flatMap(alignment =>
+  Object.entries(alignment.fields)
+    .filter(([, status]) => ['wrong', 'missing', 'extra'].includes(status))
+    .map(([field, status]) => ({
+      noticeId: alignment.notice_id,
+      packageId: alignment.package_id,
+      field: fields.find(([key]) => key === field)?.[1] || field,
+      status: { wrong: '值错误', missing: '漏提', extra: '多提' }[status],
+      goldValue: findItem(gold.value, alignment.notice_id, alignment.package_id, alignment.gold_item_id)?.[field] ?? null,
+      predictedValue: findItem(predictions.value, alignment.notice_id, alignment.package_id, alignment.predicted_item_id)?.[field] ?? null,
+    }))
+))
 watch(activeNotice, () => { activePackage.value = 0 })
 watch(gold, () => {
   if (gold.value) {
@@ -39,6 +59,15 @@ watch(gold, () => {
     gold.value.status = 'draft'
     try { localStorage.setItem(storageKey, JSON.stringify({ gold: gold.value, predictions: predictions.value, sources: sources.value })) }
     catch { message.value = '浏览器草稿空间不足，请立即导出 gold JSON 保存。' }
+  }
+}, { deep: true })
+// Predictions are persisted separately: loading a predictions JSON without touching gold
+// should still survive a refresh.
+watch(predictions, () => {
+  resetReport()
+  if (gold.value) {
+    try { localStorage.setItem(storageKey, JSON.stringify({ gold: gold.value, predictions: predictions.value, sources: sources.value })) }
+    catch { message.value = '浏览器草稿空间不足，请立即导出 JSON 保存。' }
   }
 }, { deep: true })
 
@@ -165,6 +194,9 @@ async function evaluate() {
       <p class="annotation-warning">以下为本地验证口径：准确率 = TP / (TP + FP + FN)，非官方评分。加权值 = 准确率 × 0.4 + 精确率 × 0.3 + 召回率 × 0.3。N/A 表示无可评分样本。</p>
       <div class="metric-grid"><div v-for="[key, label] in [['accuracy','字段准确率'],['precision','字段精确率'],['recall','字段召回率'],['f1','字段 F1'],['weighted_score','字段加权值']]" :key="key"><small>{{ label }}</small><strong>{{ metric(report.field_micro[key]) }}</strong></div></div>
       <div class="table-wrap"><table><thead><tr><th>粒度</th><th>TP / FP / FN</th><th>准确率</th><th>精确率</th><th>召回率</th><th>F1</th></tr></thead><tbody><tr v-for="[name, result] in Object.entries({ ...report.by_field, records: report.records, ...report.entities })" :key="name"><td>{{ fields.find(([key]) => key === name)?.[1] || name }}</td><td>{{ result.tp }} / {{ result.fp }} / {{ result.fn }}</td><td>{{ metric(result.accuracy) }}</td><td>{{ metric(result.precision) }}</td><td>{{ metric(result.recall) }}</td><td>{{ metric(result.f1) }}</td></tr></tbody></table></div>
+      <h4>逐字段错误（{{ fieldErrors.length }}）</h4>
+      <div v-if="fieldErrors.length" class="table-wrap"><table><thead><tr><th>公告 / 采购包</th><th>字段</th><th>错误类型</th><th>人工答案</th><th>系统答案</th></tr></thead><tbody><tr v-for="(entry, index) in fieldErrors" :key="index"><td>{{ entry.noticeId }} / {{ entry.packageId }}</td><td>{{ entry.field }}</td><td>{{ entry.status }}</td><td>{{ entry.goldValue ?? '—' }}</td><td>{{ entry.predictedValue ?? '—' }}</td></tr></tbody></table></div>
+      <p v-else class="annotation-note">没有发现标的物七字段错误。实体差异请结合上表的实体指标核对原文。</p>
       <div class="annotation-toolbar"><button class="secondary" @click="download('evaluation-report.json', report)">导出报告 JSON</button><button class="secondary" @click="download('evaluation-report.md', markdown, 'text/markdown')">导出 Markdown 报告</button></div>
     </div>
   </section>

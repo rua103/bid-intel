@@ -10,6 +10,8 @@
 
 完成 P1-7、GAP 4.11、P1-6 的本地实现与回归。操作说明见 [DATA_INTAKE.md](DATA_INTAKE.md)。
 
+实现提交：[1895a26](https://github.com/rua103/bid-intel/commit/1895a260c543dd8b7b468fe090da8a8e4ec6235d)。缺口状态、接入说明、测试数字与验收边界随实现提交；实际提交号在后续文档提交补记。
+
 | 修改 | 验证与边界 |
 |---|---|
 | 旧 XLS 用 xlrd 解析；PDF 表格、渲染与 Pillow 成为基础依赖 | 实际 XLS 多工作表、数值零单价；中文带框 PDF 的七字段及页码来源通过。扫描页真实渲染为 PNG，但 OCR 引擎使用模拟，未测真实扫描识别质量 |

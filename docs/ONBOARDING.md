@@ -227,7 +227,7 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q             # 期望 167 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
+./.venv/Scripts/python.exe -m pytest -q             # 当前基线 184 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 

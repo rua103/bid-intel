@@ -83,7 +83,8 @@ class JobStopped(Exception):
 def process_notice(root_string: str, entry: dict) -> dict:
     from app import ingestion
     from app.archive_files import DiskDocument, expand_paths
-    from app.parsers import SourceDocument, parse_document
+    from app.parsers import SourceDocument, parse_document_with_participants
+    from app.schemas import ParticipantCandidate
 
     root = Path(root_string)
     job = read_json(root / 'job.json')
@@ -98,7 +99,7 @@ def process_notice(root_string: str, entry: dict) -> dict:
     write_json(checkpoint, status)
     cache = Path(job['cache_database']).parent / 'parse-cache'
     cache.mkdir(parents=True, exist_ok=True)
-    original_parse = ingestion.parse_document
+    original_parse = ingestion.parse_document_with_participants
 
     def cached_parse(document, **options):
         if (root / 'stop').exists():
@@ -107,7 +108,7 @@ def process_notice(root_string: str, entry: dict) -> dict:
         write_json(checkpoint, status)
         content = document.content
         suffix = Path(document.filename).suffix
-        identity = json.dumps({'version': 1, 'suffix': suffix, 'options': options,
+        identity = json.dumps({'version': 2, 'suffix': suffix, 'options': options,
                                'limits': job['limits']}, sort_keys=True)
         digest = hashlib.sha256(identity.encode() + content).hexdigest()
         path = cache / (digest + '.json')
@@ -119,17 +120,24 @@ def process_notice(root_string: str, entry: dict) -> dict:
                 except ValueError:
                     pass
             if stored is None:
-                text, items, warnings = parse_document(SourceDocument('document' + suffix, content), **options)
+                text, items, participants, warnings = parse_document_with_participants(
+                    SourceDocument('document' + suffix, content), **options,
+                )
                 stored = {'text': text, 'items': [row.model_dump(mode='json') for row in items],
+                          'participants': [row.model_dump(mode='json') for row in participants],
                           'warnings': warnings}
                 if not any(any(word in w for word in ('失败', '超时', '未安装', '缺少')) for w in warnings):
                     write_json(path, stored)
         items = [ItemCandidate.model_validate(row).model_copy(update={'source_file': document.filename})
                  for row in stored['items']]
+        participants = [
+            ParticipantCandidate.model_validate(row).model_copy(update={'source_file': document.filename})
+            for row in stored['participants']
+        ]
         warnings = [w.replace('document' + suffix, document.filename) for w in stored['warnings']]
         status['documents_done'] += 1
         write_json(checkpoint, status)
-        return stored['text'], items, warnings
+        return stored['text'], items, participants, warnings
 
     try:
         if result_file.exists() and not entry.get('replace_existing'):
@@ -155,7 +163,7 @@ def process_notice(root_string: str, entry: dict) -> dict:
     except Exception as exc:  # noqa: BLE001 - per-notice isolation
         status.update(status='failed', error=f'{type(exc).__name__}: {exc}')
     finally:
-        ingestion.parse_document = original_parse
+        ingestion.parse_document_with_participants = original_parse
     status.update(finished_at=time.time(), seconds=round(time.time() - started, 3), current_file=None)
     write_json(checkpoint, status)
     return status
@@ -174,7 +182,7 @@ def _build_result(root, entry, job, checkpoint, result_file, status, cached_pars
             expanded, warnings = expand_paths([DiskDocument(f['name'], Path(f['path']))
                                                for f in entry['files']], Path(temporary))
             status['documents_total'] = len(expanded)
-            ingestion.parse_document = cached_parse
+            ingestion.parse_document_with_participants = cached_parse
             model_settings = effective_settings().model_copy(update={
                 'ocr_enabled': job['ocr'], 'extraction_mode': job['mode']})
             if job['mode'] == 'rules':

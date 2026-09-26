@@ -2,7 +2,14 @@ from decimal import Decimal
 
 import pytest
 
-from app.parsers import SourceDocument, expand_uploads, parse_document, parse_item_tables
+from app.parsers import (
+    SourceDocument,
+    expand_uploads,
+    parse_document,
+    parse_document_with_participants,
+    parse_item_tables,
+    parse_participant_tables,
+)
 
 
 def test_parse_challenge_style_item_table():
@@ -251,3 +258,150 @@ def test_repository_demo_notice_is_a_parseable_smoke_fixture():
     assert metadata.announced_total_award == 18_000
     assert len(items) == 1
     assert items[0].product_name == "激光打印机"
+
+
+def test_review_table_extracts_all_explicit_bidders_without_infering_from_rank():
+    rows = [
+        ["合同包1"],
+        ["供应商", "资格性审查", "符合性审查", "综合得分", "推荐排名"],
+        ["甲科技有限公司", "通过", "通过", "96.2", "1"],
+        ["供应商", "资格性审查", "符合性审查", "综合得分", "推荐排名"],
+        ["乙设备有限公司", "通过", "通过", "88.3", "2"],
+    ]
+    participants = parse_participant_tables(rows, source_file="notice.html", table_index=3)
+
+    assert [(row.organization_name, row.package_code, row.outcome) for row in participants] == [
+        ("甲科技有限公司", "包1", "unknown"),
+        ("乙设备有限公司", "包1", "unknown"),
+    ]
+    assert participants[0].source_location == "table:3/row:3"
+    assert participants[0].source_evidence == "合同包1 | 甲科技有限公司 | 通过 | 通过 | 96.2 | 1"
+
+
+def test_explicit_unsuccessful_reason_labels_only_listed_bidders_as_nonwinners():
+    rows = [
+        ["序号", "供应商", "未中标（成交）原因"],
+        ["1", "乙设备有限公司", "综合评审得分较低"],
+        ["2", "丙服务有限公司", "响应报价超预算"],
+    ]
+    participants = parse_participant_tables(rows, source_file="notice.html", table_index=4)
+
+    assert [(row.organization_name, row.outcome) for row in participants] == [
+        ("乙设备有限公司", "nonwinner"),
+        ("丙服务有限公司", "nonwinner"),
+    ]
+
+
+def test_ragged_unsuccessful_rows_keep_package_and_do_not_treat_reason_as_vendor():
+    rows = [
+        ["标包", "投标人名称", "未中标原因"],
+        ["包一：设备采购", "甲设备有限公司", "综合得分较低"],
+        ["乙设备有限公司", "报价较低"],
+    ]
+
+    participants = parse_participant_tables(rows, source_file="notice.html", table_index=4)
+
+    assert [(row.organization_name, row.package_code, row.outcome) for row in participants] == [
+        ("甲设备有限公司", "包1", "nonwinner"),
+        ("乙设备有限公司", "包1", "nonwinner"),
+    ]
+
+
+def test_failed_qualification_is_nonwinner_but_pass_and_rank_are_not_outcomes():
+    rows = [
+        ["供应商", "资格审查结果", "符合性审查结果", "评审排名"],
+        ["甲设备有限公司", "通过", "通过", "1"],
+        ["乙设备有限公司", "不通过", "未审查", "2"],
+    ]
+
+    participants = parse_participant_tables(rows, source_file="notice.html", table_index=2)
+
+    assert [(row.organization_name, row.outcome) for row in participants] == [
+        ("甲设备有限公司", "unknown"),
+        ("乙设备有限公司", "nonwinner"),
+    ]
+
+
+def test_key_value_winner_name_without_amount_is_explicit_winner():
+    rows = [["中标供应商", "甲设备有限公司", "企业类型", "小微企业"]]
+
+    participants = parse_participant_tables(rows, source_file="notice.html", table_index=2)
+
+    assert len(participants) == 1
+    assert participants[0].organization_name == "甲设备有限公司"
+    assert participants[0].outcome == "winner"
+    assert participants[0].award_amount is None
+
+
+def test_explicit_award_amount_identifies_winner_and_converts_units():
+    rows = [
+        ["供应商名称", "中标（成交）金额（万元）"],
+        ["甲科技有限公司", "12.5"],
+    ]
+    participants = parse_participant_tables(rows, source_file="notice.html", table_index=2)
+
+    assert len(participants) == 1
+    assert participants[0].organization_name == "甲科技有限公司"
+    assert participants[0].outcome == "winner"
+    assert participants[0].award_amount == 125_000
+
+
+def test_generic_supplier_table_is_not_treated_as_bidder_evidence():
+    rows = [
+        ["供应商名称", "供应商地址", "联系人"],
+        ["甲科技有限公司", "某市某路", "张某"],
+    ]
+    assert parse_participant_tables(rows, source_file="notice.html", table_index=1) == []
+
+
+def test_html_rules_import_includes_review_bidders_and_preserves_unknown_outcomes():
+    html = """<html><body>
+      <p>一、采购项目</p>
+      <table><tr><th>供应商名称</th><th>供应商地址</th></tr>
+        <tr><td>采购代理有限公司</td><td>某市</td></tr></table>
+      <table><tr><td>合同包1(办公设备):</td></tr>
+        <tr><th>供应商</th><th>资格性审查</th><th>符合性审查</th><th>综合得分</th><th>推荐排名</th></tr>
+        <tr><td>甲科技有限公司</td><td>通过</td><td>通过</td><td>96.2</td><td>1</td></tr>
+        <tr><td>乙设备有限公司</td><td>通过</td><td>通过</td><td>88.3</td><td>2</td></tr>
+      </table>
+    </body></html>""".encode()
+    from app.config import Settings
+    from app.ingestion import extract_notice
+
+    result = extract_notice(
+        [SourceDocument("notice.html", html)], extraction_mode="rules",
+        model_settings=Settings(),
+    )
+
+    assert [(row.organization_name, row.package_code, row.outcome) for row in result.participants] == [
+        ("甲科技有限公司", "包1", "unknown"),
+        ("乙设备有限公司", "包1", "unknown"),
+    ]
+
+
+def test_html_nested_winner_detail_inherits_package_from_outer_package_column():
+    html = """<html><body><table>
+      <tr><th>包号</th><th>供货明细</th></tr>
+      <tr><td>1</td><td><table><tr>
+        <td>中标供应商</td><td>甲设备有限公司</td><td>成交金额</td><td>100元</td>
+      </tr></table></td></tr>
+    </table></body></html>""".encode()
+
+    _, _, participants, _ = parse_document_with_participants(SourceDocument("notice.html", html))
+
+    assert len(participants) == 1
+    assert participants[0].organization_name == "甲设备有限公司"
+    assert participants[0].package_code == "包1"
+    assert participants[0].outcome == "winner"
+
+
+def test_participant_aware_parse_api_preserves_legacy_parse_document_shape():
+    html = """<table><tr><th>供应商</th><th>资格性审查</th></tr>
+      <tr><td>甲科技有限公司</td><td>通过</td></tr></table>""".encode()
+    document = SourceDocument("notice.html", html)
+
+    text, items, warnings = parse_document(document)
+    detailed_text, detailed_items, participants, detailed_warnings = parse_document_with_participants(document)
+
+    assert (text, items, warnings) == (detailed_text, detailed_items, detailed_warnings)
+    assert len(participants) == 1

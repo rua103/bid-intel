@@ -24,7 +24,7 @@ from pypdf import PdfReader
 from app.config import settings
 from app.file_formats import inspect_content
 from app.legacy_documents import DocumentConversionError, convert_doc, libreoffice_executable
-from app.schemas import ItemCandidate, NoticeMetadata
+from app.schemas import ItemCandidate, NoticeMetadata, ParticipantCandidate
 
 MAX_ARCHIVE_DEPTH = 3
 MAX_ARCHIVE_FILES = 2_000
@@ -57,6 +57,41 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "总价", "合价", "总金额", "成交金额", "中标金额", "中标成交金额", "金额",
     ),
 }
+
+# These aliases deliberately describe an organization that responded to a
+# procurement.  Generic columns such as "单位" and "名称" are not accepted:
+# they also occur in item, buyer, and agent tables.
+PARTICIPANT_ORG_ALIASES = (
+    "投标人名称", "投标单位名称", "供应商名称", "供应商信息", "响应供应商",
+    "供应商全称", "响应人名称", "响应单位名称", "投标人", "投标单位",
+    "供应商", "响应人", "响应单位", "候选供应商",
+)
+PARTICIPANT_PACKAGE_ALIASES = (
+    "采购包编号", "采购包号", "合同包号", "包号", "标包号", "标包", "标段号", "合同包", "采购包",
+)
+PARTICIPANT_OUTCOME_ALIASES = (
+    "是否中标", "是否成交", "中标状态", "成交状态", "中标情况", "成交情况",
+    "中标结果", "成交结果",
+)
+PARTICIPANT_AWARD_AMOUNT_ALIASES = (
+    "中标成交金额", "中标金额", "成交金额", "中标总金额", "成交总金额",
+)
+PARTICIPANT_UNSUCCESSFUL_ALIASES = (
+    "未中标原因", "未中标成交原因", "未成交原因", "未成交中标原因", "落标原因",
+)
+PARTICIPANT_QUALIFICATION_ALIASES = ("资格审查", "资格审查结果", "资格性审查", "资格性审查结果")
+PARTICIPANT_COMPLIANCE_ALIASES = ("符合性审查", "符合性审查结果", "符合性检查")
+PARTICIPANT_REVIEW_SIGNALS = (
+    "资格性审查", "资格审查", "符合性审查", "符合性检查", "评审总得分",
+    "综合得分", "评审得分", "得分排名", "推荐排名", "投标报价", "响应报价",
+    "评标结果", "未中标原因", "未中标成交原因", "未成交原因", "落标原因",
+)
+PARTICIPANT_CONTEXT_SIGNALS = (
+    "投标人名单", "投标单位名单", "投标情况", "参与投标", "开标一览",
+    "报价一览", "资格性审查", "资格审查", "符合性审查", "评审得分",
+    "候选供应商", "中标候选人", "成交候选人", "评标结果", "未中标供应商",
+    "未成交供应商",
+)
 
 
 @dataclass(frozen=True)
@@ -226,6 +261,274 @@ def parse_item_tables(
     return candidates
 
 
+def _participant_column_map(header: Iterable[object]) -> dict[str, int]:
+    cells = [_header_key(cell) for cell in header]
+    aliases: dict[str, tuple[str, ...]] = {
+        "organization": PARTICIPANT_ORG_ALIASES,
+        "package": PARTICIPANT_PACKAGE_ALIASES,
+        "outcome": PARTICIPANT_OUTCOME_ALIASES,
+        "award_amount": PARTICIPANT_AWARD_AMOUNT_ALIASES,
+        "unsuccessful_reason": PARTICIPANT_UNSUCCESSFUL_ALIASES,
+        "qualification": PARTICIPANT_QUALIFICATION_ALIASES,
+        "compliance": PARTICIPANT_COMPLIANCE_ALIASES,
+    }
+    result: dict[str, int] = {}
+    for field, field_aliases in aliases.items():
+        normalized_aliases = [_header_key(alias) for alias in field_aliases]
+        for alias in normalized_aliases:
+            for index, cell in enumerate(cells):
+                if cell and cell == alias:
+                    result[field] = index
+                    break
+            if field in result:
+                break
+    return result
+
+
+def _participant_package_code(value: str | None) -> str:
+    value = _clean(value or "")
+    if not value:
+        return "default"
+    compact = re.sub(r"\s+", "", unicodedata.normalize("NFKC", value))
+    named_match = re.search(r"包名[:：]?([A-Za-z0-9一二三四五六七八九十]+)", compact)
+    if named_match:
+        return f"包{_normalize_package_number(named_match.group(1))}"
+    match = re.search(r"(?:合同|采购|标段|标包)?包(?:编号|号)?([A-Za-z0-9一二三四五六七八九十]+)", compact)
+    if match:
+        return f"包{_normalize_package_number(match.group(1))}"
+    if re.fullmatch(r"\d+", compact):
+        return f"包{compact}"
+    return compact
+
+
+def _normalize_package_number(value: str) -> str:
+    chinese_numbers = {
+        "一": "1", "二": "2", "三": "3", "四": "4", "五": "5",
+        "六": "6", "七": "7", "八": "8", "九": "9", "十": "10",
+    }
+    return chinese_numbers.get(value, value)
+
+
+def _explicit_package_hint(rows: list[list[str]]) -> str | None:
+    """Read a package label only from this table's own preamble."""
+    for row in rows[:10]:
+        joined = _clean(" ".join(row))
+        named_match = re.search(
+            r"包名\s*[:：]?\s*([A-Za-z0-9一二三四五六七八九十]+)",
+            unicodedata.normalize("NFKC", joined),
+        )
+        if named_match:
+            return f"包{named_match.group(1)}"
+        match = re.search(
+            r"(?:合同|采购|标段|标包)?包\s*(?:编号|号)?\s*([A-Za-z0-9一二三四五六七八九十]+)",
+            unicodedata.normalize("NFKC", joined),
+        )
+        if match:
+            return f"包{match.group(1)}"
+    return None
+
+
+def _participant_outcome(
+    row: list[str], columns: dict[str, int], *, award_amount: Decimal | None,
+) -> str:
+    """Use explicit result text only; rank and score values never determine outcome."""
+    if "unsuccessful_reason" in columns:
+        column = columns["unsuccessful_reason"]
+        reason = _header_key(row[column] if column < len(row) else "")
+        if reason and reason not in {"无", "暂无", "不适用", "-", "—", "/"}:
+            return "nonwinner"
+    if "outcome" in columns:
+        column = columns["outcome"]
+        status = _header_key(row[column] if column < len(row) else "")
+        if any(token in status for token in ("未中标", "非中标", "未成交", "未获中标", "落标")):
+            return "nonwinner"
+        if status in {"否", "未是"}:
+            return "nonwinner"
+        if any(token in status for token in ("中标", "成交")) and "候选" not in status:
+            return "winner"
+        if status in {"是", "已中标", "已成交"}:
+            return "winner"
+    for field in ("qualification", "compliance"):
+        if field in columns:
+            column = columns[field]
+            status = _header_key(row[column] if column < len(row) else "")
+            if any(token in status for token in ("不通过", "未通过", "不合格", "不符合")):
+                return "nonwinner"
+    if award_amount is not None:
+        return "winner"
+    return "unknown"
+
+
+def _direct_winner_key_values(
+    rows: list[list[str]], *, source_file: str, table_index: int, context: str = "",
+) -> list[ParticipantCandidate]:
+    """Read explicit winner fields in CCGP two-column/key-value result tables."""
+    winner_labels = {
+        _header_key(label) for label in
+        ("中标供应商", "成交供应商", "中标人", "成交人", "中标单位", "成交单位")
+    }
+    amount_labels = {_header_key(label) for label in PARTICIPANT_AWARD_AMOUNT_ALIASES}
+    package_hint = _explicit_package_hint([[context], *rows])
+    found: list[ParticipantCandidate] = []
+    for row_index, raw_row in enumerate(rows, start=1):
+        values = [_clean(value) for value in raw_row]
+        winner_values = [
+            values[index + 1]
+            for index, value in enumerate(values[:-1])
+            if _header_key(value) in winner_labels
+        ]
+        if not winner_values:
+            continue
+        organization = next((value for value in winner_values if value), "")
+        if not organization or _invalid_participant_name(organization):
+            continue
+        amount: Decimal | None = None
+        for index, value in enumerate(values[:-1]):
+            if _header_key(value) in amount_labels:
+                amount_header = value
+                amount = _money(values[index + 1], amount_header)
+                if amount is not None:
+                    break
+        found.append(ParticipantCandidate(
+            organization_name=organization,
+            package_code=_participant_package_code(package_hint),
+            outcome="winner",
+            award_amount=amount,
+            source_file=source_file,
+            source_location=f"table:{table_index}/row:{row_index}",
+            source_evidence=" | ".join(value for value in values if value),
+            extraction_method="participant_table_header_mapping",
+            confidence=0.8,
+        ))
+    return found
+
+
+def _invalid_participant_name(value: str) -> bool:
+    normalized = _header_key(value)
+    invalid_labels = {
+        "无", "暂无", "无供应商", "无投标人", "名称", "供应商名称", "投标人名称",
+        "投标单位名称", "供应商", "投标人", "响应供应商", "联系方式", "联系人",
+        "联系电话", "联系地址", "企业类型", "采购单位", "采购人", "采购代理机构",
+        "代理机构", "中标金额", "成交金额", "未中标原因", "备注", "说明",
+    }
+    non_org_phrases = (
+        "综合得分", "评审得分", "未中标", "未成交", "不通过", "未通过", "不合格",
+        "不符合", "得分较低", "报价低于", "报价较低", "报价偏高", "响应报价",
+        "审查结果", "未满足",
+    )
+    return (
+        not value or normalized in invalid_labels
+        or any(_header_key(phrase) in normalized for phrase in non_org_phrases)
+    )
+
+
+def parse_participant_tables(
+    rows: list[list[str]], *, source_file: str, table_index: int,
+    context: str = "",
+) -> list[ParticipantCandidate]:
+    """Extract organizations explicitly listed in bidder/review/result tables.
+
+    A supplier column by itself is insufficient: the header or nearby table
+    heading must identify bidding, review, outcome, or award context.  Ranking
+    fields are evidence of participation only and are never used to label a
+    supplier as a winner or nonwinner.
+    """
+    result: list[ParticipantCandidate] = _direct_winner_key_values(
+        rows, source_file=source_file, table_index=table_index, context=context,
+    )
+    columns: dict[str, int] = {}
+    header_index: int | None = None
+    for index, row in enumerate(rows[:10]):
+        current = _participant_column_map(row)
+        if "organization" in current:
+            columns, header_index = current, index
+            break
+    if header_index is None:
+        return result
+
+    preamble = " ".join(" ".join(row) for row in rows[:header_index])
+    header_text = " ".join(rows[header_index])
+    evidence_context = _header_key(f"{context} {preamble} {header_text}")
+    review_signal = any(_header_key(signal) in evidence_context for signal in PARTICIPANT_REVIEW_SIGNALS)
+    context_signal = any(_header_key(signal) in evidence_context for signal in PARTICIPANT_CONTEXT_SIGNALS)
+    explicit_result_columns = bool(
+        {"outcome", "award_amount", "unsuccessful_reason"} & columns.keys()
+    )
+    if not (review_signal or context_signal or explicit_result_columns):
+        return result
+
+    package_hint = _explicit_package_hint([[context], *rows[:header_index]])
+    org_column = columns["organization"]
+    package_column = columns.get("package")
+    current_package = package_hint
+    header_width = len(rows[header_index])
+    for row_index, raw_row in enumerate(rows[header_index + 1 :], start=header_index + 2):
+        values = [_clean(value) for value in raw_row]
+        aligned_values = list(values)
+        if (
+            package_column is not None and package_column < len(values)
+            and len(values) >= header_width and values[package_column]
+        ):
+            row_package = _participant_package_code(values[package_column])
+            if row_package != "default":
+                current_package = row_package
+        status_columns = [
+            columns[field] for field in ("unsuccessful_reason", "outcome", "qualification", "compliance")
+            if field in columns
+        ]
+        # Some CCGP "未中标原因" tables put the package only in the first row;
+        # later rows omit that cell and shift supplier/reason one column left.
+        if (
+            package_column == 0 and org_column == 1 and len(values) < header_width
+            and len(values) >= 2 and any(column >= 2 for column in status_columns)
+            and not _invalid_participant_name(values[0])
+            and _invalid_participant_name(values[1])
+        ):
+            aligned_values = [""] * header_width
+            aligned_values[org_column] = values[0]
+            status_column = next(column for column in status_columns if column >= 2)
+            aligned_values[status_column] = values[1]
+            if current_package and package_column < header_width:
+                aligned_values[package_column] = current_package
+        if org_column >= len(aligned_values):
+            continue
+        organization = aligned_values[org_column].strip(" \t\r\n:：")
+        normalized_org = _header_key(organization)
+        if _invalid_participant_name(organization) or normalized_org in {
+            _header_key(alias) for alias in PARTICIPANT_ORG_ALIASES
+        }:
+            continue
+
+        def cell(field: str, row: list[str] = aligned_values) -> str:
+            column = columns.get(field)
+            return row[column] if column is not None and column < len(row) else ""
+
+        raw_amount = cell("award_amount")
+        amount_header = (
+            rows[header_index][columns["award_amount"]]
+            if "award_amount" in columns and columns["award_amount"] < len(rows[header_index])
+            else ""
+        )
+        amount = _money(raw_amount, amount_header) if raw_amount else None
+        outcome = _participant_outcome(aligned_values, columns, award_amount=amount)
+        package = _participant_package_code(cell("package") or current_package or package_hint)
+        evidence = " | ".join(value for value in values if value)
+        if preamble:
+            evidence = f"{_clean(preamble)} | {evidence}" if evidence else _clean(preamble)
+        result.append(ParticipantCandidate(
+            organization_name=organization,
+            package_code=package,
+            outcome=outcome,
+            award_amount=amount if outcome == "winner" else None,
+            source_file=source_file,
+            source_location=f"table:{table_index}/row:{row_index}",
+            source_evidence=evidence or organization,
+            extraction_method="participant_table_header_mapping",
+            confidence=0.8,
+        ))
+    return result
+
+
 _NON_ITEM_ROW = re.compile(
     r"^(?:[一二三四五六七八九十百\d]+\s*[、)）]|"
     r"(?:联系人|联系方式|联系电话|联系地址|收费标准|采购代理机构)[：:]|"
@@ -268,11 +571,12 @@ def _is_item_data_row(
 
 def _html_tables(
     content: bytes, filename: str, warnings: list[str] | None = None,
-) -> tuple[str, list[ItemCandidate]]:
+) -> tuple[str, list[ItemCandidate], list[ParticipantCandidate]]:
     soup = BeautifulSoup(content, "html.parser")
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
     items: list[ItemCandidate] = []
+    participants: list[ParticipantCandidate] = []
     reference_tables = []
     for table_index, table in enumerate(soup.find_all("table"), start=1):
         rows = [
@@ -288,6 +592,73 @@ def _html_tables(
                 warnings.append(f'{filename}: table:{table_index} 为采购需求表，不抽取成交标的或送入模型')
             continue
         items.extend(parse_item_tables(rows, source_file=filename, table_index=table_index))
+        context_parts = []
+        caption = table.find("caption", recursive=False)
+        if caption is not None:
+            context_parts.append(caption.get_text(" ", strip=True))
+        for attribute in ("summary", "aria-label", "title"):
+            if table.get(attribute):
+                context_parts.append(str(table.get(attribute)))
+        # Only inspect immediately adjacent heading/paragraph siblings. A
+        # document-wide previous heading can belong to an unrelated section.
+        sibling = table.previous_sibling
+        while sibling is not None:
+            if isinstance(sibling, str) and not sibling.strip():
+                sibling = sibling.previous_sibling
+                continue
+            name = getattr(sibling, "name", None)
+            if name == "br":
+                sibling = sibling.previous_sibling
+                continue
+            if isinstance(sibling, str):
+                neighbor_text = _clean(sibling)
+                if neighbor_text and len(neighbor_text) <= 120:
+                    context_parts.append(neighbor_text)
+                break
+            if name in {"p", "h1", "h2", "h3", "h4", "strong", "b"}:
+                neighbor_text = _clean(sibling.get_text(" ", strip=True))
+                if neighbor_text and len(neighbor_text) <= 120:
+                    context_parts.append(neighbor_text)
+                sibling = sibling.previous_sibling
+                break
+            break
+        # Result pages sometimes put each package number in the first cell of
+        # an outer "包号 / 供货明细" table and nest the bidder table beside it.
+        for containing_row in table.find_parents("tr"):
+            containing_table = containing_row.find_parent("table")
+            if containing_table is None:
+                continue
+            header_row = next(
+                (row for row in containing_table.find_all("tr")
+                 if row.find_parent("table") is containing_table),
+                None,
+            )
+            if header_row is None:
+                continue
+            header_cells = header_row.find_all(["th", "td"], recursive=False)
+            package_header = any(
+                _header_key(cell.get_text(" ", strip=True)) in {
+                    _header_key(alias) for alias in PARTICIPANT_PACKAGE_ALIASES
+                }
+                for cell in header_cells
+            )
+            if not package_header:
+                continue
+            row_cells = containing_row.find_all(["th", "td"], recursive=False)
+            child_index = next(
+                (index for index, cell in enumerate(row_cells)
+                 if cell is table.parent or cell.find("table") is table),
+                None,
+            )
+            if child_index:
+                package_value = row_cells[child_index - 1].get_text(" ", strip=True)
+                if package_value:
+                    context_parts.append(f"包号 {package_value}")
+            break
+        participants.extend(parse_participant_tables(
+            rows, source_file=filename, table_index=table_index,
+            context=" ".join(context_parts),
+        ))
     for table in reference_tables:
         table.replace_with('[采购需求表已排除，原文保留在来源文件]')
     # Keep block and cell boundaries for metadata; a space-flattened document
@@ -307,43 +678,58 @@ def _html_tables(
         re.sub(r"[^\S\t]+", " ", line).strip(" ")
         for line in soup.get_text("").splitlines() if line.strip()
     )
-    return text, items
+    return text, items, participants
 
 
-def _docx_tables(content: bytes, filename: str) -> tuple[str, list[ItemCandidate]]:
+def _docx_tables(
+    content: bytes, filename: str,
+) -> tuple[str, list[ItemCandidate], list[ParticipantCandidate]]:
     document = Document(io.BytesIO(content))
     chunks = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
     items: list[ItemCandidate] = []
+    participants: list[ParticipantCandidate] = []
     for table_index, table in enumerate(document.tables, start=1):
         rows = [[cell.text for cell in row.cells] for row in table.rows]
         chunks.extend(" ".join(_clean(cell) for cell in row) for row in rows)
         items.extend(parse_item_tables(rows, source_file=filename, table_index=table_index))
-    return _clean(" ".join(chunks)), items
+        participants.extend(parse_participant_tables(
+            rows, source_file=filename, table_index=table_index,
+        ))
+    return _clean(" ".join(chunks)), items, participants
 
 
-def _xlsx_tables(content: bytes, filename: str) -> tuple[str, list[ItemCandidate]]:
+def _xlsx_tables(
+    content: bytes, filename: str,
+) -> tuple[str, list[ItemCandidate], list[ParticipantCandidate]]:
     workbook = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     chunks: list[str] = []
     items: list[ItemCandidate] = []
+    participants: list[ParticipantCandidate] = []
     table_index = 0
-    for sheet in workbook.worksheets:
+    for sheet_index, sheet in enumerate(workbook.worksheets, start=1):
         rows = [[_clean(cell) for cell in row] for row in sheet.iter_rows(values_only=True)]
         rows = [row for row in rows if any(row)]
         chunks.extend(" ".join(row) for row in rows)
-        parsed = parse_item_tables(rows, source_file=filename, table_index=table_index + 1)
+        parsed = parse_item_tables(rows, source_file=filename, table_index=sheet_index)
         if parsed:
             table_index += 1
             items.extend(parsed)
+        participants.extend(parse_participant_tables(
+            rows, source_file=filename, table_index=sheet_index, context=sheet.title,
+        ))
     workbook.close()
-    return _clean(" ".join(chunks)), items
+    return _clean(" ".join(chunks)), items, participants
 
 
-def _xls_tables(content: bytes, filename: str) -> tuple[str, list[ItemCandidate]]:
+def _xls_tables(
+    content: bytes, filename: str,
+) -> tuple[str, list[ItemCandidate], list[ParticipantCandidate]]:
     import xlrd
 
     workbook = xlrd.open_workbook(file_contents=content, on_demand=True)
     chunks: list[str] = []
     items: list[ItemCandidate] = []
+    participants: list[ParticipantCandidate] = []
     try:
         for index, sheet in enumerate(workbook.sheets(), start=1):
             # Keep numeric zero (e.g. a free item).
@@ -354,7 +740,10 @@ def _xls_tables(content: bytes, filename: str) -> tuple[str, list[ItemCandidate]
             for item in parsed:
                 item.extraction_method = 'xls_table_header_mapping'
             items.extend(parsed)
-        return '\n'.join(chunks), items
+            participants.extend(parse_participant_tables(
+                rows, source_file=filename, table_index=index, context=sheet.name,
+            ))
+        return '\n'.join(chunks), items, participants
     finally:
         workbook.release_resources()
 
@@ -412,10 +801,11 @@ def _pdf_text(
     content: bytes, filename: str, *, ocr_enabled: bool = False,
     ocr_language: str = "chi_sim+eng", ocr_timeout_seconds: int = 30,
     ocr_engine: Callable[[bytes, str], str] | None = None,
-) -> tuple[str, list[ItemCandidate], list[str]]:
+) -> tuple[str, list[ItemCandidate], list[ParticipantCandidate], list[str]]:
     reader = PdfReader(io.BytesIO(content))
     page_text: list[str] = []
     items: list[ItemCandidate] = []
+    participants: list[ParticipantCandidate] = []
     warnings: list[str] = []
     scan_pages = []
     page_limit = max(1, settings.pdf_max_pages)
@@ -441,6 +831,17 @@ def _pdf_text(
                             item.source_location = f"page:{page_number}/{item.source_location}"
                             item.extraction_method = "pdfplumber_table_header_mapping"
                         items.extend(parsed)
+                        participants.extend(parse_participant_tables(
+                            table, source_file=filename, table_index=table_index,
+                        ))
+                        for participant in participants:
+                            if participant.source_file == filename and participant.source_location.startswith(
+                                f"table:{table_index}/"
+                            ):
+                                participant.source_location = (
+                                    f"page:{page_number}/{participant.source_location}"
+                                )
+                                participant.extraction_method = "pdfplumber_participant_table"
                     page.close()
         except Exception as exc:  # noqa: BLE001
             warnings.append(f"{filename}: PDF 表格解析失败（{type(exc).__name__}），保留文本结果")
@@ -480,21 +881,21 @@ def _pdf_text(
                     warnings.append(f'{filename}: 每份 PDF 最多 OCR {ocr_limit} 页，其余扫描页未处理')
             finally:
                 renderer.close()
-    return _clean(" ".join(page_text)), items, warnings
+    return _clean(" ".join(page_text)), items, participants, warnings
 
 
-def parse_document(
+def parse_document_with_participants(
     document: SourceDocument, *, ocr_enabled: bool = False,
     ocr_language: str = "chi_sim+eng", ocr_timeout_seconds: int = 30,
     ocr_engine: Callable[[bytes, str], str] | None = None,
-) -> tuple[str, list[ItemCandidate], list[str]]:
+) -> tuple[str, list[ItemCandidate], list[ParticipantCandidate], list[str]]:
     suffix = PurePosixPath(document.filename.replace("\\", "/")).suffix.lower()
     warnings: list[str] = []
     try:
         detected = inspect_content(document.content)
         warnings.extend(f"{document.filename}: {message}" for message in detected.warnings)
         if detected.error:
-            return "", [], warnings + [f"{document.filename}: {detected.error}"]
+            return "", [], [], warnings + [f"{document.filename}: {detected.error}"]
         original_suffix = suffix
         if detected.format:
             suffix = "." + detected.format
@@ -505,21 +906,21 @@ def parse_document(
                 warnings.append(f"{document.filename}: 实际为 {label}，已按内容解析（原扩展名 {original_suffix or '无'}）")
         content = detected.content
         if suffix in {".html", ".htm"}:
-            text, items = _html_tables(content, document.filename, warnings)
+            text, items, participants = _html_tables(content, document.filename, warnings)
         elif suffix == ".xls":
-            text, items = _xls_tables(content, document.filename)
+            text, items, participants = _xls_tables(content, document.filename)
         elif suffix in {".doc", ".rtf"}:
-            text, items = _docx_tables(convert_doc(content), document.filename)
+            text, items, participants = _docx_tables(convert_doc(content), document.filename)
             for item in items:
                 item.extraction_method = 'doc_converted_table_header_mapping'
             if text and not items:
                 warnings.append(f"{document.filename}: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型")
         elif suffix == ".docx":
-            text, items = _docx_tables(content, document.filename)
+            text, items, participants = _docx_tables(content, document.filename)
         elif suffix == ".xlsx":
-            text, items = _xlsx_tables(content, document.filename)
+            text, items, participants = _xlsx_tables(content, document.filename)
         elif suffix == ".pdf":
-            text, items, pdf_warnings = _pdf_text(
+            text, items, participants, pdf_warnings = _pdf_text(
                 content, document.filename, ocr_enabled=ocr_enabled,
                 ocr_language=ocr_language, ocr_timeout_seconds=ocr_timeout_seconds,
                 ocr_engine=ocr_engine,
@@ -531,9 +932,13 @@ def parse_document(
                 )
         elif suffix == ".txt":
             text, items = content.decode("utf-8", errors="replace"), []
+            participants = parse_participant_tables(
+                [line.split("\t") for line in text.splitlines()],
+                source_file=document.filename, table_index=1,
+            )
         elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}:
             if not ocr_enabled:
-                return "", [], warnings + [f"{document.filename}: 图像附件需要 OCR，当前未启用"]
+                return "", [], [], warnings + [f"{document.filename}: 图像附件需要 OCR，当前未启用"]
             text, ocr_warnings = _ocr_image(
                 content, document.filename, language=ocr_language,
                 timeout=ocr_timeout_seconds, engine=ocr_engine,
@@ -541,17 +946,34 @@ def parse_document(
             warnings.extend(ocr_warnings)
             items = parse_item_tables([line.split('\t') for line in text.splitlines()],
                                       source_file=document.filename, table_index=1)
+            participants = parse_participant_tables(
+                [line.split('\t') for line in text.splitlines()],
+                source_file=document.filename, table_index=1,
+            )
             for item in items:
                 item.extraction_method = 'local_ocr_table'
         else:
-            return "", [], warnings + [f"暂不支持附件格式：{document.filename}"]
+            return "", [], [], warnings + [f"暂不支持附件格式：{document.filename}"]
     except DocumentConversionError as exc:
-        return "", [], warnings + [f"解析失败：{document.filename}（{exc}）"]
+        return "", [], [], warnings + [f"解析失败：{document.filename}（{exc}）"]
     except Exception as exc:  # noqa: BLE001 - isolate individual corrupt attachments
-        return "", [], warnings + [f"解析失败：{document.filename}（{type(exc).__name__}）"]
-    if not text.strip() and not items and not warnings:
+        return "", [], [], warnings + [f"解析失败：{document.filename}（{type(exc).__name__}）"]
+    if not text.strip() and not items and not participants and not warnings:
         warnings.append(f"{document.filename}: 未解析出文本或表格，请检查空文件、加密或扫描内容")
-    return text.strip(), items, warnings
+    return text.strip(), items, participants, warnings
+
+
+def parse_document(
+    document: SourceDocument, *, ocr_enabled: bool = False,
+    ocr_language: str = "chi_sim+eng", ocr_timeout_seconds: int = 30,
+    ocr_engine: Callable[[bytes, str], str] | None = None,
+) -> tuple[str, list[ItemCandidate], list[str]]:
+    """Backward-compatible parser API; participant-aware callers use details API."""
+    text, items, _, warnings = parse_document_with_participants(
+        document, ocr_enabled=ocr_enabled, ocr_language=ocr_language,
+        ocr_timeout_seconds=ocr_timeout_seconds, ocr_engine=ocr_engine,
+    )
+    return text, items, warnings
 
 
 def _zip_member_name(info: zipfile.ZipInfo, warnings: list[str]) -> str:

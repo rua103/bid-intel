@@ -12,7 +12,7 @@ from app.archive_files import DiskDocument, expand_paths
 from app.config import settings
 from app.datasets import DatasetCreate, create_dataset, resolve_database
 from app.main import app
-from app.storage import count_notices
+from app.storage import connect, count_notices
 
 HTML = '<meta charset="utf-8"><table><tr><th>名称</th><th>数量</th><th>单价</th></tr><tr><td>电脑</td><td>2</td><td>100</td></tr></table>'
 
@@ -136,3 +136,29 @@ def test_rules_job_never_calls_model(tmp_path, monkeypatch):
     monkeypatch.setattr('app.ingestion.extract_unstructured_items', forbidden)
     result = jobs.process_notice(str(root), jobs.read_json(root / 'manifest.json')[0])
     assert result['status'] == 'done'
+
+
+def test_background_rules_job_caches_and_imports_review_table_participants(tmp_path):
+    source = tmp_path / 'source'
+    source.mkdir()
+    html = """<meta charset="utf-8"><table>
+      <tr><th>供应商</th><th>资格性审查</th><th>符合性审查</th><th>综合得分</th><th>推荐排名</th></tr>
+      <tr><td>甲设备有限公司</td><td>通过</td><td>通过</td><td>95</td><td>1</td></tr>
+      <tr><td>乙设备有限公司</td><td>通过</td><td>通过</td><td>88</td><td>2</td></tr>
+    </table>"""
+    (source / 'notice.html').write_text(html, encoding='utf-8')
+    dataset = create_dataset(DatasetCreate(name='participant job test'))
+    database = resolve_database(dataset['id'])
+    job = jobs.create_job(source, database, dataset['id'], ocr=False)
+    root = jobs.job_path(job['id'])
+
+    result = jobs.process_notice(str(root), jobs.read_json(root / 'manifest.json')[0])
+
+    assert result['status'] == 'done'
+    with connect(database) as connection:
+        participants = connection.execute(
+            """SELECT raw_name, outcome FROM bid_participations ORDER BY raw_name"""
+        ).fetchall()
+    assert [(row['raw_name'], row['outcome']) for row in participants] == [
+        ('乙设备有限公司', 'unknown'), ('甲设备有限公司', 'unknown'),
+    ]

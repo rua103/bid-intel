@@ -7,7 +7,13 @@ from pathlib import PurePosixPath
 
 from app.config import Settings, effective_settings
 from app.model_adapter import extract_unstructured_items
-from app.parsers import SourceDocument, expand_uploads, extract_metadata, parse_document
+from app.parsers import (
+    SourceDocument,
+    expand_uploads,
+    extract_metadata,
+    parse_document,
+    parse_document_with_participants,
+)
 from app.schemas import (
     BatchImportResult,
     BatchNoticeSummary,
@@ -17,6 +23,8 @@ from app.schemas import (
     ParticipantCandidate,
 )
 from app.storage import save_import
+
+_DEFAULT_PARSE_DOCUMENT = parse_document
 
 
 def _merge_model_items(
@@ -342,11 +350,19 @@ def _ingest_expanded(
                 "ocr_enabled": True, "ocr_language": model_settings.ocr_language,
                 "ocr_timeout_seconds": model_settings.ocr_timeout_seconds,
             }
-        text, parsed_items, parse_warnings = parse_document(document, **parse_options)
+        if parse_document is _DEFAULT_PARSE_DOCUMENT:
+            text, parsed_items, parsed_participants, parse_warnings = (
+                parse_document_with_participants(document, **parse_options)
+            )
+        else:
+            # Preserve existing three-value parser test hooks during this API extension.
+            text, parsed_items, parse_warnings = parse_document(document, **parse_options)
+            parsed_participants = []
         if document != primary_document and _unfilled_template(text, parsed_items):
             warnings.extend(parse_warnings)
             warnings.append(f'{document.filename}: 检测到未填写模板占位，保留来源；不作为成交结果或送入模型')
             continue
+        participants.extend(parsed_participants)
         if mode == "model":
             parsed_items = []
         if text:
@@ -388,9 +404,9 @@ def _ingest_expanded(
     }
     metadata = NoticeMetadata(**metadata_values)
     if mode == "rules":
-        warnings.append("规则基线：不调用模型；仅提取表格标的与明确标签元数据")
+        warnings.append("规则基线：不调用模型；提取表格标的、明确投标主体及标签元数据")
     elif not model_is_configured:
-        warnings.append("未配置合规 Qwen/DeepSeek 模型；投标主体和非表格标的尚未自动抽取")
+        warnings.append("未配置合规 Qwen/DeepSeek 模型；非表格标的尚未自动抽取")
     deduplicated_items = _deduplicate(items, warnings)
     deduplicated_participants = _deduplicate_participants(participants, warnings)
     result = ImportResult(

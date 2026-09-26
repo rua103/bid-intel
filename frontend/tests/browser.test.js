@@ -23,4 +23,5 @@ test('API defaults to the page host and respects explicit deployment addresses',
     'http://localhost:8000')
   assert.equal(resolveApiBase(' https://api.example.test/ ', {}), 'https://api.example.test')
   assert.equal(resolveApiBase('', { protocol: 'http:', hostname: '[::1]' }), 'http://[::1]:8000')
+  assert.equal(resolveApiBase('', { protocol: 'http:', hostname: 'localhost' }, '8001'), 'http://localhost:8001')
 })

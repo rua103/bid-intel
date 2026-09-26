@@ -141,7 +141,7 @@ async function generate() {
   const body = new FormData()
   files.value.forEach(file => body.append('files', file))
   try {
-    const response = await fetch(`${props.apiBase}/api/v1/evaluation/draft?mode=${mode.value}`, { method: 'POST', body })
+    const response = await fetch(`${props.apiBase}/api/v1/evaluation/draft?mode=${mode.value}`, { method: 'POST', body, credentials: 'include' })
     const data = await response.json()
     if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
     sessionKey.value = LEGACY_ANNOTATION_SESSION_KEY
@@ -296,7 +296,7 @@ async function evaluate() {
   body.append('predictions', new Blob([JSON.stringify(predictions.value)], { type: 'application/json' }), 'predictions.json')
   try {
     const query = confirmIdenticalGold.value ? '?allow_identical_gold=true' : ''
-    const response = await fetch(`${props.apiBase}/api/v1/evaluation/run${query}`, { method: 'POST', body })
+    const response = await fetch(`${props.apiBase}/api/v1/evaluation/run${query}`, { method: 'POST', body, credentials: 'include' })
     const data = await response.json()
     if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail))
     report.value = data.report; markdown.value = data.markdown

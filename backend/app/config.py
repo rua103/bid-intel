@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +42,12 @@ class Settings(BaseSettings):
     ocr_engine: str = 'rapidocr'
     pdf_max_pages: int = 1000
     pdf_max_ocr_pages: int = 1000
+    auth_enabled: bool = False
+    auth_username: str = "reviewer"
+    auth_password: str = ""
+    auth_secret_key: str = ""
+    auth_session_hours: int = Field(default=8, ge=1, le=24)
+    auth_cookie_secure: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

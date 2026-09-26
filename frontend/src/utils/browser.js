@@ -8,10 +8,10 @@ export function annotationId(prefix, cryptoApi = globalThis.crypto) {
   return `${prefix}-${Date.now().toString(36)}-${fallbackIdCounter.toString(36)}-${randomPart}`
 }
 
-export function resolveApiBase(configured, location) {
+export function resolveApiBase(configured, location, apiPort = '8000') {
   const override = configured?.trim()
   if (override) return override.replace(/\/+$/, '')
   const hostname = location.hostname.includes(':') && !location.hostname.startsWith('[')
     ? `[${location.hostname}]` : location.hostname
-  return `${location.protocol}//${hostname}:8000`
+  return `${location.protocol}//${hostname}:${apiPort}`
 }

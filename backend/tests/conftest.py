@@ -12,6 +12,11 @@ def isolated_local_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "database_path", str(tmp_path / "isolated.db"))
     for key in ("model_base_url", "model_api_key", "model_name"):
         monkeypatch.setattr(settings, key, "")
+    # A developer's .env may enable reviewer login. Unit tests must not inherit that,
+    # or every API test returns 401 on machines where AUTH_ENABLED=true and passes on
+    # machines where it is unset -- the same commit behaving differently per machine.
+    # Tests that exercise auth turn it back on themselves.
+    monkeypatch.setattr(settings, "auth_enabled", False)
 
 
 @pytest.fixture

@@ -5,9 +5,13 @@ from typing import Annotated
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
+from starlette.requests import Request
 
 from app import analytics
+from app.auth import auth_is_configured, request_username
+from app.auth_api import router as auth_router
 from app.config import (
     effective_settings,
     load_model_config,
@@ -63,6 +67,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def require_reviewer_session(request: Request, call_next):
+    path = request.url.path
+    is_auth_route = path.startswith("/api/v1/auth/")
+    is_public_health = path == "/api/v1/health"
+    if (
+        settings.auth_enabled
+        and request.method != "OPTIONS"
+        and path.startswith("/api/v1/")
+        and not is_auth_route
+        and not is_public_health
+    ):
+        if not auth_is_configured():
+            return JSONResponse(
+                {"detail": "登录未配置，请设置 AUTH_USERNAME、AUTH_PASSWORD 和 AUTH_SECRET_KEY"},
+                status_code=503,
+            )
+        if request_username(request) is None:
+            return JSONResponse({"detail": "请先登录评审账号"}, status_code=401)
+    return await call_next(request)
+
+
+app.include_router(auth_router)
 app.include_router(evaluation_router)
 app.include_router(datasets_router)
 app.include_router(jobs_router)

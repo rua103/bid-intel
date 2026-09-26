@@ -111,28 +111,124 @@ def _merge_model_items(
     return result
 
 
-def _deduplicate(items: list[ItemCandidate]) -> list[ItemCandidate]:
+def _deduplicate(
+    items: list[ItemCandidate], warnings: list[str] | None = None,
+) -> list[ItemCandidate]:
+    """Merge only unambiguous, mutually compatible rows from different files."""
+    warnings = warnings if warnings is not None else []
+
+    def key(value: str | None) -> str:
+        return ''.join(unicodedata.normalize('NFKC', value or '').split()).casefold()
+
+    def package(value: str) -> str:
+        value = key(value)
+        match = re.fullmatch(r'(?:(?:合同包|采购包|包))?(\d+)', value)
+        return str(int(match[1])) if match else value
+
+    fields = ('category', 'brand', 'model', 'quantity', 'quantity_unit',
+              'unit_price', 'total_price')
+    edges: list[set[int]] = [set() for _ in items]
+    for i, left in enumerate(items):
+        for j in range(i + 1, len(items)):
+            right = items[j]
+            if left.source_file == right.source_file or not key(left.product_name) or (
+                key(left.product_name) != key(right.product_name)
+            ):
+                continue
+            packages = (package(left.package_code), package(right.package_code))
+            if packages[0] != packages[1] and 'default' not in packages:
+                continue
+            shared = set()
+            conflicts = []
+            for field in fields:
+                a, b = getattr(left, field), getattr(right, field)
+                if a is None or b is None:
+                    continue
+                equal = key(a) == key(b) if isinstance(a, str) else a == b
+                if equal:
+                    shared.add(field)
+                else:
+                    conflicts.append(field)
+            # A name alone or two sparse requirement rows cannot identify a
+            # duplicate. Decimal comparisons naturally treat 1 and 1.0 equally.
+            strong = (bool(shared & {'unit_price', 'total_price'})
+                      and bool(shared & {'quantity', 'model'})) or (
+                          {'model', 'quantity'} <= shared)
+            if conflicts:
+                warnings.append(f'跨文件同名候选字段冲突，保留待核验：{left.product_name} / '
+                                + ','.join(conflicts))
+            elif strong:
+                edges[i].add(j)
+                edges[j].add(i)
+
     output: list[ItemCandidate] = []
-    seen: set[tuple[str | None, ...]] = set()
-    for item in items:
-        key = tuple(
-            (value or "").strip().casefold()
-            for value in (
-                item.package_code,
-                item.product_name,
-                item.category,
-                item.brand,
-                item.model,
-                str(item.quantity) if item.quantity is not None else None,
-                str(item.unit_price) if item.unit_price is not None else None,
-                str(item.total_price) if item.total_price is not None else None,
-            )
-        )
-        if key in seen:
+    visited: set[int] = set()
+    for start in range(len(items)):
+        if start in visited:
             continue
-        seen.add(key)
-        output.append(item)
+        component, pending = set(), [start]
+        while pending:
+            index = pending.pop()
+            if index in component:
+                continue
+            component.add(index)
+            pending.extend(edges[index] - component)
+        visited.update(component)
+        indices = sorted(component)
+        if len(component) == 1:
+            output.append(items[start])
+            continue
+        # Requiring a clique prevents a missing-package row from bridging two
+        # packages, and prevents one attachment row consuming two source rows.
+        if any(component - {index} != edges[index] for index in component):
+            output.extend(items[index] for index in indices)
+            warnings.append(f'跨文件候选无法唯一对齐，保留待核验：{items[start].product_name}')
+            continue
+        merged = items[start]
+        evidence = []
+        for index in indices:
+            row = items[index]
+            changes = {field: getattr(row, field) for field in fields
+                       if getattr(merged, field) is None and getattr(row, field) is not None}
+            if merged.package_code == 'default' and row.package_code != 'default':
+                changes['package_code'] = row.package_code
+            merged = merged.model_copy(update=changes)
+            evidence.append(f'[{row.source_file} @ {row.source_location}]\n'
+                            + (row.source_evidence or ''))
+        output.append(merged.model_copy(update={
+            'source_evidence': '\n'.join(evidence),
+            'extraction_method': 'cross_file_source_verified',
+        }))
+        warnings.append(f'跨文件重复候选合并 {len(indices)}→1（保留来源证据）：{merged.product_name}')
     return output
+
+
+def _reference_attachment(filename: str) -> bool:
+    # Parent archives often say 采购文件集 while containing actual quotations.
+    # Classify only the leaf filename, and give explicit result documents priority.
+    name = PurePosixPath(filename.replace('\\', '/')).stem
+    if re.search(r'报价|成交|中标|评审|评标|开标', name):
+        return False
+    return bool(re.search(r'招标文件|磋商文件|谈判文件|采购文件|采购需求|响应文件格式|投标文件格式', name)
+                or re.search(r'(?:空白|填写|填报|格式)模板', name))
+
+
+def _unfilled_template(text: str, items: list[ItemCandidate]) -> bool:
+    """Recognize explicit empty fields, never classify on a generic 模板 keyword."""
+    compact = ''.join(unicodedata.normalize('NFKC', text).split())
+    if re.search(r'投标人名称[:：](?:合计|备注|时间)', compact) and (
+        compact.count('{供应商响应}') >= 2
+    ):
+        return True
+    if items:
+        return False
+    return bool(
+        ('(供应商名称)' in compact and '(项目名称)' in compact
+         and re.search(r'供应商名称\(加盖公章\)[:：]日期[:：]$', compact))
+        or re.search(r'供应商单位全称[:：]\(公章\)', compact)
+        and re.search(r'项目编号为包号为', compact)
+        or '此表为表样' in compact and re.search(r'供应商全称\(公章\)[:：]序号', compact)
+    )
 
 
 def _deduplicate_participants(
@@ -214,7 +310,8 @@ def _ingest_expanded(
     *, extraction_mode: str | None = None, model_settings: Settings | None = None,
 ) -> ImportResult:
     if not expanded:
-        raise ValueError("没有找到可解析的公告或附件")
+        detail = '；'.join(warnings) or '上传材料为空'
+        raise ValueError(f'没有找到可解析的公告或附件：{detail}')
     html_documents = [
         document for document in expanded if document.filename.lower().endswith((".html", ".htm"))
     ]
@@ -236,6 +333,9 @@ def _ingest_expanded(
     if mode == "model" and not model_is_configured:
         raise ValueError("纯模型模式需要先配置 Qwen/DeepSeek 接口")
     for document in expanded:
+        if html_documents and document != primary_document and _reference_attachment(document.filename):
+            warnings.append(f'{document.filename}: 参考采购材料，保留来源；不抽取成交标的、主体或元数据')
+            continue
         parse_options = {}
         if model_settings.ocr_enabled:
             parse_options = {
@@ -243,6 +343,10 @@ def _ingest_expanded(
                 "ocr_timeout_seconds": model_settings.ocr_timeout_seconds,
             }
         text, parsed_items, parse_warnings = parse_document(document, **parse_options)
+        if document != primary_document and _unfilled_template(text, parsed_items):
+            warnings.extend(parse_warnings)
+            warnings.append(f'{document.filename}: 检测到未填写模板占位，保留来源；不作为成交结果或送入模型')
+            continue
         if mode == "model":
             parsed_items = []
         if text:
@@ -287,7 +391,7 @@ def _ingest_expanded(
         warnings.append("规则基线：不调用模型；仅提取表格标的与明确标签元数据")
     elif not model_is_configured:
         warnings.append("未配置合规 Qwen/DeepSeek 模型；投标主体和非表格标的尚未自动抽取")
-    deduplicated_items = _deduplicate(items)
+    deduplicated_items = _deduplicate(items, warnings)
     deduplicated_participants = _deduplicate_participants(participants, warnings)
     result = ImportResult(
         notice_id=0,

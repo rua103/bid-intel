@@ -29,10 +29,11 @@
 
 ## 二、现在到哪了
 
-- ✅ **全链路可用**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。`114 passed / 1 skipped / ruff clean`。
+- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端 `167 passed / 1 skipped`、Ruff clean；前端 `11 passed` 并可构建。
 - ✅ **模型抽取已修好**并用真实公告验证（原本 0 条 → 19 条）。**P0 七项已完成本地回归**，验收边界见 [`CHANGELOG.md`](CHANGELOG.md)。
 - ❌ **没有人工金标**，所以没有任何可以对外宣称的准确率。
-- ⚠️ **速度不达标**：单条公告 24～90 秒。优化前先读第七节。
+- ⚠️ **官方全量处理已完成，结果仍待核验**：1038 条公告已进入独立数据集，后台任务最终 1038/1038 完成、0 失败。使用 `rules + 本地 RapidOCR`，没有真实模型调用；产生 6814 条标的候选，但投标参与方与中标记录均为 0。87 个无效下载附件、少量损坏成员和不支持格式仍待处理。**这不是准确率结果**，必须对照原文人工标注；细节见 [官方接入检查](OFFICIAL_INTAKE_REVIEW.md)。
+- ⚠️ **速度基线有范围**：本次规则 + OCR 使用 3 个进程，逐条检查点估算活动处理时间约 66 分 45 秒，中位每条 1.127 秒、P95 41.249 秒。它不代表 hybrid/model 模式速度；优化模型调用前先读第七节。
 
 **开放问题不在这份文档里**——去 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) 的优先级表看，那里是唯一事实来源。
 
@@ -46,7 +47,7 @@
 cd backend
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,ocr]"
 Copy-Item .env.example .env
 uvicorn app.main:app --reload
 ```
@@ -63,9 +64,9 @@ npm run dev
 
 模型配置**可以直接在网页「模型配置」面板填**（写入 `backend/.data/model_config.json`，重启不丢；`backend/.env` 作兜底默认值）。页面只显示打码尾号。
 
-> ⚠️ **导入接口没有 mode 参数，默认走 `hybrid`**（[`config.py`](../backend/app/config.py)）。配好模型后点一次导入，**每份文档**都会真实调用一次模型——一条带 3 个附件的公告会串行卡 1.5～6 分钟，且界面上没有进度反馈。
+> ⚠️ 网页单次导入接口没有 mode 参数，默认走 `hybrid`（[`config.py`](../backend/app/config.py)）；配好模型后每份参与抽取的文档都会调用模型。批量任务是另一条链路：可在「大批量后台处理」中选择 rules/hybrid/model，默认 `rules + OCR`，会显示进度并支持暂停、续跑和失败重试。两种路径的处理范围与耗时不同；跑规则基线时请明确选 rules。
 
-正式材料导入前，请先按 [DATA_INTAKE.md](DATA_INTAKE.md) 部署 LibreOffice（DOC）与基础 PDF/XLS 依赖，并在网页新建空数据集。默认数据集保留原有数据；每次请求独立选择库，模型配置仍为全局。扫描 OCR 仍需系统级 Tesseract 和语言包。
+部署新环境时，请按 [DATA_INTAKE.md](DATA_INTAKE.md) 安装 LibreOffice（DOC）、基础 PDF/XLS 依赖及 `.[ocr]`（RapidOCR），并新建空数据集。默认数据集保留原有数据；每次请求独立选择库，模型配置仍为全局。默认 RapidOCR 不要求 Tesseract；若显式切换到 Tesseract 引擎，才需安装程序及中文语言包。
 
 ## 四、建议的阅读顺序
 
@@ -86,7 +87,7 @@ npm run dev
 3. **不要给模型请求加顶层 `thinking` / `enable_thinking` / `reasoning_effort`**，也**不要**把 `chat_template_kwargs` 那个写法"简化"掉（原因见 6.1）。回归测试锁死了这个 payload 形状。
 4. **不要把 `docs/benchmarks/*` 或合成压测的 100% 说成官方成绩。**
 5. **不要把自动抽取结果当金标。** 标注集与留出验证集要分开。
-6. 官方数据到手前，**不要对外宣称任何准确率数字**。
+6. 没有独立人工金标和明确评测口径时，**不要对外宣称准确率数字**；官方数据到手本身不满足这两个条件。
 
 ## 六、已经解决的坑（不要重新发现，代价很高）
 
@@ -167,23 +168,23 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ## 八、队友不写代码也能做的事：去标数据
 
-前端「05 人工标注与质量评测」面板就是干这个的：
+优先用 [队友标注指南](ANNOTATION_GUIDE.md) 和协调员生成的 `*.bundle.json`；任务包已配好空白 Gold、全量 rules+OCR 对应预测、解析文本和原始文件索引。无需队友重新上传官方大压缩包，也不会调用模型。
 
-1. 选材料 → 生成候选草稿（可选 rules / model / hybrid 三种方案）；
-2. **对照左侧原文逐条修正**右侧七字段、中标方、投标主体；
-3. 勾选"我已对照原文核验"，导出 `gold.reviewed.json`。
+1. 打开前端「05 人工标注与质量评测」，载入分给自己的任务包；
+2. **对照左侧来源文字和原始附件**，逐公告填写七字段、采购单位、中标方、投标方；
+3. 每条单独勾选核验，所有字段修改会自动取消该条核验；下载 `gold.reviewed.json` 和进度备份。
 
-也可以直接导入已有的 gold / predictions JSON 跑指标。
+协调员用 `app.annotation_compare_cli` 查看共同试标差异，用 `app.annotation_merge_cli` 合并后续互不重叠批次。手动上传/导入模式仍可用于小样本；切设备续标请导入进度备份。
 
 **规矩**：自动抽取结果**永远不能**直接当人工标准答案；空白表示原文未披露，不是"没有"；金额统一为元；中标方要**同时**列入投标主体。
 
-> ⚠️ 标注集要分两份：**调优/提示集** 与**留出验证集**。混在一起自欺欺人。
+> ⚠️ 自动抽取结果永远不能当答案。没有独立金标、留出集和官方口径时，不要对外宣称准确率或官方成绩。
 
 ## 九、开发集
 
 `backend/app/corpus.py` 是受限速率的公开开发集采集器：只允许 `ccgp.gov.cn`，每次请求至少间隔 1 秒，记录来源 URL、响应状态、下载时间、文件大小和 SHA-256；第三方附件域名明确记录为跳过。它不访问官方隐藏评测集，也不把公开开发集当作官方成绩。
 
-2026-09-24 采集的 20 条公告在本机 `backend/.data/development-clean/`，**原始文件不纳入 Git**。官方数据是它的替身：同领域、同格式。
+2026-09-24 采集的 20 条公告在本机 `backend/.data/development-clean/`，**原始文件不纳入 Git**。它们只作为官方材料到达前的开发替代；官方附件的格式错配、扫描件、深层压缩和下载错误不能由这 20 条纯正文验证。
 
 `docs/benchmarks/` 里的文件与用途：
 
@@ -197,23 +198,29 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ## 十、如果你是 AI agent
 
+官方修复结果位于独立数据集“官方数据修复后回归（规则基线·待核验）”，刷新前端后可切换查看；默认库和首轮试跑保留。机器记录 [official-intake-20260925.json](benchmarks/official-intake-20260925.json) 是首轮历史基线，[official-fixes-20260925.json](benchmarks/official-fixes-20260925.json) 是修复回归，两者均不是准确率报告。
+
 上面九节对人同样适用。以下是额外的。
 
 ### 环境
 
-**仓库根**：`D:/ICT/bid-intel`（Windows 11，Git Bash 可用）。子目录 `backend/`（FastAPI+SQLite）与 `frontend/`（Vue3）。
+**仓库根**：当前项目目录（Windows 11，Git Bash 可用）。子目录 `backend/`（FastAPI+SQLite）与 `frontend/`（Vue3）。
 
 **Python 必须用 venv，全局 python 没装 pytest**：
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q             # 期望 114 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
+./.venv/Scripts/python.exe -m pytest -q             # 期望 167 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 
 跑单条测试：`./.venv/Scripts/python.exe -m pytest tests/test_model_adapter.py -v`
 
 **工具坑（都踩过）**：
+
+官方兼容回归使用 tests/test_official_compatibility.py 和 tests/test_attachment_readiness.py。迁移机器需重新安装后端依赖（新增 olefile/filelock）并部署 LibreOffice。若 .env 显式配置过 60 秒 DOC 超时，应改为 DOCUMENT_CONVERSION_TIMEOUT_SECONDS=120 后重启后端，默认值变化不会覆盖 .env。
+
+DOC 缓存位于原数据库目录的 document-cache，只缓存通过校验的成功结果，按内容而非文件名复用。首次转换和缓存复跑必须分开报告。本机完整回归证据位于 backend/.data/official-fixes-20260925，原文、成员清单和缓存不入 Git。当前 6 条回归不是全量接入，不应直接导出为 gold。
 
 - **中文输出在管道里会乱码**（GBK 控制台）。跑脚本时前置 `PYTHONIOENCODING=utf-8`，或者把结果写文件再用 Read 工具读。
 - **别在 Bash 工具里嵌套 heredoc**，会挂住直到超时。要跑多行 Python 就写成临时 `.py` 文件再执行。

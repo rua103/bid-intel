@@ -31,7 +31,16 @@ class Settings(BaseSettings):
     ocr_language: str = "chi_sim+eng"
     ocr_timeout_seconds: int = 30
     libreoffice_path: str = ""
-    document_conversion_timeout_seconds: int = 60
+    document_conversion_timeout_seconds: int = 120
+    job_workers: int = 3
+    intake_root: str = ''
+    job_max_expanded_mb: int = 2048
+    job_max_member_mb: int = 512
+    job_max_archive_depth: int = 8
+    job_max_archive_files: int = 20000
+    ocr_engine: str = 'rapidocr'
+    pdf_max_pages: int = 1000
+    pdf_max_ocr_pages: int = 1000
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

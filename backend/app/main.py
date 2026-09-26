@@ -20,6 +20,7 @@ from app.datasets import router as datasets_router
 from app.evaluation_api import router as evaluation_router
 from app.graph import sqlite_graph
 from app.ingestion import import_batch, import_notice
+from app.jobs_api import router as jobs_router
 from app.model_adapter import test_model_connection
 from app.parsers import SourceDocument, parser_capabilities
 from app.schemas import (
@@ -64,6 +65,7 @@ app.add_middleware(
 )
 app.include_router(evaluation_router)
 app.include_router(datasets_router)
+app.include_router(jobs_router)
 
 
 @app.get("/api/v1/parser-capabilities")

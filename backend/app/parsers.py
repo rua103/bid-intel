@@ -21,6 +21,8 @@ from docx import Document
 from openpyxl import load_workbook
 from pypdf import PdfReader
 
+from app.config import settings
+from app.file_formats import inspect_content
 from app.legacy_documents import DocumentConversionError, convert_doc, libreoffice_executable
 from app.schemas import ItemCandidate, NoticeMetadata
 
@@ -46,9 +48,9 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "品名",
         "标的物",
     ),
-    "category": ("品目名称", "品目", "采购品目", "类别"),
+    "category": ("品目名称", "品目", "采购品目", "品目分类", "类别"),
     "brand": ("品牌", "品牌如有", "产品供应商", "品牌产品供应商"),
-    "model": ("规格型号", "规格型号如有", "规格", "型号"),
+    "model": ("规格型号", "规格型号如有", "规格说明", "规格", "型号"),
     "quantity": ("数量", "数量单位", "采购数量", "采购数量单位"),
     "unit_price": ("单价", "单价元"),
     "total_price": (
@@ -90,6 +92,12 @@ def _column_map(header: Iterable[object]) -> dict[str, int]:
             if field in result:
                 break
     return result
+
+
+def _requirement_header(header: list[str], columns: dict[str, int]) -> bool:
+    labels = {_header_key(cell) for cell in header}
+    return bool(labels & {'简要技术要求', '采购需求', '技术要求', '技术参数要求'}
+                and not {'brand', 'model', 'unit_price', 'total_price'} & columns.keys())
 
 
 def _decimal(value: str) -> Decimal | None:
@@ -148,6 +156,9 @@ def parse_item_tables(
     if header_index is None:
         return candidates
     header = rows[header_index]
+    requirement = _requirement_header(header, columns)
+    quotation = any('供应商报价成交明细' in _clean(''.join(row))
+                    for row in rows[:header_index])
     if any("供应商" in cell for cell in header) and not (
         {"brand", "model", "quantity", "unit_price"} & columns.keys()
     ):
@@ -162,6 +173,9 @@ def parse_item_tables(
         repeated = _column_map(values)
         if _item_header(repeated):
             columns, header = repeated, values
+            requirement = _requirement_header(header, columns)
+            continue
+        if requirement:
             continue
 
         def get_value(
@@ -176,6 +190,22 @@ def parse_item_tables(
         extra = {}
         if "package_code" in ItemCandidate.model_fields:
             extra["package_code"] = get_value("package_code") or "default"
+            # Some official quotation sheets put 包1 in the 序号 column.
+            # Bare numeric row indices must never become package identifiers.
+            if extra['package_code'] == 'default':
+                for col, label in enumerate(header):
+                    if _header_key(label) == '序号' and col < len(values) and re.fullmatch(
+                        r'(?:合同包|采购包|包)\s*\d+', values[col]
+                    ):
+                        extra['package_code'] = values[col]
+        total = _money(get_value('total_price'),
+                       header[columns['total_price']] if 'total_price' in columns else '')
+        # 报价 alone is ambiguous; accept it only in an explicit 成交明细 sheet
+        # with quantity/unit-price columns and a numeric row-level amount.
+        if total is None and quotation and {'quantity', 'unit_price'} <= columns.keys():
+            for col, label in enumerate(header):
+                if _header_key(label) == '报价' and col < len(values):
+                    total = _money(values[col], label)
         candidate = ItemCandidate(
             product_name=product_name or None,
             category=category or None,
@@ -185,8 +215,7 @@ def parse_item_tables(
             quantity_unit=quantity_unit,
             unit_price=_money(get_value("unit_price"),
                               header[columns["unit_price"]] if "unit_price" in columns else ""),
-            total_price=_money(get_value("total_price"),
-                               header[columns["total_price"]] if "total_price" in columns else ""),
+            total_price=total,
             source_file=source_file,
             source_location=f"table:{table_index}/row:{row_index}",
             source_evidence=" | ".join(value for value in values if value),
@@ -237,18 +266,30 @@ def _is_item_data_row(
     return identity_column is not None and bool(populated_columns - {identity_column})
 
 
-def _html_tables(content: bytes, filename: str) -> tuple[str, list[ItemCandidate]]:
+def _html_tables(
+    content: bytes, filename: str, warnings: list[str] | None = None,
+) -> tuple[str, list[ItemCandidate]]:
     soup = BeautifulSoup(content, "html.parser")
     for tag in soup(["script", "style", "noscript"]):
         tag.decompose()
     items: list[ItemCandidate] = []
+    reference_tables = []
     for table_index, table in enumerate(soup.find_all("table"), start=1):
         rows = [
             ["" if cell.find("table") else _clean(cell.get_text(" ", strip=True))
              for cell in row.find_all(["th", "td"], recursive=False)]
             for row in table.find_all("tr") if row.find_parent("table") is table
         ]
+        headers = [(row, _column_map(row)) for row in rows if _item_header(_column_map(row))]
+        if (headers and not table.find('table')
+                and all(_requirement_header(row, columns) for row, columns in headers)):
+            reference_tables.append(table)
+            if warnings is not None:
+                warnings.append(f'{filename}: table:{table_index} 为采购需求表，不抽取成交标的或送入模型')
+            continue
         items.extend(parse_item_tables(rows, source_file=filename, table_index=table_index))
+    for table in reference_tables:
+        table.replace_with('[采购需求表已排除，原文保留在来源文件]')
     # Keep block and cell boundaries for metadata; a space-flattened document
     # cannot distinguish the buyer from the next row's administrative region.
     for tag in soup.find_all(["p", "div", "tr", "table", "section", "br",
@@ -323,7 +364,10 @@ def parser_capabilities() -> dict[str, bool]:
         "pdf_text": True,
         "pdf_tables": importlib.util.find_spec("pdfplumber") is not None,
         "pdf_render": importlib.util.find_spec("pypdfium2") is not None,
-        "image_ocr": shutil.which("tesseract") is not None,
+        "image_ocr": (importlib.util.find_spec('rapidocr') is not None
+                      and importlib.util.find_spec('onnxruntime') is not None
+                      if settings.ocr_engine == 'rapidocr' else shutil.which('tesseract') is not None),
+        "archive_7z": importlib.util.find_spec('py7zr') is not None,
         "legacy_doc": libreoffice_executable() is not None,
         "legacy_xls": importlib.util.find_spec("xlrd") is not None,
     }
@@ -335,6 +379,15 @@ def _ocr_image(
 ) -> tuple[str, list[str]]:
     if engine is not None:
         return engine(content, filename), []
+    if settings.ocr_engine == 'rapidocr':
+        try:
+            from app.local_ocr import recognize
+            text, warnings = recognize(content)
+            return text, [f'{filename}: {message}' for message in warnings]
+        except ImportError:
+            return '', [f'{filename}: RapidOCR 未安装，请安装后端 ocr 依赖']
+        except Exception as exc:  # noqa: BLE001
+            return '', [f'{filename}: 本地 OCR 失败（{type(exc).__name__}）']
     executable = shutil.which("tesseract")
     if executable is None:
         return "", [f"{filename}: OCR 已启用但未找到 Tesseract，可安装并配置 chi_sim 语言包"]
@@ -365,24 +418,30 @@ def _pdf_text(
     items: list[ItemCandidate] = []
     warnings: list[str] = []
     scan_pages = []
-    for page_number, page in enumerate(reader.pages[:100], start=1):
+    page_limit = max(1, settings.pdf_max_pages)
+    ocr_limit = max(1, settings.pdf_max_ocr_pages)
+    for page_number, page in enumerate(reader.pages[:page_limit], start=1):
         text = page.extract_text() or ""
         if text.strip():
             page_text.append(f"[page:{page_number}] {text}")
         else:
             scan_pages.append(page_number)
-    if len(reader.pages) > 100:
-        warnings.append(f"{filename}: PDF 超过 100 页，只解析前 100 页")
+    if len(reader.pages) > page_limit:
+        warnings.append(f'{filename}: PDF 超过 {page_limit} 页，只解析前 {page_limit} 页')
     if importlib.util.find_spec("pdfplumber"):
         try:
             with importlib.import_module("pdfplumber").open(io.BytesIO(content)) as pdf:
-                for page_number, page in enumerate(pdf.pages[:100], start=1):
+                for page_number, page in enumerate(pdf.pages[:page_limit], start=1):
+                    if page_number in scan_pages:
+                        page.close()
+                        continue
                     for table_index, table in enumerate(page.extract_tables() or [], start=1):
                         parsed = parse_item_tables(table, source_file=filename, table_index=table_index)
                         for item in parsed:
                             item.source_location = f"page:{page_number}/{item.source_location}"
                             item.extraction_method = "pdfplumber_table_header_mapping"
                         items.extend(parsed)
+                    page.close()
         except Exception as exc:  # noqa: BLE001
             warnings.append(f"{filename}: PDF 表格解析失败（{type(exc).__name__}），保留文本结果")
     else:
@@ -395,7 +454,7 @@ def _pdf_text(
         else:
             renderer = importlib.import_module("pypdfium2").PdfDocument(content)
             try:
-                for page_number in scan_pages[:30]:
+                for page_number in scan_pages[:ocr_limit]:
                     page = renderer[page_number - 1]
                     bitmap = page.render(scale=2)
                     buffer = io.BytesIO()
@@ -407,12 +466,18 @@ def _pdf_text(
                         )
                         if text.strip():
                             page_text.append(f"[page:{page_number}/ocr] {text}")
+                            parsed = parse_item_tables([line.split('\t') for line in text.splitlines()],
+                                                       source_file=filename, table_index=1)
+                            for item in parsed:
+                                item.source_location = f'page:{page_number}/ocr/{item.source_location}'
+                                item.extraction_method = 'local_ocr_table'
+                            items.extend(parsed)
                         warnings.extend(ocr_warnings)
                     finally:
                         bitmap.close()
                         page.close()
-                if len(scan_pages) > 30:
-                    warnings.append(f"{filename}: 每份 PDF 最多 OCR 30 页，其余扫描页未处理")
+                if len(scan_pages) > ocr_limit:
+                    warnings.append(f'{filename}: 每份 PDF 最多 OCR {ocr_limit} 页，其余扫描页未处理')
             finally:
                 renderer.close()
     return _clean(" ".join(page_text)), items, warnings
@@ -426,56 +491,64 @@ def parse_document(
     suffix = PurePosixPath(document.filename.replace("\\", "/")).suffix.lower()
     warnings: list[str] = []
     try:
+        detected = inspect_content(document.content)
+        warnings.extend(f"{document.filename}: {message}" for message in detected.warnings)
+        if detected.error:
+            return "", [], warnings + [f"{document.filename}: {detected.error}"]
+        original_suffix = suffix
+        if detected.format:
+            suffix = "." + detected.format
+            aliases = {".htm": ".html", ".jpeg": ".jpg", ".tif": ".tiff"}
+            if aliases.get(original_suffix, original_suffix) != suffix:
+                label = {"html": "HTML", "docx": "OOXML DOCX", "xlsx": "OOXML XLSX"}.get(
+                    detected.format, detected.format.upper())
+                warnings.append(f"{document.filename}: 实际为 {label}，已按内容解析（原扩展名 {original_suffix or '无'}）")
+        content = detected.content
         if suffix in {".html", ".htm"}:
-            text, items = _html_tables(document.content, document.filename)
-        elif suffix in {".doc", ".xls"}:
-            # Some public attachments use Office suffixes for HTML or OOXML.
-            leading = document.content.lstrip(b'\xef\xbb\xbf \t\r\n')[:1024].lower()
-            if re.search(br'<(?:!doctype\s+html|html|table|head|body)\b', leading):
-                text, items = _html_tables(document.content, document.filename)
-                warnings.append(f"{document.filename}: 实际为 HTML，已按内容解析")
-            elif document.content.startswith(b'PK\x03\x04'):
-                parser = _docx_tables if suffix == '.doc' else _xlsx_tables
-                text, items = parser(document.content, document.filename)
-                warnings.append(f"{document.filename}: 实际为 OOXML，已按内容解析")
-            elif suffix == '.xls':
-                text, items = _xls_tables(document.content, document.filename)
-            else:
-                text, items = _docx_tables(convert_doc(document.content), document.filename)
-                for item in items:
-                    item.extraction_method = 'doc_converted_table_header_mapping'
-                if text and not items:
-                    warnings.append(f"{document.filename}: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型")
+            text, items = _html_tables(content, document.filename, warnings)
+        elif suffix == ".xls":
+            text, items = _xls_tables(content, document.filename)
+        elif suffix in {".doc", ".rtf"}:
+            text, items = _docx_tables(convert_doc(content), document.filename)
+            for item in items:
+                item.extraction_method = 'doc_converted_table_header_mapping'
+            if text and not items:
+                warnings.append(f"{document.filename}: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型")
         elif suffix == ".docx":
-            text, items = _docx_tables(document.content, document.filename)
+            text, items = _docx_tables(content, document.filename)
         elif suffix == ".xlsx":
-            text, items = _xlsx_tables(document.content, document.filename)
+            text, items = _xlsx_tables(content, document.filename)
         elif suffix == ".pdf":
-            text, items, warnings = _pdf_text(
-                document.content, document.filename, ocr_enabled=ocr_enabled,
+            text, items, pdf_warnings = _pdf_text(
+                content, document.filename, ocr_enabled=ocr_enabled,
                 ocr_language=ocr_language, ocr_timeout_seconds=ocr_timeout_seconds,
                 ocr_engine=ocr_engine,
             )
+            warnings.extend(pdf_warnings)
             if text and not items:
                 warnings.append(
                     f"{document.filename}: PDF 文本已读取；复杂表格/扫描页需 OCR 或模型解析后核验"
                 )
         elif suffix == ".txt":
-            text, items = document.content.decode("utf-8", errors="replace"), []
+            text, items = content.decode("utf-8", errors="replace"), []
         elif suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}:
             if not ocr_enabled:
-                return "", [], [f"{document.filename}: 图像附件需要 OCR，当前未启用"]
-            text, warnings = _ocr_image(
-                document.content, document.filename, language=ocr_language,
+                return "", [], warnings + [f"{document.filename}: 图像附件需要 OCR，当前未启用"]
+            text, ocr_warnings = _ocr_image(
+                content, document.filename, language=ocr_language,
                 timeout=ocr_timeout_seconds, engine=ocr_engine,
             )
-            items = []
+            warnings.extend(ocr_warnings)
+            items = parse_item_tables([line.split('\t') for line in text.splitlines()],
+                                      source_file=document.filename, table_index=1)
+            for item in items:
+                item.extraction_method = 'local_ocr_table'
         else:
-            return "", [], [f"暂不支持附件格式：{document.filename}"]
+            return "", [], warnings + [f"暂不支持附件格式：{document.filename}"]
     except DocumentConversionError as exc:
-        return "", [], [f"解析失败：{document.filename}（{exc}）"]
+        return "", [], warnings + [f"解析失败：{document.filename}（{exc}）"]
     except Exception as exc:  # noqa: BLE001 - isolate individual corrupt attachments
-        return "", [], [f"解析失败：{document.filename}（{type(exc).__name__}）"]
+        return "", [], warnings + [f"解析失败：{document.filename}（{type(exc).__name__}）"]
     if not text.strip() and not items and not warnings:
         warnings.append(f"{document.filename}: 未解析出文本或表格，请检查空文件、加密或扫描内容")
     return text.strip(), items, warnings
@@ -518,7 +591,20 @@ def expand_uploads(files: list[SourceDocument]) -> tuple[list[SourceDocument], l
     def visit(document: SourceDocument, depth: int) -> None:
         nonlocal total_bytes
         suffix = PurePosixPath(document.filename.replace("\\", "/")).suffix.lower()
-        if suffix != ".zip":
+        detected = inspect_content(document.content)
+        warnings.extend(f"{document.filename}: {message}" for message in detected.warnings)
+        if detected.error:
+            warnings.append(f"{document.filename}: {detected.error}")
+            return
+        if detected.content is not document.content:
+            document = SourceDocument(document.filename, detected.content)
+        is_zip = (detected.format == 'zip' and suffix not in {'.gbq7'}
+                  or suffix == '.zip' and detected.format is None)
+        if is_zip and suffix != '.zip':
+            warnings.append(f"{document.filename}: 按实际 ZIP 内容展开，保留原名")
+        if not is_zip and suffix == '.zip' and detected.format:
+            warnings.append(f"{document.filename}: 扩展名 ZIP 与实际 {detected.format} 不符，按内容解析")
+        if not is_zip:
             total_bytes += len(document.content)
             if total_bytes > MAX_EXPANDED_BYTES:
                 raise ValueError("解压后数据超过 200 MB 限制")

@@ -1,0 +1,191 @@
+{
+  "scope": "6 条官方公告 rules 回归；无 gold、无真实模型调用，不能视为准确率或全量吞吐",
+  "baseline": "da8eb80",
+  "dataset": {
+    "id": "dd7e07c2b27f4897b67a934beef4fc39",
+    "name": "官方数据修复后回归（规则基线·待核验）",
+    "notices_imported": 6,
+    "items_found": 4
+  },
+  "default_database_unchanged": true,
+  "model_calls": 0,
+  "download_error_verification": {
+    "identified": 87,
+    "known_errors": 87,
+    "notices": 61
+  },
+  "format_verification": {
+    "unique_content_counts": {
+      "doc": 103,
+      "xls": 1
+    },
+    "member_format_counts": {
+      "doc": 2234,
+      "xls": 1
+    },
+    "docx_named_doc": 2172,
+    "errors": 0
+  },
+  "doc_conversion": [
+    {
+      "file": "t20260211_26170114",
+      "attempt": "first",
+      "seconds": 41.151,
+      "text_chars": 32254,
+      "items": 0,
+      "warnings": [
+        "t20260211_26170114.docx: 实际为 DOC，已按内容解析（原扩展名 .docx）",
+        "t20260211_26170114.docx: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型"
+      ]
+    },
+    {
+      "file": "t20260211_26170114",
+      "attempt": "cached",
+      "seconds": 0.251,
+      "text_chars": 32254,
+      "items": 0,
+      "warnings": [
+        "t20260211_26170114.docx: 实际为 DOC，已按内容解析（原扩展名 .docx）",
+        "t20260211_26170114.docx: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型"
+      ]
+    },
+    {
+      "file": "t20260509_26531865",
+      "attempt": "first",
+      "seconds": 23.767,
+      "text_chars": 3,
+      "items": 0,
+      "warnings": [
+        "t20260509_26531865.docx: 实际为 DOC，已按内容解析（原扩展名 .docx）",
+        "t20260509_26531865.docx: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型"
+      ]
+    },
+    {
+      "file": "t20260509_26531865",
+      "attempt": "cached",
+      "seconds": 0.041,
+      "text_chars": 3,
+      "items": 0,
+      "warnings": [
+        "t20260509_26531865.docx: 实际为 DOC，已按内容解析（原扩展名 .docx）",
+        "t20260509_26531865.docx: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型"
+      ]
+    }
+  ],
+  "complex_notice_first_run_seconds": 243.179,
+  "probes": [
+    {
+      "notice": "t20260202_26139731",
+      "notice_id": 1,
+      "source_files": 2,
+      "parsed_documents": 1,
+      "items_before": 0,
+      "items_after": 0,
+      "seconds_after_warm": 0.042,
+      "parse_failures": 0,
+      "unavailable_source": 0,
+      "unsupported_formats": 0,
+      "reference_files": 1,
+      "blank_templates": 0,
+      "ocr_required": 0,
+      "requirement_tables": 0,
+      "merged_groups": 0,
+      "conflicting_groups": 0
+    },
+    {
+      "notice": "t20260206_26157964",
+      "notice_id": 2,
+      "source_files": 1,
+      "parsed_documents": 1,
+      "items_before": 0,
+      "items_after": 0,
+      "seconds_after_warm": 0.046,
+      "parse_failures": 0,
+      "unavailable_source": 1,
+      "unsupported_formats": 0,
+      "reference_files": 0,
+      "blank_templates": 0,
+      "ocr_required": 0,
+      "requirement_tables": 0,
+      "merged_groups": 0,
+      "conflicting_groups": 0
+    },
+    {
+      "notice": "t20260211_26170114",
+      "notice_id": 3,
+      "source_files": 2,
+      "parsed_documents": 1,
+      "items_before": 0,
+      "items_after": 0,
+      "seconds_after_warm": 0.044,
+      "parse_failures": 0,
+      "unavailable_source": 0,
+      "unsupported_formats": 0,
+      "reference_files": 1,
+      "blank_templates": 0,
+      "ocr_required": 0,
+      "requirement_tables": 0,
+      "merged_groups": 0,
+      "conflicting_groups": 0
+    },
+    {
+      "notice": "t20260501_26507438",
+      "notice_id": 4,
+      "source_files": 57,
+      "parsed_documents": 55,
+      "items_before": 3,
+      "items_after": 1,
+      "seconds_after_warm": 1.631,
+      "parse_failures": 0,
+      "unavailable_source": 0,
+      "unsupported_formats": 0,
+      "reference_files": 2,
+      "blank_templates": 7,
+      "ocr_required": 1,
+      "requirement_tables": 0,
+      "merged_groups": 0,
+      "conflicting_groups": 0
+    },
+    {
+      "notice": "t20260509_26531865",
+      "notice_id": 5,
+      "source_files": 4,
+      "parsed_documents": 4,
+      "items_before": 6,
+      "items_after": 3,
+      "seconds_after_warm": 0.161,
+      "parse_failures": 0,
+      "unavailable_source": 0,
+      "unsupported_formats": 0,
+      "reference_files": 0,
+      "blank_templates": 0,
+      "ocr_required": 0,
+      "requirement_tables": 1,
+      "merged_groups": 1,
+      "conflicting_groups": 1
+    },
+    {
+      "notice": "t20260804_27071910",
+      "notice_id": 6,
+      "source_files": 3,
+      "parsed_documents": 3,
+      "items_before": 0,
+      "items_after": 0,
+      "seconds_after_warm": 0.153,
+      "parse_failures": 0,
+      "unavailable_source": 0,
+      "unsupported_formats": 0,
+      "reference_files": 0,
+      "blank_templates": 0,
+      "ocr_required": 1,
+      "requirement_tables": 0,
+      "merged_groups": 0,
+      "conflicting_groups": 0
+    }
+  ],
+  "tests": {
+    "passed": 139,
+    "skipped": 1,
+    "ruff": "passed"
+  }
+}

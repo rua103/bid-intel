@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import AnnotationWorkbench from './components/AnnotationWorkbench.vue'
 import RelationshipGraph from './components/RelationshipGraph.vue'
+import BatchJobs from './components/BatchJobs.vue'
 import { resolveApiBase } from './utils/browser.js'
 import { createDatasetClient } from './utils/datasets.js'
 
@@ -392,6 +393,8 @@ onMounted(async () => {
       </div>
       <p v-if="error" class="error">{{ error }}</p>
     </section>
+
+    <BatchJobs v-if="datasetReady" :api-base="apiBase" :dataset-id="datasetId" @updated="refreshHealth" />
 
     <section v-if="notice" class="panel result-panel">
       <div class="panel-heading">

@@ -1,0 +1,211 @@
+{
+  "date": "2026-09-25",
+  "purpose": "official_input_readiness_audit_not_accuracy_evaluation",
+  "implementation_commit": "1895a26",
+  "intake_commit": "da8eb80",
+  "model_calls": 0,
+  "source_files_unchanged": true,
+  "inventory": {
+    "source_directory": "local_official_intake_directory",
+    "html_count": 1038,
+    "zip_count": 970,
+    "matched_html_zip_pairs": 970,
+    "html_without_zip": 68,
+    "zip_without_html": [],
+    "zip_bytes": 3568928502,
+    "expanded_member_bytes": 5637756737,
+    "member_suffixes": {
+      ".pdf": 1785,
+      ".zip": 619,
+      ".docx": 107,
+      ".doc": 50,
+      ".rar": 32,
+      ".png": 77,
+      "(none)": 32,
+      ".xls": 1,
+      ".7z": 2,
+      ".jpg": 29,
+      ".wps": 2,
+      ".15": 1
+    },
+    "invalid_zip_count": 0,
+    "empty_zip_count": 0,
+    "zips_over_200mb_expanded": 3,
+    "largest_zips": [
+      {
+        "file": "t20260509_26533549.zip",
+        "bytes": 336953476,
+        "members": 2
+      },
+      {
+        "file": "t20260409_26380023.zip",
+        "bytes": 234974839,
+        "members": 3
+      },
+      {
+        "file": "t20260604_26688741.zip",
+        "bytes": 179313939,
+        "members": 4
+      },
+      {
+        "file": "t20260512_26551404.zip",
+        "bytes": 125712994,
+        "members": 3
+      },
+      {
+        "file": "t20260807_27091873.zip",
+        "bytes": 80746910,
+        "members": 2
+      }
+    ],
+    "capabilities": {
+      "pdf_text": true,
+      "pdf_tables": true,
+      "pdf_render": true,
+      "image_ocr": false,
+      "legacy_doc": true,
+      "legacy_xls": true
+    }
+  },
+  "recursive_prefix_inspection": {
+    "root_archives": 970,
+    "scanned_members_including_nested": 13650,
+    "leaf_files": 12998,
+    "kinds": {
+      "pdf": 4485,
+      "docx": 5893,
+      "error_response": 87,
+      "rar": 32,
+      "ole": 2235,
+      "png": 139,
+      "html": 4,
+      "jpeg": 80,
+      "7z": 2,
+      "xlsx": 23,
+      "zip_or_ooxml": 4,
+      "unknown": 14
+    },
+    "suffixes": {
+      ".pdf": 4508,
+      ".docx": 8080,
+      ".doc": 75,
+      ".zip": 15,
+      ".rar": 34,
+      ".png": 130,
+      "(none)": 33,
+      ".jpg": 81,
+      ".xls": 1,
+      ".7z": 2,
+      ".wps": 2,
+      ".15": 1,
+      ".xlsx": 23,
+      ".bmp": 2,
+      ".txt": 6,
+      ".dwg": 4,
+      ".gbq7": 1
+    },
+    "error_response_files": 87,
+    "notices_with_error_responses": 61,
+    "error_response_reasons": {
+      "请输入验证码": 48,
+      "系统正在维护中": 31,
+      "访问提示 - 系统限制": 2,
+      "JSON error": 6
+    },
+    "nested_containers": 652,
+    "nested_limit_skips": 2,
+    "read_errors": 0,
+    "filename_decode_warnings": 88,
+    "seconds": 15.439,
+    "scope": "Prefix/magic inspection, recursive ZIP up to depth 3/64 MB per nested archive; not full CRC or document-parse validation."
+  },
+  "ole_stream_inspection": {
+    "ole_files": 2235,
+    "kinds": {
+      "word_binary": 2234,
+      "xls_binary": 1
+    },
+    "docx_word_binary": 2172,
+    "scope": "OLE stream directory inspection; no document extraction"
+  },
+  "html_rules_baseline": {
+    "html_files": 1038,
+    "parsed": 1038,
+    "errors": 0,
+    "notices_with_items": 398,
+    "notices_without_items": 640,
+    "total_items": 3814,
+    "metadata_present": {
+      "project_name": 1038,
+      "project_number": 1032,
+      "procurement_unit": 1038,
+      "project_budget": 5,
+      "announced_total_award": 1038
+    },
+    "seconds": 41.11,
+    "scope": "HTML only, rules only, no attachments/model calls/storage/accuracy evaluation"
+  },
+  "sample": {
+    "dataset_id": "3809aef7a85d4b608b1c78165290897d",
+    "name": "官方数据首批兼容性检查（规则基线·非完整结果）",
+    "notice_count": 6,
+    "items_found": 9,
+    "model_calls": 0,
+    "notices": [
+      {
+        "source": "t20260202_26139731",
+        "notice_id": 1,
+        "items_found": 0,
+        "documents": 2,
+        "seconds": 16.363,
+        "failed_documents": 0,
+        "unsupported_documents": 0
+      },
+      {
+        "source": "t20260206_26157964",
+        "notice_id": 2,
+        "items_found": 0,
+        "documents": 2,
+        "seconds": 0.054,
+        "failed_documents": 1,
+        "unsupported_documents": 0
+      },
+      {
+        "source": "t20260211_26170114",
+        "notice_id": 3,
+        "items_found": 0,
+        "documents": 2,
+        "seconds": 61.622,
+        "failed_documents": 1,
+        "unsupported_documents": 0
+      },
+      {
+        "source": "t20260501_26507438",
+        "notice_id": 4,
+        "items_found": 3,
+        "documents": 57,
+        "seconds": 27.111,
+        "failed_documents": 9,
+        "unsupported_documents": 0
+      },
+      {
+        "source": "t20260509_26531865",
+        "notice_id": 5,
+        "items_found": 6,
+        "documents": 4,
+        "seconds": 61.747,
+        "failed_documents": 1,
+        "unsupported_documents": 0
+      },
+      {
+        "source": "t20260804_27071910",
+        "notice_id": 6,
+        "items_found": 0,
+        "documents": 3,
+        "seconds": 0.051,
+        "failed_documents": 0,
+        "unsupported_documents": 2
+      }
+    ]
+  }
+}

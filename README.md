@@ -18,6 +18,7 @@
 ## 当前实现
 
 - Python/FastAPI 后端支持单公告导入和多公告 ZIP 批量导入，识别附件归属并报告未匹配文件。
+- 后台批量任务支持按公告处理 HTML + ZIP/RAR/7z、受控落盘、RapidOCR、本地进度检查点、暂停续跑及失败重试；任务结果写入独立数据集。
 - 解析 HTML、DOC/DOCX、XLS/XLSX 和可复制文本 PDF 中的标的物表格，保留来源文件、表格位置和原文证据。DOC 需要 LibreOffice；PDF 表格及渲染库已列为基础依赖。
 - 支持 UTF-8/常见 GBK 中文 ZIP 文件名；批量结果展示解压警告、未匹配附件和逐公告解析提示。
 - 页面可新建、切换独立数据集，正式数据与开发数据分别入库、分别聚合，历史数据保留。
@@ -27,7 +28,8 @@
 - 已加入人工标注工作台：从材料生成空白 gold 与独立的规则/模型/混合预测，对照原文填写七字段及主体，导出独立的 `gold`/`predictions` JSON 并计算本地指标。
 - 已加入合成压测、真实公开开发集采集器、SQLite 图谱投影和可选 Neo4j 导出；这些结果均明确标注为开发验证，不是官方成绩。
 - 模型适配层支持配置合规的 OpenAI-compatible Qwen/DeepSeek 服务；未配置模型时，只做可解释的表格列映射，不猜测缺失字段。
-- 后端测试、代码检查和前端构建已通过；当前还没有用官方数据验证准确率或查询基准。
+- 官方 1038 条公告已在规则 + 本地 OCR 模式下全量入库；该批次有未核验候选，未提取出主体/中标记录，也没有 gold，因此不是准确率或官方查询基准。全量边界见 [接入报告](docs/OFFICIAL_INTAKE_REVIEW.md)。
+- 后端测试、代码检查和前端构建已通过；当前仍没有人工 gold 或经官方口径核验的查询基准。
 
 ## 本地运行
 
@@ -37,7 +39,7 @@
 cd backend
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,ocr]"
 Copy-Item .env.example .env
 uvicorn app.main:app --reload
 ```
@@ -58,7 +60,7 @@ npm run dev
 
 > ⚠️ **导入接口没有 mode 参数，默认走 `hybrid`**：配好模型后点一次导入，**每份文档**（正文 + 每个附件）都会真实调用一次模型并**串行**执行。一条带 3 个附件的公告会卡 1.5～6 分钟，期间界面只有按钮文字变化。单条实测耗时见 [`docs/benchmarks/stream-compare-3.json`](docs/benchmarks/stream-compare-3.json)。
 
-图片 OCR（含扫描 PDF 逐页识别）已实现，开关 `OCR_ENABLED`，但**依赖系统级 Tesseract 程序与 `chi_sim` 语言包**（pip 装不了）；缺失时只会收到一条"未找到 Tesseract"警告。详见 [`docs/ONBOARDING.md`](docs/ONBOARDING.md)。
+默认 RapidOCR 可通过 `.[ocr]` 安装；图片和扫描 PDF OCR 需启用 `OCR_ENABLED`。本地 1038 条全量处理真实运行了 OCR，但识别文本和表格仍需人工核验。详见 [`docs/DATA_INTAKE.md`](docs/DATA_INTAKE.md)。
 
 ## API
 
@@ -68,6 +70,7 @@ npm run dev
 - `POST /api/v1/model-config/test`：按当前填写的地址、Key、模型名发起一次连接测试。
 - `POST /api/v1/notices/import`：上传一份 HTML 或一个 ZIP（单个公告及其附件），解析并保存候选记录。
 - `POST /api/v1/notices/import-batch`：上传包含多份 HTML 公告及配套附件的 ZIP，按文件名共同前缀分组导入并返回耗时、未匹配附件和逐公告摘要。
+- `GET/POST /api/v1/jobs`：列出或创建本地后台批处理；`GET /api/v1/jobs/{id}` 查询进度，`POST .../pause`、`.../resume` 控制暂停续跑；`GET .../report` 导出逐公告状态。
 - `GET /api/v1/items`：按产品名、品牌、品目和型号检索。
 - `GET /api/v1/organizations`：查看可用于关系查询的主体。
 - `GET /api/v1/evaluation/schema`、`POST /api/v1/evaluation/draft`、`POST /api/v1/evaluation/run`：标注草稿、gold/predictions 评测和报告导出。
@@ -77,15 +80,15 @@ npm run dev
 - `GET /api/v1/analytics/suppliers/{supplier_id}/co-bidders`
 - `POST /api/v1/analytics/common-buyers`、`POST /api/v1/analytics/common-projects`
 
-当前阶段的解析结果是“候选数据”，不能代替官方模型和隐藏集评测。接入官方数据后，要先人工标注一小批样本，再比较表格解析与合规 Qwen/DeepSeek 的效果。
+当前阶段的解析结果是“候选数据”，不能代替官方模型和隐藏集评测。对官方数据仍需人工标注一小批样本，再比较规则、合规 Qwen/DeepSeek 和混合模式。
 
 数据模型和五类查询的暂定统计口径见 [docs/QUERY_SEMANTICS.md](docs/QUERY_SEMANTICS.md)。
 
 ## 下一步
 
-1. 用标注工作台核验真实开发集，并把训练/提示调优集与留出验证集分开。
+1. 用标注工作台核验独立数据集中的官方公告，并把提示调优集与留出验证集分开。
 2. 根据验证集测量七个标的物字段的准确率、精确率和召回率，再改进抽取与名称归一化。
 3. 根据官方样例确认五类关系查询的计数和金额口径，并逐条对照基准答案。
-4. 补复杂 PDF 表格支持（`pdfplumber`/`pypdfium2` 目前是可选依赖、未安装），再准备演示与提交材料。
+4. 核验 OCR 与复杂 PDF 表格候选，并处理 87 个无效下载附件、损坏成员及专有格式边界，再准备演示与提交材料。
 
 按优先级排好的完整清单见 [`docs/GAP_ANALYSIS.md`](docs/GAP_ANALYSIS.md)。

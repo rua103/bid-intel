@@ -1,0 +1,101 @@
+{
+  "date": "2026-09-26",
+  "purpose": "official_corpus_end_to_end_rules_and_local_ocr_ingestion_not_accuracy_evaluation",
+  "implementation_state": "validated_local_source_snapshot",
+  "model_calls": 0,
+  "dataset": {
+    "id": "282bf10d09b44260942269fcd4242026",
+    "name": "官方数据全量（规则与本地OCR·待核验）",
+    "job_id": "47508ea8390b4522a6766d79c0188b5d",
+    "database_scope": "isolated_dataset_sqlite",
+    "notices_expected": 1038,
+    "notices_imported": 1038,
+    "job_completed": true,
+    "final_failed_notices": 0,
+    "idempotent_import_receipts": 1038
+  },
+  "configuration": {
+    "mode": "rules",
+    "ocr_enabled": true,
+    "ocr_engine": "RapidOCR local",
+    "workers": 3,
+    "limits": {
+      "expanded_mb_per_notice": 2048,
+      "member_mb": 512,
+      "archive_depth": 8,
+      "archive_files": 20000
+    },
+    "maximum_pdf_pages": 1000,
+    "maximum_ocr_pages_per_pdf": 1000
+  },
+  "source_integrity": {
+    "manifest_files_sha256_verified": 2008,
+    "bytes_sha256_verified": 3604772811,
+    "hash_mismatches": 0,
+    "source_files_modified": false
+  },
+  "input_and_expansion": {
+    "html_notices": 1038,
+    "outer_zip_files": 970,
+    "outer_zip_bytes_inventory": 3568928502,
+    "parsed_leaf_documents_including_html": 14174,
+    "parsed_attachment_leaf_documents": 13136,
+    "attachment_leaf_documents_from_rar": 239,
+    "attachment_leaf_documents_from_7z": 13,
+    "detected_rar_containers_in_initial_inventory": 32,
+    "detected_7z_containers_in_initial_inventory": 2,
+    "zip_containers_with_parsed_leaf_documents": 930
+  },
+  "processing_time": {
+    "method": "checkpoint timestamps; first pass excludes 21 notices replayed during recovery, so wall-time values are estimates",
+    "initial_pass_wall_seconds_estimated": 3915.725,
+    "recovery_pass_wall_seconds": 89.492,
+    "active_wall_seconds_total_estimated": 4005.217,
+    "active_wall_minutes_total_estimated": 66.7536,
+    "three_worker_seconds_per_notice_estimated": 3.859,
+    "notice_checkpoint_seconds_median": 1.127,
+    "notice_checkpoint_seconds_p95": 41.249
+  },
+  "recovery": {
+    "initial_progress_checkpoint_write_failures": 13,
+    "cause": "PermissionError while replacing same-progress JSON before the shared read/write lock fix",
+    "outer_zip_misclassified_as_pdf_and_reparsed": 8,
+    "notices_replayed": 21,
+    "final_failures": 0
+  },
+  "database_rows": {
+    "notices": 1038,
+    "projects": 1038,
+    "packages": 1044,
+    "procurement_item_candidates": 6814,
+    "bid_participations": 0,
+    "awards": 0
+  },
+  "metadata_nonempty_notices": {
+    "project_name": 1038,
+    "project_number": 1034,
+    "procurement_unit": 1038,
+    "project_budget": 55,
+    "announced_total_award": 1038
+  },
+  "observed_warning_summary": {
+    "unavailable_download_error_members": 87,
+    "notices_with_unavailable_download_members": 61,
+    "rapidocr_result_warning_records": 2261,
+    "notices_with_rapidocr_results": 359,
+    "ocr_no_trusted_text_warning_records": 21,
+    "notices_with_ocr_no_text_warnings": 16,
+    "unsupported_format_warning_records": 7,
+    "notices_with_unsupported_format_warnings": 3,
+    "remaining_pdf_stream_error_records": 7,
+    "notices_with_pdf_stream_errors": 6,
+    "remaining_false_outer_zip_pdf_errors": 0,
+    "compressed_member_read_failure_records": 1
+  },
+  "interpretation_limits": [
+    "Automatic candidates and OCR output are unverified; no independent gold set or accuracy metrics were produced.",
+    "Rules mode produced no bid-participation or award rows in this run.",
+    "One unreadable compressed member and unsupported-format warnings remain for manual/source review.",
+    "The 87 download-error members are unavailable source data and were not repaired or replaced."
+  ]
+}

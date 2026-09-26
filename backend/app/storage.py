@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS notices (
     warnings_json TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS import_receipts (
+    source_key TEXT PRIMARY KEY,
+    notice_id INTEGER NOT NULL REFERENCES notices(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS organizations (
     id INTEGER PRIMARY KEY,
     canonical_name TEXT NOT NULL,
@@ -170,9 +174,23 @@ def _upsert_organization(connection: sqlite3.Connection, raw_name: str, notice_i
     return int(row["id"])
 
 
-def save_import(path: Path, result: ImportResult, source_text: str = "") -> ImportResult:
+def save_import(
+    path: Path, result: ImportResult, source_text: str = "", *, source_key: str | None = None,
+    replace_existing: bool = False,
+) -> ImportResult:
     initialize(path)
     with connect(path) as connection:
+        if source_key is not None:
+            connection.execute('BEGIN IMMEDIATE')
+            prior = connection.execute(
+                'SELECT notice_id FROM import_receipts WHERE source_key = ?', (source_key,),
+            ).fetchone()
+            if prior is not None:
+                if not replace_existing:
+                    return result.model_copy(update={'notice_id': prior['notice_id']})
+                connection.execute('DELETE FROM organization_aliases WHERE source_notice_id = ?',
+                                   (prior['notice_id'],))
+                connection.execute('DELETE FROM notices WHERE id = ?', (prior['notice_id'],))
         cursor = connection.execute(
             """INSERT INTO notices (
                 project_name, project_number, procurement_unit, project_budget,
@@ -288,6 +306,8 @@ def save_import(path: Path, result: ImportResult, source_text: str = "") -> Impo
                     item.confidence,
                 ),
             )
+        if source_key is not None:
+            connection.execute('INSERT INTO import_receipts VALUES (?, ?)', (source_key, notice_id))
         return result.model_copy(update={"notice_id": notice_id})
 
 

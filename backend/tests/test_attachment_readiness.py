@@ -91,7 +91,7 @@ def test_real_pdf_scan_page_is_rendered_before_ocr():
     assert not any('未安装' in warning or '缺少' in warning for warning in warnings)
 
 
-def test_real_binary_doc_fixture():
+def test_real_binary_doc_fixture(monkeypatch):
     if not legacy_documents.libreoffice_executable():
         pytest.skip('真实 DOC 转换需要 LibreOffice')
     fixture = Path(__file__).parent / 'fixtures/legacy-quotation.doc'
@@ -99,6 +99,14 @@ def test_real_binary_doc_fixture():
     assert not warnings
     assert '打印机' in text
     assert_item(items, '报价.doc')
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError('cached content must not run LibreOffice again')
+
+    monkeypatch.setattr(legacy_documents, '_run_conversion', forbidden)
+    text, items, warnings = parse_document(SourceDocument('伪扩展名.docx', fixture.read_bytes()))
+    assert_item(items, '伪扩展名.docx')
+    assert any('实际为 DOC' in row for row in warnings)
 
 
 def test_doc_dependency_and_timeout_diagnostics(monkeypatch):

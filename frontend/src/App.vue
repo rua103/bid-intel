@@ -3,10 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import AnnotationWorkbench from './components/AnnotationWorkbench.vue'
 import RelationshipGraph from './components/RelationshipGraph.vue'
 import BatchJobs from './components/BatchJobs.vue'
+import AuthGate from './components/AuthGate.vue'
 import { resolveApiBase } from './utils/browser.js'
 import { createDatasetClient } from './utils/datasets.js'
 
-const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location)
+const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location, import.meta.env.VITE_API_PORT || '8000')
 const selectedFiles = ref([])
 const uploading = ref(false)
 const notice = ref(null)
@@ -21,7 +22,8 @@ const datasetReady = ref(false)
 const datasetCreating = ref(false)
 const capabilities = ref(null)
 let datasetVersion = 0
-const datasetFetch = createDatasetClient(() => datasetId.value, () => datasetVersion)
+const apiFetch = (url, options = {}) => fetch(url, { ...options, credentials: 'include' })
+const datasetFetch = createDatasetClient(() => datasetId.value, () => datasetVersion, apiFetch)
 const searchText = ref('')
 const searchBrand = ref('')
 const searchCategory = ref('')
@@ -144,7 +146,7 @@ async function refreshOrganizations() {
 
 async function loadModelConfig() {
   try {
-    const response = await fetch(`${apiBase}/api/v1/model-config`)
+    const response = await apiFetch(`${apiBase}/api/v1/model-config`)
     if (!response.ok) throw new Error('读取模型配置失败')
     modelConfig.value = await response.json()
   } catch (cause) {
@@ -157,7 +159,7 @@ async function saveModelConfig() {
   modelSaving.value = true
   modelMessage.value = ''
   try {
-    const response = await fetch(`${apiBase}/api/v1/model-config`, {
+    const response = await apiFetch(`${apiBase}/api/v1/model-config`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -186,7 +188,7 @@ async function testModelConfig() {
   modelTesting.value = true
   modelMessage.value = ''
   try {
-    const response = await fetch(`${apiBase}/api/v1/model-config/test`, {
+    const response = await apiFetch(`${apiBase}/api/v1/model-config/test`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -239,7 +241,7 @@ async function runScene(scene) {
 }
 
 async function refreshDatasets() {
-  const response = await fetch(apiBase + '/api/v1/datasets')
+  const response = await apiFetch(apiBase + '/api/v1/datasets')
   if (!response.ok) throw new Error('数据集列表读取失败')
   datasets.value = await response.json()
 }
@@ -249,7 +251,7 @@ async function createDataset() {
   datasetCreating.value = true
   datasetError.value = ''
   try {
-    const response = await fetch(apiBase + '/api/v1/datasets', {
+    const response = await apiFetch(apiBase + '/api/v1/datasets', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: datasetName.value.trim() }),
     })
@@ -302,7 +304,7 @@ onMounted(async () => {
     datasetError.value = cause.message
   }
   try {
-    const response = await fetch(apiBase + '/api/v1/parser-capabilities')
+    const response = await apiFetch(apiBase + '/api/v1/parser-capabilities')
     if (response.ok) capabilities.value = await response.json()
   } catch { /* report capability status as unknown */ }
   await loadModelConfig()
@@ -310,6 +312,7 @@ onMounted(async () => {
 </script>
 
 <template>
+  <AuthGate :api-base="apiBase">
   <main class="shell">
     <header class="topbar">
       <div class="brandmark">采</div>
@@ -527,4 +530,5 @@ onMounted(async () => {
     <RelationshipGraph v-if="datasetReady" :api-base="apiBase" :dataset-id="datasetId" :refresh-key="health?.notices_imported || 0" />
     <footer>数据抽取为候选结果，进入竞赛验证集前应进行人工抽样核验。<span>数据留痕 · 结果可核验 · 关系可追溯</span></footer>
   </main>
+  </AuthGate>
 </template>

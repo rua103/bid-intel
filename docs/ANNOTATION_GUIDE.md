@@ -1,4 +1,7 @@
-# 人工标注指南
+# 人工标注指南（协调员用）
+
+> ⚠️ **这份是给协调员的**，里面有生成任务包、比较、合并的命令。
+> **标注员请转去看 [人工标注手册（标注员用）](ANNOTATION_ANNOTATOR.md)** —— 那份没有命令，只有操作步骤。
 
 适用于两位标注员和一位协调员。正式入口是导入协调员生成的 task bundle，不要手工上传整批官方原件。Gold 是本地人工评测数据，不是官方成绩。字段结构见 [Gold JSON Schema](../examples/evaluation_gold.schema.json)，标注口径补充见 [EVALUATION.md](EVALUATION.md)。
 

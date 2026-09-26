@@ -111,6 +111,27 @@ def test_builds_isolated_worker_bundles_with_matching_prediction_ids(tmp_path, m
         build_task_package(job_dir, output, sample_size=4, pilot_size=0, seed=9)
 
 
+def test_annotator_names_reach_every_bundle_and_keep_the_default_wording(tmp_path, monkeypatch):
+    """The name shows at the top of the annotation page, so a teammate can tell whose task they opened."""
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / ".data" / "bidintel.db"))
+    job_dir = write_job(tmp_path)
+    output = tmp_path / ".data" / "named-tasks"
+
+    build_task_package(job_dir, output, sample_size=4, pilot_size=2, seed=9,
+                       annotator_a="LHH", annotator_b="YHR")
+
+    for filename, name in (("pilot-a.bundle.json", "LHH"), ("annotator-a.bundle.json", "LHH"),
+                           ("pilot-b.bundle.json", "YHR"), ("annotator-b.bundle.json", "YHR")):
+        bundle = json.loads((output / filename).read_text(encoding="utf-8"))
+        assert bundle["assignee"].startswith(f"{name}："), filename
+
+    # Omitting the names keeps the wording existing callers already depend on.
+    plain = tmp_path / ".data" / "plain-tasks"
+    build_task_package(job_dir, plain, sample_size=4, pilot_size=2, seed=9)
+    default_bundle = json.loads((plain / "pilot-a.bundle.json").read_text(encoding="utf-8"))
+    assert default_bundle["assignee"].startswith("标注员 A：")
+
+
 def test_refuses_output_outside_backend_data_and_incomplete_jobs(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "database_path", str(tmp_path / ".data" / "bidintel.db"))
     job_dir = write_job(tmp_path)

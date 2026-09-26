@@ -6,6 +6,27 @@
 
 ---
 
+## 2026-09-26 · 标注任务写入真实姓名；标注手册改为面向标注员
+
+**姓名**：`annotation_tasks_cli.py` 把 `assignee` 硬编码成「标注员 A/B」，而它**显示在标注页顶部**（`LHH · 已核验 3/6 条`）。新增 `--annotator-a` / `--annotator-b`；默认值保持原措辞，不传时输出与之前逐字一致。
+
+已用真实姓名重新生成到 `.data/annotation-tasks/official-20260926-LHH-YHR`（同 seed 20260926，样本与旧包一致）：
+
+| 文件 | assignee | 公告数 |
+|---|---|---|
+| `pilot-a.ready.zip` | LHH：先完成共同试标… | 6 |
+| `pilot-b.ready.zip` | YHR：先完成共同试标… | 6 |
+| `annotator-a.ready.zip` | LHH：完成分给自己的公告 | 9 |
+| `annotator-b.ready.zip` | YHR：完成分给自己的公告 | 9 |
+
+**文档**：原 `ANNOTATION_GUIDE.md` 73 行里大半是协调员的 PowerShell，标注员自己的步骤在六节中的第三节。新增 [`ANNOTATION_ANNOTATOR.md`](ANNOTATION_ANNOTATOR.md)（面向标注员，无命令，按钮名照抄界面）；原指南标题标注「（协调员用）」；重写 `ANNOTATION_QUICKSTART.txt`——它被 `annotation_tasks_cli.py` 读入并作为 `START_HERE.txt` 写进每个分发包，新操作卡（1423 字符）已在本次重新生成的两个 ZIP 中验证存在。
+
+**验证**：`tests/test_annotation_tasks_cli.py` **4 passed**（新增 1 项：姓名进入四种 bundle；省略姓名时保留原措辞）。Ruff 通过。
+
+> ⚠️ **边界**：本机工作区全量为 **18 failed / 166 passed**，失败分布在 `test_datasets`(7)、`test_model_config`(4)、`test_attachment_readiness`(2)、`test_api`(2)、`test_jobs`/`test_evaluation_api`/`test_batch_api` 各 1。已确认**与本次改动无关**——`annotation_tasks_cli` 是 CLI 模块，仅被自己的测试 import，不在 API 路径上。这 18 项属工作区既有失败，需另行处理。
+
+---
+
 ## 2026-09-26 · 两位队友的低误操作标注任务
 
 给 1038 条已完成的全量后台任务建立可直接交接的人工标注工作流。新增本地分层采样器，默认生成 24 条任务：两位标注员先各自完成相同 6 条试标，再分别完成互不重叠的 9 条正式样本；每份 bundle 带空白 Gold、对应规则+OCR 预测、解析文本、原件相对路径和 SHA-256。原件副本与解析全文只写入 `backend/.data/annotation-tasks/`，不会进 Git；复用解析缓存 165 个文档，缓存未命中 24 个按原任务设置重解析，未调用模型，24 条均有来源文本。

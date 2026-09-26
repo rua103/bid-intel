@@ -315,7 +315,8 @@ def _write_delivery_archive(
 
 
 def build_task_package(job_dir: Path, output_dir: Path, *, sample_size: int = 24, pilot_size: int = 6,
-                       seed: int = 20260926) -> dict[str, Any]:
+                       seed: int = 20260926,
+                       annotator_a: str = "标注员 A", annotator_b: str = "标注员 B") -> dict[str, Any]:
     job_dir = job_dir.expanduser().resolve(strict=True)
     output_dir = output_dir.expanduser().resolve()
     data_root = settings.resolved_database_path.parent.resolve()
@@ -397,16 +398,16 @@ def build_task_package(job_dir: Path, output_dir: Path, *, sample_size: int = 24
     })
     if pilot:
         _write_json(output_dir / "pilot-a.bundle.json", _bundle(
-            "pilot-a", "标注员 A：先完成共同试标，再等协调员分配正式批次", pilot, source_map, seed,
+            "pilot-a", f"{annotator_a}：先完成共同试标，再等协调员分配正式批次", pilot, source_map, seed,
         ))
         _write_json(output_dir / "pilot-b.bundle.json", _bundle(
-            "pilot-b", "标注员 B：先完成共同试标，再等协调员分配正式批次", pilot, source_map, seed,
+            "pilot-b", f"{annotator_b}：先完成共同试标，再等协调员分配正式批次", pilot, source_map, seed,
         ))
     _write_json(output_dir / "annotator-a.bundle.json", _bundle(
-        "annotator-a", "标注员 A：完成分给自己的公告", unique_a, source_map, seed,
+        "annotator-a", f"{annotator_a}：完成分给自己的公告", unique_a, source_map, seed,
     ))
     _write_json(output_dir / "annotator-b.bundle.json", _bundle(
-        "annotator-b", "标注员 B：完成分给自己的公告", unique_b, source_map, seed,
+        "annotator-b", f"{annotator_b}：完成分给自己的公告", unique_b, source_map, seed,
     ))
 
     delivery_archives = []
@@ -494,10 +495,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sample-size", type=int, default=24, help="分层样本总数，默认 24")
     parser.add_argument("--pilot-size", type=int, default=6, help="两位标注员共同独立标注的试点数，默认 6")
     parser.add_argument("--seed", type=int, default=20260926, help="固定随机种子，默认 20260926")
+    parser.add_argument("--annotator-a", default="标注员 A",
+                        help="A 的名字，写在任务包和标注页顶部，便于队友确认拿到的是自己那份")
+    parser.add_argument("--annotator-b", default="标注员 B", help="B 的名字")
     args = parser.parse_args(argv)
     try:
         summary = build_task_package(args.job_dir, args.output_dir,
-                                     sample_size=args.sample_size, pilot_size=args.pilot_size, seed=args.seed)
+                                     sample_size=args.sample_size, pilot_size=args.pilot_size, seed=args.seed,
+                                     annotator_a=args.annotator_a, annotator_b=args.annotator_b)
     except (OSError, ValueError, ValidationError) as exc:
         print(f"Annotation task generation failed: {exc}", file=sys.stderr)
         return 2

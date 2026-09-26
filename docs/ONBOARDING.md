@@ -29,8 +29,11 @@
 
 ## 二、现在到哪了
 
-- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端 `167 passed / 1 skipped`、Ruff clean；前端 `11 passed` 并可构建。
+- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `184 passed / 1 skipped`、Ruff clean；前端 `11 passed` 并可构建。
 - ✅ **模型抽取已修好**并用真实公告验证（原本 0 条 → 19 条）。**P0 七项已完成本地回归**，验收边界见 [`CHANGELOG.md`](CHANGELOG.md)。
+- ✅ **P1-1 结构化投标主体抽取已实现**：从带有投标/评审/报价/成交上下文的结构化表格提取主体、包号和明示结果，保留来源证据；仅凭排名不会推断中标。现有官方全量数据库仍是旧批次的 0 条主体/中标记录，不能据此说原公告没有主体；新规则也还没有 Gold 准确率验证。
+- ✅ **P1-4 演示三件套已加入**：Windows 启动/停止脚本、包含 XLSX 附件的虚构 HTML/ZIP 样例、无需模型的离线合成数据集。离线数据有 3 条公告和 7 条投标参与记录，可走五类查询；不能用于比赛评分。
+- ✅ **P1-5 评审登录已实现**：单评审账号 + HMAC 签名 HttpOnly Cookie，账号配置脚本和操作指南已加入。自动化覆盖本机登录/API 保护/退出流程；第二台物理设备的局域网登录、Cookie 与防火墙访问尚未验收。
 - ❌ **没有人工金标**，所以没有任何可以对外宣称的准确率。
 - ⚠️ **官方全量处理已完成，结果仍待核验**：1038 条公告已进入独立数据集，后台任务最终 1038/1038 完成、0 失败。使用 `rules + 本地 RapidOCR`，没有真实模型调用；产生 6814 条标的候选，但投标参与方与中标记录均为 0。87 个无效下载附件、少量损坏成员和不支持格式仍待处理。**这不是准确率结果**，必须对照原文人工标注；细节见 [官方接入检查](OFFICIAL_INTAKE_REVIEW.md)。
 - ⚠️ **速度基线有范围**：本次规则 + OCR 使用 3 个进程，逐条检查点估算活动处理时间约 66 分 45 秒，中位每条 1.127 秒、P95 41.249 秒。它不代表 hybrid/model 模式速度；优化模型调用前先读第七节。
@@ -62,6 +65,19 @@ npm run dev
 
 打开 `http://localhost:5173`；API 文档在 `http://127.0.0.1:8000/docs`。
 
+### 评审演示与账号
+
+Windows 演示时可以先生成本机账号，再启动离线快照：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Configure-ReviewerAccount.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\Start-Demo.ps1 -Offline
+# 演示结束
+powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
+```
+
+账号文件位于 Git 忽略的 `backend/.data/reviewer-credentials.txt`；通过受控渠道交给评审方，不要提交或公开。默认开发配置 `AUTH_ENABLED=false`，运行账号脚本后登录才会启用。`-Offline` 建立独立虚构数据集并锁定 rules 模式，不需要 API Key；数据集可切换到“离线演示样例（纯虚构）”。脚本会把 Vite 和后端监听在所有网络接口，但远程访问尚未做第二台设备验证。账号设置、Cookie 和故障排查见 [`REVIEWER_GUIDE.md`](REVIEWER_GUIDE.md)。
+
 模型配置**可以直接在网页「模型配置」面板填**（写入 `backend/.data/model_config.json`，重启不丢；`backend/.env` 作兜底默认值）。页面只显示打码尾号。
 
 > ⚠️ 网页单次导入接口没有 mode 参数，默认走 `hybrid`（[`config.py`](../backend/app/config.py)）；配好模型后每份参与抽取的文档都会调用模型。批量任务是另一条链路：可在「大批量后台处理」中选择 rules/hybrid/model，默认 `rules + OCR`，会显示进度并支持暂停、续跑和失败重试。两种路径的处理范围与耗时不同；跑规则基线时请明确选 rules。
@@ -79,6 +95,7 @@ npm run dev
 | 5 | [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) | 现在的任务清单 |
 | 6 | 后端代码，按数据流读 | `schemas.py`（数据形状）→ `parsers.py`（解析）→ `model_adapter.py`（模型调用）→ `ingestion.py`（编排）→ `storage.py`（落库）→ `analytics.py`（五类查询）→ `main.py`（API） |
 | 7 | [`frontend/src/App.vue`](../frontend/src/App.vue)、[`AnnotationWorkbench.vue`](../frontend/src/components/AnnotationWorkbench.vue) | 前端两大块：主界面 + 人工标注工作台 |
+| 8 | [`REVIEWER_GUIDE.md`](REVIEWER_GUIDE.md) | 演示账号配置、评审登录和故障排查 |
 
 ## 五、红线
 

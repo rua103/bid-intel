@@ -1,13 +1,14 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import AnnotationWorkbench from './components/AnnotationWorkbench.vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import RelationshipGraph from './components/RelationshipGraph.vue'
 import BatchJobs from './components/BatchJobs.vue'
 import AuthGate from './components/AuthGate.vue'
 import { resolveApiBase } from './utils/browser.js'
 import { createDatasetClient } from './utils/datasets.js'
+import { navigationGroups, resolveSection, sectionHash } from './utils/navigation.js'
 
 const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location, import.meta.env.VITE_API_PORT || '8000')
+const activeSection = ref(resolveSection(window.location.hash))
 const selectedFiles = ref([])
 const uploading = ref(false)
 const notice = ref(null)
@@ -44,11 +45,25 @@ const modelMessage = ref('')
 const modelMessageIsError = ref(false)
 const apiKeyPlaceholder = computed(() => modelConfig.value.api_key_configured ? `已配置（${modelConfig.value.model_api_key_masked}）留空保持不变` : 'sk-...')
 const prettyAmount = (value) => value == null ? '—' : Number(value).toLocaleString('zh-CN')
+const activeSectionLabel = computed(() => navigationGroups
+  .flatMap((group) => group.items)
+  .find((item) => item.id === activeSection.value)?.label || '首页概览')
+const currentDatasetName = computed(() => datasets.value.find((row) => row.id === datasetId.value)?.name || '正在读取')
 
 const statusText = computed(() => {
   if (!health.value) return '等待连接后端'
   return `已导入 ${health.value.notices_imported} 条公告`
 })
+
+function navigate(section) {
+  activeSection.value = resolveSection(section)
+  window.history.replaceState(null, '', sectionHash(activeSection.value))
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function syncSectionFromHash() {
+  activeSection.value = resolveSection(window.location.hash)
+}
 
 async function refreshHealth() {
   try {
@@ -292,6 +307,7 @@ watch(datasetId, () => {
 }, { flush: 'sync' })
 
 onMounted(async () => {
+  window.addEventListener('hashchange', syncSectionFromHash)
   try {
     await refreshDatasets()
     let saved
@@ -309,30 +325,68 @@ onMounted(async () => {
   } catch { /* report capability status as unknown */ }
   await loadModelConfig()
 })
+
+onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHash))
 </script>
 
 <template>
   <AuthGate :api-base="apiBase">
-  <main class="shell">
-    <header class="topbar">
-      <div class="brandmark">采</div>
-      <div class="brand-copy">
-        <div class="eyebrow">ICT 创新大赛 · 赛题五</div>
-        <h1>招采数据分析台</h1>
+  <div class="dashboard-shell">
+    <aside class="dashboard-sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-brandmark">采</span>
+        <span><strong>招采数据分析台</strong><small>Bid Intelligence</small></span>
       </div>
-      <div class="connection"><span class="dot" :class="{ offline: !health }"></span>{{ statusText }}</div>
-    </header>
+      <nav class="sidebar-navigation" aria-label="主导航">
+        <div v-for="group in navigationGroups" :key="group.label" class="nav-group">
+          <p>{{ group.label }}</p>
+          <button v-for="item in group.items" :key="item.id" type="button" class="nav-item"
+            :class="{ active: activeSection === item.id }" :aria-current="activeSection === item.id ? 'page' : undefined"
+            @click="navigate(item.id)">
+            <span class="nav-marker"></span>{{ item.label }}<span class="nav-arrow">›</span>
+          </button>
+        </div>
+      </nav>
+      <div class="sidebar-foot"><span class="dot" :class="{ offline: !health }"></span>{{ health ? '后端服务正常' : '后端暂未连接' }}</div>
+    </aside>
 
-    <section class="intro">
-      <div>
-        <p class="eyebrow">PROCUREMENT INTELLIGENCE</p>
-        <h2>从公告和附件里，<br /><span>找到可验证的业务线索。</span></h2>
-        <p class="intro-copy">先把原始招采材料整理成可追溯的标的物记录。每条候选数据保留来源文件与表格位置，便于核验。</p>
-      </div>
-      <div class="intro-badge"><span>01</span><small>数据接入<br />与字段抽取</small></div>
-    </section>
+    <main class="dashboard-main">
+      <header class="workspace-topbar">
+        <div class="workspace-title"><span>招采数据分析台</span><strong>{{ activeSectionLabel }}</strong></div>
+        <div class="workspace-status">
+          <button type="button" @click="navigate('datasets')"><small>当前数据集</small><strong>{{ currentDatasetName }}</strong></button>
+          <span><small>公告数量</small><strong>{{ health?.notices_imported ?? '—' }}</strong></span>
+          <button type="button" @click="navigate('batch')"><small>后台任务</small><strong>查看状态</strong></button>
+        </div>
+      </header>
 
-    <section class="panel config-panel">
+      <div class="workspace-content">
+        <section v-if="activeSection === 'overview'" class="overview-view">
+          <div class="overview-hero">
+            <div>
+              <p class="eyebrow">PROCUREMENT INTELLIGENCE</p>
+              <h1>从公告和附件中，<br /><span>找到可验证的业务线索。</span></h1>
+              <p>把原始招采材料整理成可追溯的标的物记录，并分析采购单位、供应商和项目之间的关系。</p>
+            </div>
+            <div class="overview-summary">
+              <small>当前工作空间</small>
+              <strong>{{ currentDatasetName }}</strong>
+              <span>{{ statusText }}</span>
+            </div>
+          </div>
+          <div class="overview-actions">
+            <button type="button" @click="navigate('import')"><span>01</span><strong>导入公告材料</strong><small>上传单条公告及相关附件</small></button>
+            <button type="button" @click="navigate('batch')"><span>02</span><strong>大批量后台处理</strong><small>处理官方数据目录并查看进度</small></button>
+            <button type="button" @click="navigate('items')"><span>03</span><strong>检索标的物</strong><small>按名称、品目和品牌筛选</small></button>
+            <button type="button" @click="navigate('analytics')"><span>04</span><strong>分析主体关系</strong><small>查看投标、中标与合作关系</small></button>
+          </div>
+          <div class="overview-note">
+            <div><strong>建议工作顺序</strong><p>建立数据集 → 导入材料 → 核验标的物 → 分析主体关系 → 进入质量评测。</p></div>
+            <button type="button" class="secondary" @click="navigate('quality')">进入质量评测 <span>→</span></button>
+          </div>
+        </section>
+
+    <section v-if="activeSection === 'model'" class="panel config-panel view-panel">
       <div class="panel-heading">
         <div><span class="step">00</span><h3>模型配置</h3></div>
         <span class="hint">{{ modelConfig.configured ? `已启用 ${modelConfig.model_name}` : '未配置：仅用表格映射，不抽取投标主体' }}</span>
@@ -349,7 +403,7 @@ onMounted(async () => {
       <p v-if="modelMessage" class="notice" :class="{ 'is-error': modelMessageIsError }">{{ modelMessage }}</p>
     </section>
 
-    <section class="panel dataset-panel">
+    <section v-if="activeSection === 'datasets'" class="panel dataset-panel view-panel">
       <div class="panel-heading"><div><h3>当前数据集</h3></div><span class="hint">导入、检索和五类查询使用同一数据集</span></div>
       <div class="config-grid">
         <label><span>选择数据集</span><select v-model="datasetId" :disabled="uploading || datasetCreating || !datasetReady">
@@ -363,7 +417,7 @@ onMounted(async () => {
       <p v-if="datasetError" class="error">{{ datasetError }}</p>
     </section>
 
-    <section class="panel import-panel">
+    <section v-if="activeSection === 'import'" class="panel import-panel view-panel">
       <div class="panel-heading">
         <div><span class="step">01</span><h3>导入公告材料</h3></div>
         <span class="hint">HTML 公告，可同时选择该公告对应的 ZIP 附件</span>
@@ -397,9 +451,9 @@ onMounted(async () => {
       <p v-if="error" class="error">{{ error }}</p>
     </section>
 
-    <BatchJobs v-if="datasetReady" :api-base="apiBase" :dataset-id="datasetId" @updated="refreshHealth" />
+    <BatchJobs v-if="datasetReady && activeSection === 'batch'" :api-base="apiBase" :dataset-id="datasetId" @updated="refreshHealth" />
 
-    <section v-if="notice" class="panel result-panel">
+    <section v-if="notice && activeSection === 'import'" class="panel result-panel">
       <div class="panel-heading">
         <div><span class="step">02</span><h3>本次解析结果</h3></div>
         <span class="count-pill">{{ notice.items_found }} 条候选标的</span>
@@ -415,7 +469,7 @@ onMounted(async () => {
       </div>
     </section>
 
-    <section v-if="batchResult" class="panel result-panel">
+    <section v-if="batchResult && activeSection === 'import'" class="panel result-panel">
       <div class="panel-heading">
         <div><span class="step">02</span><h3>批量导入结果</h3></div>
         <span class="count-pill">{{ batchResult.notices_imported }} / {{ batchResult.notices_found }} 条公告</span>
@@ -437,7 +491,7 @@ onMounted(async () => {
       </details>
     </section>
 
-    <section class="panel records-panel">
+    <section v-if="activeSection === 'items'" class="panel records-panel view-panel">
       <div class="panel-heading">
         <div><span class="step">03</span><h3>标的物检索</h3></div>
         <span class="hint">{{ searched ? `${items.length} 条记录` : '可按名称、品牌、品目筛选' }}</span>
@@ -465,7 +519,7 @@ onMounted(async () => {
       </div>
     </section>
 
-    <section class="panel analytics-panel">
+    <section v-if="activeSection === 'analytics'" class="panel analytics-panel view-panel">
       <div class="panel-heading">
         <div><span class="step">04</span><h3>主体关系分析</h3></div>
         <span class="hint">查询频次按采购包计；金额只累加已确认的中标记录</span>
@@ -526,9 +580,27 @@ onMounted(async () => {
       <p v-if="analyticsError" class="error">{{ analyticsError }}</p>
     </section>
 
-    <AnnotationWorkbench :api-base="apiBase" />
-    <RelationshipGraph v-if="datasetReady" :api-base="apiBase" :dataset-id="datasetId" :refresh-key="health?.notices_imported || 0" />
-    <footer>数据抽取为候选结果，进入竞赛验证集前应进行人工抽样核验。<span>数据留痕 · 结果可核验 · 关系可追溯</span></footer>
-  </main>
+        <RelationshipGraph v-if="datasetReady && activeSection === 'analytics'" :api-base="apiBase" :dataset-id="datasetId" :refresh-key="health?.notices_imported || 0" />
+
+        <section v-if="activeSection === 'quality'" class="quality-entry">
+          <div class="quality-copy">
+            <p class="eyebrow">QUALITY REVIEW</p>
+            <h2>人工标注与质量评测</h2>
+            <p>正式分析台只保留评测入口。标注、逐字段审核和报告导出继续在独立工作台中完成，避免长表单挤占日常分析空间。</p>
+            <a class="primary quality-link" href="/annotation.html">打开人工标注台 <span>↗</span></a>
+          </div>
+          <div class="quality-steps">
+            <article><span>01</span><div><strong>导入待标定数据</strong><p>载入公告原文以及待核验的实体和关系。</p></div></article>
+            <article><span>02</span><div><strong>逐字段审核</strong><p>修正漏提、错提与证据位置，形成 gold 数据。</p></div></article>
+            <article><span>03</span><div><strong>运行质量评测</strong><p>对照 predictions 查看指标和逐字段错误。</p></div></article>
+            <article><span>04</span><div><strong>导出审核记录</strong><p>保存本轮修订和评测结果，便于后续复盘。</p></div></article>
+          </div>
+          <div class="test-only-note"><strong>测试阶段功能</strong><span>人工标注与审核工具用于完善比赛数据和检查抽取质量，正式交付版本可以移除。</span></div>
+        </section>
+
+        <footer>数据抽取为候选结果，进入竞赛验证集前应进行人工抽样核验。<span>数据留痕 · 结果可核验 · 关系可追溯</span></footer>
+      </div>
+    </main>
+  </div>
   </AuthGate>
 </template>

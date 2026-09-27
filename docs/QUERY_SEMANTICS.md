@@ -16,12 +16,12 @@
 
 **后果**：场景二、场景三的"参与投标主体"**必须排除中标方**。
 
-**当前实现与原文相反**：[`main.py`](../backend/app/main.py) 与
-[`analytics.py`](../backend/app/analytics.py) 的 `include_winners` **默认为 `True`**。
-场景二/三的名单会整体错位（多算中标方），按评分细则「结果不一致的场景视为未实现」有整场景判 0 的风险。
+实现已按原文收敛：[`main.py`](../backend/app/main.py) 与
+[`analytics.py`](../backend/app/analytics.py) 的 `include_winners` **默认为 `False`**，
+场景二/三默认只返回未中标的投标参与方；需要审计完整投标集合时可显式传 `True`。
+场景三的包明细仍保留所有已记录的主体和结果，便于核验联合中标等情况。
 
-→ **默认值应改为 `False`。** 数据层不受影响：gold 的 `bidders` 记录全部投标主体并带
-`outcome` 标签，是超集；过滤发生在查询侧。
+数据层不受影响：gold 的 `bidders` 记录全部投标主体并带 `outcome` 标签，是超集；过滤发生在查询侧。
 
 ### 1.2 场景 2 / 3 / 5 的频次单位是「项目」
 

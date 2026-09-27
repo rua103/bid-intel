@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-09-27 · 场景二/三默认排除中标方
+
+依据赛题术语表，`投标参与方`特指参与投标但未中标的主体。提交 **93e473b** 将 SQLite、FastAPI、Neo4j 查询封装和图查询命令行的默认口径统一为 `include_winners=False`：高频投标主体、共同投标组合，以及中标供应商的共同竞标排名均默认过滤 `winner`；显式 `include_winners=true` 仍可审计完整投标集合。场景三的包明细保留全部已记录的主体与 `outcome`，以展示联合中标等结果。
+
+验证：后端定向回归 `tests/test_analytics.py tests/test_api.py tests/test_graph.py` **14 passed、1 skipped**；后端全量 **202 passed、1 skipped**；Ruff **All checks passed**。夹具覆盖单中标、非中标及同包多中标组合；未连接真实 Neo4j 服务（对应测试按既有条件跳过）。
+
+---
+
 ## 2026-09-26 · P1 技术链路复核
 
 复核已合并的投标主体解析、离线演示与评审登录改动。后端回归 **184 passed、1 skipped**，Ruff 通过；前端 **11 passed**，生产构建通过（保留 ECharts 大 chunk 提示）。

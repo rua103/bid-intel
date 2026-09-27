@@ -108,7 +108,9 @@ def process_notice(root_string: str, entry: dict) -> dict:
         write_json(checkpoint, status)
         content = document.content
         suffix = Path(document.filename).suffix
-        identity = json.dumps({'version': 2, 'suffix': suffix, 'options': options,
+        # Bump this whenever parser output semantics change. Reusing an older
+        # cached result would silently preserve stale package codes/items.
+        identity = json.dumps({'version': 3, 'suffix': suffix, 'options': options,
                                'limits': job['limits']}, sort_keys=True)
         digest = hashlib.sha256(identity.encode() + content).hexdigest()
         path = cache / (digest + '.json')

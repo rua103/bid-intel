@@ -27,6 +27,15 @@ def prepare(tmp_path):
     return jobs.job_path(job['id']), database
 
 
+def test_new_batch_jobs_default_to_model_led_hybrid(tmp_path):
+    source = tmp_path / 'source'
+    source.mkdir()
+    (source / 'notice.html').write_text(HTML, encoding='utf-8')
+    dataset = create_dataset(DatasetCreate(name='default hybrid'))
+    job = jobs.create_job(source, resolve_database(dataset['id']), dataset['id'], ocr=False)
+    assert job['mode'] == 'hybrid'
+
+
 def test_job_recovery_after_commit_before_checkpoint_does_not_duplicate(tmp_path):
     root, database = prepare(tmp_path)
     entry = jobs.read_json(root / 'manifest.json')[0]

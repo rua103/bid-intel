@@ -81,7 +81,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 
 模型配置**可以直接在网页「模型配置」面板填**（写入 `backend/.data/model_config.json`，重启不丢；`backend/.env` 作兜底默认值）。页面只显示打码尾号。
 
-> ⚠️ 网页单次导入接口没有 mode 参数，默认走 `hybrid`（[`config.py`](../backend/app/config.py)）；配好模型后每份参与抽取的文档都会调用模型。批量任务是另一条链路：可在「大批量后台处理」中选择 rules/hybrid/model，默认 `rules + OCR`，会显示进度并支持暂停、续跑和失败重试。两种路径的处理范围与耗时不同；跑规则基线时请明确选 rules。
+> ⚠️ 网页单次导入接口没有 mode 参数，默认走 `hybrid`（[`config.py`](../backend/app/config.py)）；配好模型后每份参与抽取的文档都会调用模型。批量任务是另一条链路：可在「大批量后台处理」中选择 rules/hybrid/model，默认 **`hybrid + OCR`（模型主导，规则做结构化校验与兜底）**，会显示进度并支持暂停、续跑和失败重试。两种路径的处理范围与耗时不同；需要生成可复现的规则基线时请明确选 rules。
 
 部署新环境时，请按 [DATA_INTAKE.md](DATA_INTAKE.md) 安装 LibreOffice（DOC）、基础 PDF/XLS 依赖及 `.[ocr]`（RapidOCR），并新建空数据集。默认数据集保留原有数据；每次请求独立选择库，模型配置仍为全局。默认 RapidOCR 不要求 Tesseract；若显式切换到 Tesseract 引擎，才需安装程序及中文语言包。
 

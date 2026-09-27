@@ -5,7 +5,7 @@ import { createDatasetClient } from '../utils/datasets.js'
 const props = defineProps({ apiBase: String, datasetId: String })
 const emit = defineEmits(['updated'])
 const source = ref('')
-const mode = ref('rules')
+const mode = ref('hybrid')
 const ocr = ref(true)
 const jobs = ref([])
 const error = ref('')
@@ -69,7 +69,7 @@ onBeforeUnmount(() => { disposed = true; version++; clearTimeout(timer) })
     <p class="batch-note">先把 HTML 公告和同名 ZIP / RAR / 7z 放在后端所在电脑的同一目录。结果写入当前数据集；重跑整套数据前建议新建数据集。</p>
     <form class="job-form" @submit.prevent="create">
       <label>材料目录<input v-model="source" required placeholder="例如 D:/path/to/official-data" /></label>
-      <label>抽取方式<select v-model="mode"><option value="rules">规则抽取</option><option value="hybrid">规则＋已配置模型</option><option value="model">已配置模型</option></select></label>
+      <label>抽取方式<select v-model="mode"><option value="hybrid">模型主导混合（推荐）</option><option value="model">纯模型</option><option value="rules">规则基线</option></select></label>
       <label class="ocr-option"><input v-model="ocr" type="checkbox" />本地中文 OCR</label>
       <button class="primary" :disabled="busy">{{ busy ? '创建任务…' : '开始后台处理' }}</button>
     </form>

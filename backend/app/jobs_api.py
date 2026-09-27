@@ -12,7 +12,7 @@ router = APIRouter(prefix='/api/v1/jobs', tags=['batch jobs'])
 
 class JobCreate(BaseModel):
     source_directory: str
-    mode: Literal['rules', 'hybrid', 'model'] = 'rules'
+    mode: Literal['rules', 'hybrid', 'model'] = 'hybrid'
     ocr: bool = True
 
 

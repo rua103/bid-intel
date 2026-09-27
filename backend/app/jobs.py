@@ -51,7 +51,7 @@ def file_hash(path: Path) -> str:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def create_job(source: Path, database: Path, dataset_id: str, *, mode='rules', ocr=True) -> dict:
+def create_job(source: Path, database: Path, dataset_id: str, *, mode='hybrid', ocr=True) -> dict:
     source = source.resolve(strict=True)
     html = sorted([*source.glob('*.html'), *source.glob('*.htm')])
     if not html:
@@ -264,7 +264,7 @@ def main():
     create = sub.add_parser('create')
     create.add_argument('source', type=Path)
     create.add_argument('--name', required=True)
-    create.add_argument('--mode', choices=['rules', 'hybrid', 'model'], default='rules')
+    create.add_argument('--mode', choices=['rules', 'hybrid', 'model'], default='hybrid')
     create.add_argument('--no-ocr', action='store_true')
     create.add_argument('--start', action='store_true')
     run = sub.add_parser('run')

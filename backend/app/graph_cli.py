@@ -26,7 +26,17 @@ def _parser() -> argparse.ArgumentParser:
     scene.add_argument("--supplier-id", type=int)
     scene.add_argument("--supplier-ids", default="", help="comma-separated IDs for scenes 4/5")
     scene.add_argument("--top", type=int, default=5)
-    scene.add_argument("--exclude-winners", action="store_true")
+    winner_flags = scene.add_mutually_exclusive_group()
+    winner_flags.add_argument(
+        "--include-winners",
+        action="store_true",
+        help="include winning bidders (the default is to report non-winners only)",
+    )
+    winner_flags.add_argument(
+        "--exclude-winners",
+        action="store_true",
+        help="kept as an explicit spelling of the default",
+    )
     return parser
 
 
@@ -46,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
                 driver, args.name, dataset=dataset, database=args.neo4j_database,
                 buyer_id=args.buyer_id, supplier_id=args.supplier_id,
                 supplier_ids=supplier_ids, top=args.top,
-                include_winners=not args.exclude_winners,
+                include_winners=args.include_winners,
             )
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
         return 0

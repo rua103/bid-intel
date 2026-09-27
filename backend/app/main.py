@@ -227,7 +227,7 @@ def get_buyer_awardees(database_path: DatabasePath, buyer_id: int):
 def get_buyer_bidders(
     database_path: DatabasePath,
     buyer_id: int,
-    include_winners: bool = True,
+    include_winners: bool = False,
     top: int = Query(default=5, ge=1, le=100),
 ):
     return analytics.buyer_bidders(
@@ -237,9 +237,14 @@ def get_buyer_bidders(
 
 @app.get("/api/v1/analytics/suppliers/{supplier_id}/co-bidders")
 def get_supplier_co_bidders(
-    database_path: DatabasePath, supplier_id: int, top: int = Query(default=5, ge=1, le=100),
+    database_path: DatabasePath,
+    supplier_id: int,
+    include_winners: bool = False,
+    top: int = Query(default=5, ge=1, le=100),
 ):
-    return analytics.supplier_co_bidders(database_path, supplier_id, top=top)
+    return analytics.supplier_co_bidders(
+        database_path, supplier_id, include_winners=include_winners, top=top
+    )
 
 
 @app.post("/api/v1/analytics/common-buyers")

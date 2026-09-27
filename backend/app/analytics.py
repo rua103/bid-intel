@@ -100,7 +100,7 @@ def buyer_awardees(path: Path, buyer_id: int) -> dict[str, Any]:
 
 
 def buyer_bidders(
-    path: Path, buyer_id: int, *, include_winners: bool = True, top: int = 5
+    path: Path, buyer_id: int, *, include_winners: bool = False, top: int = 5
 ) -> dict[str, Any]:
     initialize(path)
     with connect(path) as connection:
@@ -144,19 +144,27 @@ def buyer_bidders(
         }
 
 
-def supplier_co_bidders(path: Path, supplier_id: int, *, top: int = 5) -> dict[str, Any]:
+def supplier_co_bidders(
+    path: Path, supplier_id: int, *, include_winners: bool = False, top: int = 5
+) -> dict[str, Any]:
     initialize(path)
     with connect(path) as connection:
         supplier = _organization(connection, supplier_id)
         if not supplier:
-            return {"supplier": None, "top_co_bidders": [], "packages": []}
+            return {
+                "supplier": None,
+                "include_winners": include_winners,
+                "top_co_bidders": [],
+                "packages": [],
+            }
         rows = connection.execute(
-            """SELECT b.organization_id, o.canonical_name, COUNT(DISTINCT b.package_id) AS package_count
+            f"""SELECT b.organization_id, o.canonical_name, COUNT(DISTINCT b.package_id) AS package_count
                FROM awards own_award
                JOIN bid_participations b ON b.package_id = own_award.package_id
                     AND b.organization_id != own_award.organization_id
                JOIN organizations o ON o.id = b.organization_id
                WHERE own_award.organization_id = ?
+                 {"" if include_winners else "AND b.outcome != 'winner'"}
                GROUP BY b.organization_id, o.canonical_name
                ORDER BY package_count DESC, o.canonical_name LIMIT ?""",
             (supplier_id, max(1, min(top, 100))),
@@ -185,6 +193,7 @@ def supplier_co_bidders(path: Path, supplier_id: int, *, top: int = 5) -> dict[s
         return {
             "supplier": supplier,
             "base": "packages where supplier has an award",
+            "include_winners": include_winners,
             "top_co_bidders": [dict(row) for row in rows],
             "packages": packages,
         }

@@ -142,8 +142,8 @@ RETURN top_bidders,co_bidder_pairs
 MATCH (supplier:Organization {dataset:$dataset,id:$supplier_id})
 CALL {
   WITH supplier
-  MATCH (supplier)<-[:AWARDED_TO]-(k:Package)<-[:BID_IN]-(o:Organization)
-  WHERE o.id <> supplier.id
+  MATCH (supplier)<-[:AWARDED_TO]-(k:Package)<-[b:BID_IN]-(o:Organization)
+  WHERE o.id <> supplier.id AND ($include_winners OR b.outcome <> 'winner')
   WITH o,count(DISTINCT k) AS package_count
   ORDER BY package_count DESC,o.name LIMIT $top
   RETURN collect({organization_id:o.id,canonical_name:o.name,package_count:package_count}) AS top_co_bidders
@@ -297,6 +297,7 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
                 **(rows[0] if rows else {"top_bidders": [], "co_bidder_pairs": []})}
     if scene == "supplier_co_bidders":
         return {"supplier": primary, "base": "packages where supplier has an award",
+                "include_winners": params["include_winners"],
                 **(rows[0] if rows else {"top_co_bidders": [], "packages": []})}
     if scene == "common_buyers":
         for row in rows:
@@ -316,7 +317,7 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
 def query_neo4j(driver: Any, scene: str, *, dataset: str, database: str = "neo4j",
                 buyer_id: int | None = None, supplier_id: int | None = None,
                 supplier_ids: list[int] | None = None, top: int = 5,
-                include_winners: bool = True) -> dict[str, Any]:
+                include_winners: bool = False) -> dict[str, Any]:
     if scene not in CYPHER_SCENES:
         raise ValueError(f"未知场景：{scene}")
     params = {"dataset": _validate_dataset(dataset), "buyer_id": buyer_id,

@@ -97,14 +97,31 @@ def test_five_relationship_queries_use_packages_and_do_not_duplicate_amounts(tmp
 
     bidders = buyer_bidders(database, buyer)
     counts = {row["canonical_name"]: row["package_count"] for row in bidders["top_bidders"]}
-    assert counts["供应商甲"] == 2
-    assert counts["供应商乙"] == 2
-    assert bidders["co_bidder_pairs"][0]["package_count"] == 2
+    assert bidders["include_winners"] is False
+    assert counts == {"供应商乙": 1, "供应商丙": 1, "供应商甲": 1}
+    assert bidders["co_bidder_pairs"][0]["package_count"] == 1
+
+    all_bidders = buyer_bidders(database, buyer, include_winners=True)
+    all_counts = {
+        row["canonical_name"]: row["package_count"]
+        for row in all_bidders["top_bidders"]
+    }
+    assert all_counts["供应商甲"] == 2
+    assert all_counts["供应商乙"] == 2
+    assert all_bidders["co_bidder_pairs"][0]["package_count"] == 2
 
     co_bidders = supplier_co_bidders(database, supplier_a)
     co_count = {row["canonical_name"]: row["package_count"] for row in co_bidders["top_co_bidders"]}
-    assert co_count["供应商乙"] == 2
-    assert co_count["供应商丙"] == 1
+    assert co_bidders["include_winners"] is False
+    assert co_count == {"供应商丙": 1, "供应商乙": 1}
+
+    all_co_bidders = supplier_co_bidders(database, supplier_a, include_winners=True)
+    all_co_count = {
+        row["canonical_name"]: row["package_count"]
+        for row in all_co_bidders["top_co_bidders"]
+    }
+    assert all_co_count["供应商乙"] == 2
+    assert all_co_count["供应商丙"] == 1
 
     common_buyers = common_award_buyers(database, [supplier_a, supplier_b])
     assert {row["buyer"]["canonical_name"] for row in common_buyers["buyers"]} == {

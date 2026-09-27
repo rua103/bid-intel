@@ -115,4 +115,14 @@ def test_configured_model_import_populates_relationship_queries(
         awardees = client.get(f"/api/v1/analytics/buyers/{buyer['id']}/awardees").json()
         assert awardees["awardees"][0]["name"] == "供应商甲"
         bidders = client.get(f"/api/v1/analytics/buyers/{buyer['id']}/bidders").json()
-        assert {row["canonical_name"] for row in bidders["top_bidders"]} == {"供应商甲", "供应商乙"}
+        assert bidders["include_winners"] is False
+        assert {row["canonical_name"] for row in bidders["top_bidders"]} == {"供应商乙"}
+        all_bidders = client.get(
+            f"/api/v1/analytics/buyers/{buyer['id']}/bidders",
+            params={"include_winners": "true"},
+        ).json()
+        assert all_bidders["include_winners"] is True
+        assert {row["canonical_name"] for row in all_bidders["top_bidders"]} == {
+            "供应商甲",
+            "供应商乙",
+        }

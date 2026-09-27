@@ -4,7 +4,8 @@
 >
 > | 想找什么 | 去哪 |
 > |---|---|
-> | 开放问题、优先级、状态 | [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) |
+> | **现在优先做什么** | [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) **第零节** |
+> | **gold 数据在哪** | **本文第九节**（⚠️ 不在 Git 里，只在一台机器上） |
 > | **动代码前后要做什么** | **本文第十一节（必读）** |
 > | 历史决策与验收记录 | [`CHANGELOG.md`](CHANGELOG.md) |
 > | 五类查询口径 | [`QUERY_SEMANTICS.md`](QUERY_SEMANTICS.md) |
@@ -197,7 +198,51 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 > ⚠️ 自动抽取结果永远不能当答案。没有独立金标、留出集和官方口径时，不要对外宣称准确率或官方成绩。
 
-## 九、开发集
+## 九、数据在哪
+
+### 9.1 人工标注的 gold —— 最重要，且不可再生
+
+> ⚠️ **gold 不在 Git 里，只存在于一台机器的这个目录。误删就没了，没有任何备份。**
+>
+> ```
+> D:\ICT\bid-intel\backend\.data\annotation-tasks\official-20260926-LHH-YHR\
+> ```
+>
+> `.data/` 被 `.gitignore` 覆盖：`git status` 看不到它，`git clean` 也清不掉它——
+> **但也意味着它不随仓库走，换机器就丢。**
+
+**权威文件是 `gold.merged.json`**（24 条公告）。它由三份合并而来，`--require-complete` 校验通过：
+
+| 文件 | 内容 | 条数 | SHA-256 前 12 位 |
+|---|---|---|---|
+| **`gold.merged.json`** | **合并版——用这份** | **24** | `cfa3fa242bf6` |
+| `pilot.adjudicated.json` | 试标裁定版 | 6 | `d9fde13cd3ea` |
+| `annotator-a.gold.reviewed.json` | YHR 正式批 | 9 | `42f4f3895ecc` |
+| `annotator-b.gold.reviewed.json` | LHH 正式批 | 9 | `cf86d3ea364c` |
+| `pilot-a.gold.reviewed (2).json` | YHR 试标原始（审计） | 6 | `cb121be48d5e` |
+| `pilot-b.gold.reviewed.json` | LHH 试标原始（审计） | 6 | `5366c131f69b` |
+
+**统计口径**：24 条唯一公告 · 39 个采购包 · 251 条标的 · 39 个中标方 · 111 个投标主体。
+
+同目录还有审计与评测产物：`sources/`（原件）、`pilot.comparison.json`（12 处分歧比对）、
+`pilot-adjudication.md`（裁决记录）、`evaluation-rules-16notices.json/.md`（第一次评测报告）、
+`predictions.rules-refreshed.json`（修好的解析器重跑的预测）。
+
+> ⚠️ **没有留出集。** 24 条全部被看过指标了——按那个数字调优就是过拟合。
+> 见 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) 第零节的「不要做」。
+
+> **为什么 gold 这么关键**：赛题八说明评分基准那约 100 条「**不对外发放，仅用于评分**」。
+> 它永远不会到我们手上，所以 **gold 是唯一的验证手段**——不是"临时替身"。
+
+### 9.2 官方语料 —— 可重建，不是稀缺资产
+
+- 原始输入：`D:\ICT\*.html`（1038 条）+ 同名 `*.zip`（970 个附件包），**命题方发放**
+- 解析后的隔离数据集：`.data/datasets/282bf10d09b44260942269fcd4242026.sqlite`
+- 全量任务的中间产物：`.data/jobs/47508ea8390b4522a6766d79c0188b5d/`
+
+**这些重跑一次就能重建**（约 67 分钟）。丢了大不了重跑——**gold 丢了没地方找**。
+
+### 9.3 开发集（官方材料到达前的替代）
 
 `backend/app/corpus.py` 是受限速率的公开开发集采集器：只允许 `ccgp.gov.cn`，每次请求至少间隔 1 秒，记录来源 URL、响应状态、下载时间、文件大小和 SHA-256；第三方附件域名明确记录为跳过。它不访问官方隐藏评测集，也不把公开开发集当作官方成绩。
 

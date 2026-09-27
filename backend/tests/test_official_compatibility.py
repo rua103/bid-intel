@@ -197,7 +197,7 @@ def test_quotation_aliases_and_explicit_package_not_row_number():
             ['2', '设备', '扫描仪', 'B', 'X2', '1', '200', '200']]
     items = parse_item_tables(rows, source_file='quote.xls', table_index=1)
     assert [(row.package_code, row.model, row.total_price) for row in items] == [
-        ('包1', 'X1', 100), ('default', 'X2', 200),
+        ('1', 'X1', 100), ('default', 'X2', 200),
     ]
     assert parse_item_tables(rows[1:], source_file='unknown.xls', table_index=1)[0].total_price is None
 
@@ -213,7 +213,7 @@ def test_cross_file_decimal_matching_preserves_sources_and_completes_fields():
     warnings = []
     rows = _deduplicate([item('a.html'), item('quote.xls', quantity='1.0', unit_price='100.00',
                                              total_price='100', package_code='包1')], warnings)
-    assert len(rows) == 1 and rows[0].total_price == 100 and rows[0].package_code == '包1'
+    assert len(rows) == 1 and rows[0].total_price == 100 and rows[0].package_code == '1'
     assert all(source in rows[0].source_evidence for source in ['a.html', 'quote.xls'])
     assert any('重复候选合并' in row for row in warnings)
 

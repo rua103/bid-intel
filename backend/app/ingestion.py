@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 
 from app.config import Settings, effective_settings
 from app.model_adapter import extract_unstructured_items
+from app.package_codes import normalize_package_code
 from app.parsers import (
     SourceDocument,
     expand_uploads,
@@ -129,9 +130,7 @@ def _deduplicate(
         return ''.join(unicodedata.normalize('NFKC', value or '').split()).casefold()
 
     def package(value: str) -> str:
-        value = key(value)
-        match = re.fullmatch(r'(?:(?:合同包|采购包|包))?(\d+)', value)
-        return str(int(match[1])) if match else value
+        return key(normalize_package_code(value))
 
     fields = ('category', 'brand', 'model', 'quantity', 'quantity_unit',
               'unit_price', 'total_price')

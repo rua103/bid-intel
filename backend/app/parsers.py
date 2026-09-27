@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path, PurePosixPath
+from typing import Any
 
 from bs4 import BeautifulSoup
 from docx import Document
@@ -24,6 +25,7 @@ from pypdf import PdfReader
 from app.config import settings
 from app.file_formats import inspect_content
 from app.legacy_documents import DocumentConversionError, convert_doc, libreoffice_executable
+from app.package_codes import DEFAULT_PACKAGE_CODE, normalize_package_code
 from app.schemas import ItemCandidate, NoticeMetadata, ParticipantCandidate
 
 MAX_ARCHIVE_DEPTH = 3
@@ -175,9 +177,15 @@ def _item_header(columns: dict[str, int]) -> bool:
 
 
 def parse_item_tables(
-    rows: list[list[str]], *, source_file: str, table_index: int
+    rows: list[list[str]], *, source_file: str, table_index: int, context: str = "",
 ) -> list[ItemCandidate]:
-    """Map a tabular procurement-item section to the seven contest fields."""
+    """Map a tabular procurement-item section to the seven contest fields.
+
+    ``context`` is the prose immediately around the table. CCGP notices often
+    state the package there -- "三、采购结果 合同包1(项目名):" -- rather than in
+    the table itself, so without it every row falls back to ``default`` and the
+    package the notice names is lost.
+    """
     candidates: list[ItemCandidate] = []
     header_index: int | None = None
     columns: dict[str, int] = {}
@@ -200,6 +208,10 @@ def parse_item_tables(
         # 包号/采购内容/供应商/中标金额 describes a package award, not
         # item quantities and prices. Do not add its total beside detailed items.
         return candidates
+
+    # A package named in the surrounding prose covers the whole table, so it is
+    # resolved once here rather than per row.
+    table_package = _explicit_package_hint([[context], *rows]) if context else None
 
     for row_index, row in enumerate(rows[header_index + 1 :], start=header_index + 2):
         values = [_clean(cell) for cell in row]
@@ -224,15 +236,18 @@ def parse_item_tables(
         quantity, quantity_unit = _quantity(get_value("quantity"))
         extra = {}
         if "package_code" in ItemCandidate.model_fields:
-            extra["package_code"] = get_value("package_code") or "default"
+            extra["package_code"] = normalize_package_code(get_value("package_code"))
             # Some official quotation sheets put 包1 in the 序号 column.
             # Bare numeric row indices must never become package identifiers.
-            if extra['package_code'] == 'default':
+            if extra['package_code'] == DEFAULT_PACKAGE_CODE:
                 for col, label in enumerate(header):
                     if _header_key(label) == '序号' and col < len(values) and re.fullmatch(
                         r'(?:合同包|采购包|包)\s*\d+', values[col]
                     ):
-                        extra['package_code'] = values[col]
+                        extra['package_code'] = normalize_package_code(values[col])
+            # Last resort: a package named only in the surrounding prose.
+            if extra['package_code'] == DEFAULT_PACKAGE_CODE and table_package:
+                extra['package_code'] = table_package
         total = _money(get_value('total_price'),
                        header[columns['total_price']] if 'total_price' in columns else '')
         # 报价 alone is ambiguous; accept it only in an explicit 成交明细 sheet
@@ -288,25 +303,52 @@ def _participant_column_map(header: Iterable[object]) -> dict[str, int]:
 def _participant_package_code(value: str | None) -> str:
     value = _clean(value or "")
     if not value:
-        return "default"
+        return DEFAULT_PACKAGE_CODE
     compact = re.sub(r"\s+", "", unicodedata.normalize("NFKC", value))
     named_match = re.search(r"包名[:：]?([A-Za-z0-9一二三四五六七八九十]+)", compact)
     if named_match:
-        return f"包{_normalize_package_number(named_match.group(1))}"
-    match = re.search(r"(?:合同|采购|标段|标包)?包(?:编号|号)?([A-Za-z0-9一二三四五六七八九十]+)", compact)
+        return normalize_package_code(named_match.group(1))
+    match = re.search(r"(?:合同|采购|标段|标包)?包(?:编号|号)?[:：]?([A-Za-z0-9一二三四五六七八九十]+)", compact)
     if match:
-        return f"包{_normalize_package_number(match.group(1))}"
-    if re.fullmatch(r"\d+", compact):
-        return f"包{compact}"
-    return compact
+        return normalize_package_code(match.group(1))
+    return normalize_package_code(compact)
 
 
-def _normalize_package_number(value: str) -> str:
-    chinese_numbers = {
-        "一": "1", "二": "2", "三": "3", "四": "4", "五": "5",
-        "六": "6", "七": "7", "八": "8", "九": "9", "十": "10",
-    }
-    return chinese_numbers.get(value, value)
+_PACKAGE_LABEL_PATTERN = re.compile(
+    r"(?:合同|采购|标段|标包)?包\s*(?:编号|号)?\s*[:：]?\s*([A-Za-z0-9一二三四五六七八九十]+)"
+)
+
+
+def _nearby_package_label(table: Any) -> str | None:
+    """Find the package a table belongs to, looking just outside it.
+
+    CCGP nests the label in a sibling paragraph rather than the table: the
+    winner table follows "合同包1(...)", and the item table follows that plus a
+    "货物类（供应商）" line, so the label is a sibling of an ancestor. Scanning
+    stops at the enclosing block and skips intervening tables, which keeps a
+    neighbouring section's package from being borrowed.
+    """
+    node = table
+    for _ in range(8):
+        parent = node.parent
+        if parent is None:
+            return None
+        preceding: list[str] = []
+        for child in parent.children:
+            if child is node:
+                break
+            if getattr(child, "name", None) == "table":
+                continue
+            text = child if isinstance(child, str) else child.get_text(" ", strip=True)
+            text = _clean(text)
+            if text and len(text) <= 120:
+                preceding.append(text)
+        for text in reversed(preceding):
+            match = _PACKAGE_LABEL_PATTERN.search(unicodedata.normalize("NFKC", text))
+            if match:
+                return normalize_package_code(match.group(1))
+        node = parent
+    return None
 
 
 def _explicit_package_hint(rows: list[list[str]]) -> str | None:
@@ -318,13 +360,13 @@ def _explicit_package_hint(rows: list[list[str]]) -> str | None:
             unicodedata.normalize("NFKC", joined),
         )
         if named_match:
-            return f"包{named_match.group(1)}"
+            return normalize_package_code(named_match.group(1))
         match = re.search(
-            r"(?:合同|采购|标段|标包)?包\s*(?:编号|号)?\s*([A-Za-z0-9一二三四五六七八九十]+)",
+            r"(?:合同|采购|标段|标包)?包\s*(?:编号|号)?\s*[:：]?\s*([A-Za-z0-9一二三四五六七八九十]+)",
             unicodedata.normalize("NFKC", joined),
         )
         if match:
-            return f"包{match.group(1)}"
+            return normalize_package_code(match.group(1))
     return None
 
 
@@ -591,7 +633,6 @@ def _html_tables(
             if warnings is not None:
                 warnings.append(f'{filename}: table:{table_index} 为采购需求表，不抽取成交标的或送入模型')
             continue
-        items.extend(parse_item_tables(rows, source_file=filename, table_index=table_index))
         context_parts = []
         caption = table.find("caption", recursive=False)
         if caption is not None:
@@ -599,29 +640,36 @@ def _html_tables(
         for attribute in ("summary", "aria-label", "title"):
             if table.get(attribute):
                 context_parts.append(str(table.get(attribute)))
-        # Only inspect immediately adjacent heading/paragraph siblings. A
-        # document-wide previous heading can belong to an unrelated section.
+        # Walk back over a few adjacent heading/paragraph siblings rather than
+        # only the first. CCGP separates the package heading from its item table
+        # with an intervening "货物类（供应商）" line, so 合同包1 sits two
+        # siblings back and stopping at one loses it. The walk stays bounded and
+        # length-filtered so a document-wide heading cannot leak in.
         sibling = table.previous_sibling
-        while sibling is not None:
-            if isinstance(sibling, str) and not sibling.strip():
+        inspected = 0
+        while sibling is not None and inspected < 4:
+            if isinstance(sibling, str):
+                if not sibling.strip():
+                    sibling = sibling.previous_sibling
+                    continue
+                neighbor_text = _clean(sibling)
+                if neighbor_text and len(neighbor_text) <= 120:
+                    context_parts.append(neighbor_text)
+                    inspected += 1
                 sibling = sibling.previous_sibling
                 continue
             name = getattr(sibling, "name", None)
             if name == "br":
                 sibling = sibling.previous_sibling
                 continue
-            if isinstance(sibling, str):
-                neighbor_text = _clean(sibling)
-                if neighbor_text and len(neighbor_text) <= 120:
-                    context_parts.append(neighbor_text)
-                break
-            if name in {"p", "h1", "h2", "h3", "h4", "strong", "b"}:
+            if name in {"p", "h1", "h2", "h3", "h4", "h5", "h6", "strong", "b"}:
                 neighbor_text = _clean(sibling.get_text(" ", strip=True))
                 if neighbor_text and len(neighbor_text) <= 120:
                     context_parts.append(neighbor_text)
+                    inspected += 1
                 sibling = sibling.previous_sibling
-                break
-            break
+                continue
+            break  # a table or other block ends the local context
         # Result pages sometimes put each package number in the first cell of
         # an outer "包号 / 供货明细" table and nest the bidder table beside it.
         for containing_row in table.find_parents("tr"):
@@ -647,17 +695,32 @@ def _html_tables(
             row_cells = containing_row.find_all(["th", "td"], recursive=False)
             child_index = next(
                 (index for index, cell in enumerate(row_cells)
-                 if cell is table.parent or cell.find("table") is table),
+                 if cell is table.parent or table in cell.find_all("table")),
                 None,
             )
-            if child_index:
-                package_value = row_cells[child_index - 1].get_text(" ", strip=True)
-                if package_value:
+            package_index = next(
+                (index for index, cell in enumerate(header_cells)
+                 if _header_key(cell.get_text(" ", strip=True)) in {
+                     _header_key(alias) for alias in PARTICIPANT_PACKAGE_ALIASES
+                 }),
+                None,
+            )
+            if child_index is not None and package_index is not None and package_index < len(row_cells):
+                package_value = row_cells[package_index].get_text(" ", strip=True)
+                if package_value and package_index != child_index:
                     context_parts.append(f"包号 {package_value}")
-            break
+                    break
+        nearby_package = _nearby_package_label(table)
+        if nearby_package:
+            context_parts.append(f"合同包{nearby_package}")
+        table_context = " ".join(context_parts)
+        # Items are parsed after the context is assembled: CCGP states the
+        # package in the prose beside the table, not inside it.
+        items.extend(parse_item_tables(
+            rows, source_file=filename, table_index=table_index, context=table_context,
+        ))
         participants.extend(parse_participant_tables(
-            rows, source_file=filename, table_index=table_index,
-            context=" ".join(context_parts),
+            rows, source_file=filename, table_index=table_index, context=table_context,
         ))
     for table in reference_tables:
         table.replace_with('[采购需求表已排除，原文保留在来源文件]')
@@ -691,9 +754,12 @@ def _docx_tables(
     for table_index, table in enumerate(document.tables, start=1):
         rows = [[cell.text for cell in row.cells] for row in table.rows]
         chunks.extend(" ".join(_clean(cell) for cell in row) for row in rows)
-        items.extend(parse_item_tables(rows, source_file=filename, table_index=table_index))
+        context = " ".join(chunks[-12:])
+        items.extend(parse_item_tables(
+            rows, source_file=filename, table_index=table_index, context=context,
+        ))
         participants.extend(parse_participant_tables(
-            rows, source_file=filename, table_index=table_index,
+            rows, source_file=filename, table_index=table_index, context=context,
         ))
     return _clean(" ".join(chunks)), items, participants
 
@@ -710,7 +776,10 @@ def _xlsx_tables(
         rows = [[_clean(cell) for cell in row] for row in sheet.iter_rows(values_only=True)]
         rows = [row for row in rows if any(row)]
         chunks.extend(" ".join(row) for row in rows)
-        parsed = parse_item_tables(rows, source_file=filename, table_index=sheet_index)
+        context = " ".join(" ".join(row) for row in rows[:10])
+        parsed = parse_item_tables(
+            rows, source_file=filename, table_index=sheet_index, context=context,
+        )
         if parsed:
             table_index += 1
             items.extend(parsed)
@@ -736,7 +805,10 @@ def _xls_tables(
             rows = [[str(cell.value) if cell.ctype == xlrd.XL_CELL_NUMBER
                      else _clean(cell.value) for cell in row] for row in sheet.get_rows()]
             chunks.extend('\t'.join(row) for row in rows if any(row))
-            parsed = parse_item_tables(rows, source_file=filename, table_index=index)
+            context = " ".join(" ".join(row) for row in rows[:10])
+            parsed = parse_item_tables(
+                rows, source_file=filename, table_index=index, context=context,
+            )
             for item in parsed:
                 item.extraction_method = 'xls_table_header_mapping'
             items.extend(parsed)
@@ -825,14 +897,19 @@ def _pdf_text(
                     if page_number in scan_pages:
                         page.close()
                         continue
+                    page_context = page.extract_text() or ""
                     for table_index, table in enumerate(page.extract_tables() or [], start=1):
-                        parsed = parse_item_tables(table, source_file=filename, table_index=table_index)
+                        parsed = parse_item_tables(
+                            table, source_file=filename, table_index=table_index,
+                            context=page_context,
+                        )
                         for item in parsed:
                             item.source_location = f"page:{page_number}/{item.source_location}"
                             item.extraction_method = "pdfplumber_table_header_mapping"
                         items.extend(parsed)
                         participants.extend(parse_participant_tables(
                             table, source_file=filename, table_index=table_index,
+                            context=page_context,
                         ))
                         for participant in participants:
                             if participant.source_file == filename and participant.source_location.startswith(
@@ -867,8 +944,11 @@ def _pdf_text(
                         )
                         if text.strip():
                             page_text.append(f"[page:{page_number}/ocr] {text}")
-                            parsed = parse_item_tables([line.split('\t') for line in text.splitlines()],
-                                                       source_file=filename, table_index=1)
+                            ocr_rows = [line.split('\t') for line in text.splitlines()]
+                            parsed = parse_item_tables(
+                                ocr_rows, source_file=filename, table_index=1,
+                                context=text[:2000],
+                            )
                             for item in parsed:
                                 item.source_location = f'page:{page_number}/ocr/{item.source_location}'
                                 item.extraction_method = 'local_ocr_table'
@@ -944,11 +1024,14 @@ def parse_document_with_participants(
                 timeout=ocr_timeout_seconds, engine=ocr_engine,
             )
             warnings.extend(ocr_warnings)
-            items = parse_item_tables([line.split('\t') for line in text.splitlines()],
-                                      source_file=document.filename, table_index=1)
+            ocr_rows = [line.split('\t') for line in text.splitlines()]
+            items = parse_item_tables(
+                ocr_rows, source_file=document.filename, table_index=1,
+                context=text[:2000],
+            )
             participants = parse_participant_tables(
-                [line.split('\t') for line in text.splitlines()],
-                source_file=document.filename, table_index=1,
+                ocr_rows, source_file=document.filename, table_index=1,
+                context=text[:2000],
             )
             for item in items:
                 item.extraction_method = 'local_ocr_table'

@@ -271,8 +271,8 @@ def test_review_table_extracts_all_explicit_bidders_without_infering_from_rank()
     participants = parse_participant_tables(rows, source_file="notice.html", table_index=3)
 
     assert [(row.organization_name, row.package_code, row.outcome) for row in participants] == [
-        ("甲科技有限公司", "包1", "unknown"),
-        ("乙设备有限公司", "包1", "unknown"),
+        ("甲科技有限公司", "1", "unknown"),
+        ("乙设备有限公司", "1", "unknown"),
     ]
     assert participants[0].source_location == "table:3/row:3"
     assert participants[0].source_evidence == "合同包1 | 甲科技有限公司 | 通过 | 通过 | 96.2 | 1"
@@ -302,8 +302,8 @@ def test_ragged_unsuccessful_rows_keep_package_and_do_not_treat_reason_as_vendor
     participants = parse_participant_tables(rows, source_file="notice.html", table_index=4)
 
     assert [(row.organization_name, row.package_code, row.outcome) for row in participants] == [
-        ("甲设备有限公司", "包1", "nonwinner"),
-        ("乙设备有限公司", "包1", "nonwinner"),
+        ("甲设备有限公司", "1", "nonwinner"),
+        ("乙设备有限公司", "1", "nonwinner"),
     ]
 
 
@@ -374,8 +374,8 @@ def test_html_rules_import_includes_review_bidders_and_preserves_unknown_outcome
     )
 
     assert [(row.organization_name, row.package_code, row.outcome) for row in result.participants] == [
-        ("甲科技有限公司", "包1", "unknown"),
-        ("乙设备有限公司", "包1", "unknown"),
+        ("甲科技有限公司", "1", "unknown"),
+        ("乙设备有限公司", "1", "unknown"),
     ]
 
 
@@ -391,8 +391,31 @@ def test_html_nested_winner_detail_inherits_package_from_outer_package_column():
 
     assert len(participants) == 1
     assert participants[0].organization_name == "甲设备有限公司"
-    assert participants[0].package_code == "包1"
+    assert participants[0].package_code == "1"
     assert participants[0].outcome == "winner"
+
+
+def test_html_deeply_nested_item_tables_inherit_each_outer_package():
+    html = """<html><body><table>
+      <tr><th>包号</th><th>供货明细</th></tr>
+      <tr><td>1</td><td><table><tr><td colspan="4"><table>
+        <tr><th>货物名称</th><th>品牌</th><th>规格型号</th><th>数量</th></tr>
+        <tr><td>设备甲</td><td>甲牌</td><td>A-1</td><td>1</td></tr>
+      </table></td></tr></table></td></tr>
+      <tr><td>2</td><td><table><tr><td colspan="4"><table>
+        <tr><th>货物名称</th><th>品牌</th><th>规格型号</th><th>数量</th></tr>
+        <tr><td>设备乙</td><td>乙牌</td><td>B-1</td><td>2</td></tr>
+      </table></td></tr></table></td></tr>
+    </table></body></html>""".encode()
+
+    _, items, _, warnings = parse_document_with_participants(
+        SourceDocument("notice.html", html),
+    )
+
+    assert not warnings
+    assert [(item.package_code, item.product_name) for item in items] == [
+        ("1", "设备甲"), ("2", "设备乙"),
+    ]
 
 
 def test_participant_aware_parse_api_preserves_legacy_parse_document_shape():

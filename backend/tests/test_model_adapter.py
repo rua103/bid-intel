@@ -146,3 +146,30 @@ def test_empty_stream_reports_a_truncation_warning(stub_model_stream):
     )
     assert items == []
     assert any("模型返回空内容" in warning for warning in warnings)
+
+
+def test_model_package_labels_are_canonicalized_before_hybrid_alignment(stub_model_stream):
+    source = "合同包1：激光打印机；中标供应商甲。"
+    payload = {
+        "items": [{
+            "package_code": "合同包1",
+            "product_name": "激光打印机",
+            "source_evidence": "合同包1：激光打印机",
+        }],
+        "participants": [{
+            "package_code": "包号：01",
+            "organization_name": "中标供应商甲",
+            "outcome": "winner",
+            "source_evidence": "中标供应商甲",
+        }],
+    }
+    stub_model_stream(json.dumps(payload, ensure_ascii=False))
+
+    _, items, participants, warnings = extract_unstructured_items(
+        filename="notice.html", text=source, settings=model_settings(),
+        include_participants=True,
+    )
+
+    assert not warnings
+    assert [row.package_code for row in items] == ["1"]
+    assert [row.package_code for row in participants] == ["1"]

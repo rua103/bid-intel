@@ -45,7 +45,7 @@ def test_hybrid_merges_model_fields_into_same_rule_item_without_package_code():
     merged = _merge_model_items([rule_item], [model_item], warnings)
 
     assert len(merged) == 1
-    assert merged[0].package_code == "合同包1"
+    assert merged[0].package_code == "1"
     assert merged[0].category == "A02320800"  # Keep the table's source value on conflict.
     assert merged[0].brand == "迈步"
     assert merged[0].model == "MB-100"
@@ -82,7 +82,7 @@ def test_hybrid_does_not_consume_one_rule_row_for_two_packages(reverse):
         modeled.reverse()
     merged = _merge_model_items([item("default", 100)], modeled, [])
     assert {(row.package_code, row.total_price) for row in merged} == {
-        ("合同包1", 100), ("合同包2", 200),
+        ("1", 100), ("2", 200),
     }
     assert len(merged) == 2
 
@@ -94,7 +94,7 @@ def test_hybrid_keeps_ambiguous_model_packages_and_warns():
 
     warnings = []
     merged = _merge_model_items([item("default")], [item("包1"), item("包2")], warnings)
-    assert [row.package_code for row in merged] == ["default", "包1", "包2"]
+    assert [row.package_code for row in merged] == ["default", "1", "2"]
     assert warnings
 
 
@@ -105,7 +105,7 @@ def test_hybrid_prioritizes_known_packages_and_never_merges_model_rows_together(
 
     modeled = [item("包2", brand="乙"), item("包1", brand="甲")]
     merged = _merge_model_items([item("default"), item("包1")], modeled, [])
-    assert {(row.package_code, row.brand) for row in merged} == {("包1", "甲"), ("包2", "乙")}
+    assert {(row.package_code, row.brand) for row in merged} == {("1", "甲"), ("2", "乙")}
     assert _merge_model_items([], modeled, []) == modeled
 
 

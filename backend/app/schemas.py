@@ -1,13 +1,15 @@
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.package_codes import DEFAULT_PACKAGE_CODE, normalize_package_code
 
 
 class ItemCandidate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    package_code: str = Field(default="default", min_length=1)
+    package_code: str = Field(default=DEFAULT_PACKAGE_CODE, min_length=1)
     product_name: str | None = None
     category: str | None = None
     brand: str | None = None
@@ -22,6 +24,11 @@ class ItemCandidate(BaseModel):
     extraction_method: str = "table_header_mapping"
     confidence: float = Field(default=0.7, ge=0, le=1)
 
+    @field_validator("package_code", mode="before")
+    @classmethod
+    def canonicalize_package_code(cls, value: str | None) -> str:
+        return normalize_package_code(value)
+
 
 class NoticeMetadata(BaseModel):
     project_name: str | None = None
@@ -32,7 +39,7 @@ class NoticeMetadata(BaseModel):
 
 
 class ParticipantCandidate(BaseModel):
-    package_code: str = Field(default="default", min_length=1)
+    package_code: str = Field(default=DEFAULT_PACKAGE_CODE, min_length=1)
     consortium_members: list[str] = Field(default_factory=list)
     organization_name: str
     outcome: Literal["winner", "nonwinner", "unknown"] = "unknown"
@@ -42,6 +49,11 @@ class ParticipantCandidate(BaseModel):
     source_evidence: str | None = None
     extraction_method: str = "qwen_deepseek_structured"
     confidence: float = Field(default=0.55, ge=0, le=1)
+
+    @field_validator("package_code", mode="before")
+    @classmethod
+    def canonicalize_package_code(cls, value: str | None) -> str:
+        return normalize_package_code(value)
 
 
 class ImportResult(BaseModel):
@@ -93,6 +105,11 @@ class ModelItemPayload(BaseModel):
     total_price: Decimal | None = None
     source_evidence: str
 
+    @field_validator("package_code", mode="before")
+    @classmethod
+    def canonicalize_package_code(cls, value: str | None) -> str:
+        return normalize_package_code(value)
+
 
 class ModelParticipantPayload(BaseModel):
     package_code: str = Field(default="default", min_length=1)
@@ -101,6 +118,11 @@ class ModelParticipantPayload(BaseModel):
     outcome: Literal["winner", "nonwinner", "unknown"] = "unknown"
     award_amount: Decimal | None = None
     source_evidence: str
+
+    @field_validator("package_code", mode="before")
+    @classmethod
+    def canonicalize_package_code(cls, value: str | None) -> str:
+        return normalize_package_code(value)
 
 
 class ModelExtractionPayload(BaseModel):

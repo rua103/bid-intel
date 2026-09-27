@@ -22,6 +22,13 @@ from app.schemas import ModelItemPayload, ModelParticipantPayload
         ("1号包", "1"),
         ("合同包十一", "11"),
         ("A-02", "A-02"),
+        ("包名：二", "2"),
+        ("标段名称：第一标段", "1"),
+        ("豫政采(2)20260817-2", "2"),
+        ("豫政采(2)20260817-5", "5"),
+        ("分包名称：", "default"),
+        ("包名：见附件", "default"),
+        ("包名：详见招标文件", "default"),
     ],
 )
 def test_normalize_package_code_has_one_canonical_form(raw, expected):

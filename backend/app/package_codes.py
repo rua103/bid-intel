@@ -17,6 +17,19 @@ _REVERSE_RE = re.compile(
     rf"^({_PACKAGE_ID})\s*(?:号\s*)?{_LABEL_SUFFIX}", re.IGNORECASE,
 )
 _NAMED_RE = re.compile(rf"^包名\s*[:：]?\s*({_PACKAGE_ID})", re.IGNORECASE)
+_NAMED_VALUE_RE = re.compile(
+    r"^(?:分包名称|标段名称|采购包名称|包名称|包名)\s*[:：]\s*(.+)$",
+    re.IGNORECASE,
+)
+_ORDINAL_SECTION_RE = re.compile(rf"^第\s*({_PACKAGE_ID})\s*标段$", re.IGNORECASE)
+_TENDER_SUFFIX_RE = re.compile(
+    rf"^.+[（(]\s*{_PACKAGE_ID}\s*[）)][^\s()（）]*[-_/]({_PACKAGE_ID})$",
+    re.IGNORECASE,
+)
+_EMPTY_LABELS = {
+    "包名", "分包名称", "标段名称", "采购包名称", "包名称", "包号", "标包号", "标段号",
+}
+_PLACEHOLDER_RE = re.compile(r"^(?:详?见(?:附件|招标文件|采购文件|文件)|附件)$")
 
 _SIMPLE_CHINESE_NUMBERS = {
     "零": 0,
@@ -77,11 +90,32 @@ def normalize_package_code(value: str | None) -> str:
     text = _clean(value or "")
     if not text or text.casefold() in {"default", "unknown", "none", "null"}:
         return DEFAULT_PACKAGE_CODE
+    if text in _EMPTY_LABELS or _PLACEHOLDER_RE.fullmatch(text):
+        return DEFAULT_PACKAGE_CODE
 
     for pattern in (_NAMED_RE, _ORDINAL_RE, _PREFIX_RE, _REVERSE_RE):
         match = pattern.match(text)
         if match:
             return _chinese_number(match.group(1))
+
+    # A named package is still a package label; strip only the explicit field
+    # wrapper. Empty/placeholder values must not become package IDs.
+    named_value = _NAMED_VALUE_RE.match(text)
+    if named_value:
+        candidate = named_value.group(1).strip()
+        if not candidate or _PLACEHOLDER_RE.fullmatch(candidate):
+            return DEFAULT_PACKAGE_CODE
+        ordinal = _ORDINAL_SECTION_RE.fullmatch(candidate)
+        if ordinal:
+            return _chinese_number(ordinal.group(1))
+        return candidate
+
+    # Several provincial tender systems append the package number to an
+    # identifier such as ``豫政采(2)20260817-2``. The trailing component is
+    # the package, while the parenthesized component belongs to the project.
+    match = _TENDER_SUFFIX_RE.match(text)
+    if match:
+        return _chinese_number(match.group(1))
 
     # A bare package id is already canonical. Keep separators used by real
     # tender systems, but do not treat arbitrary prose as a package number.

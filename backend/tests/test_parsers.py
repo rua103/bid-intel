@@ -78,6 +78,34 @@ def test_ccgp_standard_headers_map_amount_and_item_name_without_treating_item_nu
     assert items[0].total_price == 2000
 
 
+@pytest.mark.parametrize("product_header", ["主要投标标的名称", "商品名称"])
+def test_common_goods_header_aliases_keep_the_whole_item_table(product_header):
+    rows = [
+        [
+            "序号",
+            product_header,
+            "货物品牌",
+            "货物型号",
+            "货物数量",
+            "货物单价（元）",
+            "货物总价（元）",
+        ],
+        ["1", "彩色打印机", "甲牌", "M-100", "2台", "1500", "3000"],
+    ]
+
+    items = parse_item_tables(rows, source_file="goods.html", table_index=1)
+
+    assert len(items) == 1
+    item = items[0]
+    assert item.product_name == "彩色打印机"
+    assert item.brand == "甲牌"
+    assert item.model == "M-100"
+    assert item.quantity == 2
+    assert item.quantity_unit == "台"
+    assert item.unit_price == 1500
+    assert item.total_price == 3000
+
+
 def test_rule_parser_skips_merged_heading_and_non_item_rows():
     from app.parsers import parse_item_tables
 

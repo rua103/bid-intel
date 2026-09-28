@@ -59,6 +59,10 @@ def test_cypher_scenes_are_parameterized_and_cover_five_operations():
         assert "MATCH" in statement and "RETURN" in statement
     assert "collect(DISTINCT a)" in CYPHER_SCENES["buyer_awardees"]
     assert "all(id IN $supplier_ids" in CYPHER_SCENES["common_projects"]
+    assert "count(DISTINCT p) AS project_count" in CYPHER_SCENES["buyer_bidders"]
+    assert "b.outcome = 'nonwinner'" in CYPHER_SCENES["buyer_bidders"]
+    assert "count(DISTINCT p) AS project_count" in CYPHER_SCENES["supplier_co_bidders"]
+    assert "b.outcome = 'nonwinner'" in CYPHER_SCENES["supplier_co_bidders"]
 
 
 def _fixture(path):

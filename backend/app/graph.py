@@ -121,20 +121,20 @@ ORDER BY award_package_count DESC, name
 MATCH (buyer:Organization {dataset:$dataset,id:$buyer_id})
 CALL {
   WITH buyer
-  MATCH (buyer)-[:PURCHASES]->(:Project)-[:HAS_PACKAGE]->(k:Package)<-[b:BID_IN]-(o:Organization)
-  WHERE $include_winners OR b.outcome <> 'winner'
-  WITH o, count(DISTINCT k) AS package_count
-  ORDER BY package_count DESC, o.name LIMIT $top
-  RETURN collect({id:o.id,canonical_name:o.name,package_count:package_count}) AS top_bidders
+  MATCH (buyer)-[:PURCHASES]->(p:Project)-[:HAS_PACKAGE]->(k:Package)<-[b:BID_IN]-(o:Organization)
+  WHERE $include_winners OR b.outcome = 'nonwinner'
+  WITH o, count(DISTINCT p) AS project_count
+  ORDER BY project_count DESC, o.name LIMIT $top
+  RETURN collect({id:o.id,canonical_name:o.name,project_count:project_count}) AS top_bidders
 }
 CALL {
   WITH buyer
-  MATCH (buyer)-[:PURCHASES]->(:Project)-[:HAS_PACKAGE]->(k:Package)
+  MATCH (buyer)-[:PURCHASES]->(p:Project)-[:HAS_PACKAGE]->(k:Package)
   MATCH (a:Organization)-[ba:BID_IN]->(k)<-[bb:BID_IN]-(b:Organization)
-  WHERE a.id < b.id AND ($include_winners OR (ba.outcome <> 'winner' AND bb.outcome <> 'winner'))
-  WITH a,b,count(DISTINCT k) AS package_count
-  ORDER BY package_count DESC, a.name, b.name LIMIT $top
-  RETURN collect({org1:a.id,org2:b.id,name1:a.name,name2:b.name,package_count:package_count}) AS co_bidder_pairs
+  WHERE a.id < b.id AND ($include_winners OR (ba.outcome = 'nonwinner' AND bb.outcome = 'nonwinner'))
+  WITH a,b,count(DISTINCT p) AS project_count
+  ORDER BY project_count DESC, a.name, b.name LIMIT $top
+  RETURN collect({org1:a.id,org2:b.id,name1:a.name,name2:b.name,project_count:project_count}) AS co_bidder_pairs
 }
 RETURN top_bidders,co_bidder_pairs
 """,
@@ -142,11 +142,12 @@ RETURN top_bidders,co_bidder_pairs
 MATCH (supplier:Organization {dataset:$dataset,id:$supplier_id})
 CALL {
   WITH supplier
-  MATCH (supplier)<-[:AWARDED_TO]-(k:Package)<-[b:BID_IN]-(o:Organization)
-  WHERE o.id <> supplier.id AND ($include_winners OR b.outcome <> 'winner')
-  WITH o,count(DISTINCT k) AS package_count
-  ORDER BY package_count DESC,o.name LIMIT $top
-  RETURN collect({organization_id:o.id,canonical_name:o.name,package_count:package_count}) AS top_co_bidders
+  MATCH (supplier)<-[:AWARDED_TO]-(k:Package)<-[:HAS_PACKAGE]-(p:Project)
+  MATCH (o:Organization)-[b:BID_IN]->(k)
+  WHERE o.id <> supplier.id AND ($include_winners OR b.outcome = 'nonwinner')
+  WITH o,count(DISTINCT p) AS project_count
+  ORDER BY project_count DESC,o.name LIMIT $top
+  RETURN collect({organization_id:o.id,canonical_name:o.name,project_count:project_count}) AS top_co_bidders
 }
 CALL {
   WITH supplier

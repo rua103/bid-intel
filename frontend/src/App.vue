@@ -540,8 +540,8 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
           <label>选择采购单位<select v-model="selectedBuyerId"><option value="">选择主体</option><option v-for="org in organizations" :key="org.id" :value="String(org.id)">{{ org.canonical_name }}</option></select></label>
           <button class="secondary" :disabled="!selectedBuyerId || analyticsLoading === 'bidders'" @click="runScene('bidders')">{{ analyticsLoading === 'bidders' ? '查询中…' : '查询主体与组合' }} <span>→</span></button>
           <div v-if="analyticsResults.bidders" class="query-result">
-            <p v-for="bidder in analyticsResults.bidders.top_bidders" :key="bidder.id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.package_count }} 包</span></p>
-            <small v-if="analyticsResults.bidders.co_bidder_pairs.length">共同投标：{{ analyticsResults.bidders.co_bidder_pairs.map(pair => `${pair.name1} + ${pair.name2}（${pair.package_count}）`).join('；') }}</small>
+            <p v-for="bidder in analyticsResults.bidders.top_bidders" :key="bidder.id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.project_count }} 个项目</span></p>
+            <small v-if="analyticsResults.bidders.co_bidder_pairs.length">共同投标项目：{{ analyticsResults.bidders.co_bidder_pairs.map(pair => `${pair.name1} + ${pair.name2}（${pair.project_count}）`).join('；') }}</small>
             <p v-if="!analyticsResults.bidders.top_bidders.length" class="empty-note">暂无已确认的投标关系</p>
           </div>
         </article>
@@ -551,7 +551,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
           <label>选择中标供应商<select v-model="selectedSupplierId"><option value="">选择主体</option><option v-for="org in organizations" :key="org.id" :value="String(org.id)">{{ org.canonical_name }}</option></select></label>
           <button class="secondary" :disabled="!selectedSupplierId || analyticsLoading === 'coBidders'" @click="runScene('coBidders')">{{ analyticsLoading === 'coBidders' ? '查询中…' : '查询共同竞标方' }} <span>→</span></button>
           <div v-if="analyticsResults.coBidders" class="query-result">
-            <p v-for="bidder in analyticsResults.coBidders.top_co_bidders" :key="bidder.organization_id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.package_count }} 包</span></p>
+            <p v-for="bidder in analyticsResults.coBidders.top_co_bidders" :key="bidder.organization_id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.project_count }} 个项目</span></p>
             <p v-if="!analyticsResults.coBidders.top_co_bidders.length" class="empty-note">暂无已确认的共同投标关系</p>
           </div>
         </article>

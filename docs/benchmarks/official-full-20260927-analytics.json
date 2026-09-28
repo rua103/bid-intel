@@ -1,0 +1,5670 @@
+{
+  "benchmark_type": "official_replayed_dataset_query_display_only",
+  "created_at_utc": "2026-09-27T15:01:29.155617+00:00",
+  "dataset": {
+    "id": "6e032fb74bd345e29989e4f86e195920",
+    "path": "D:\\ICT\\bid-intel\\backend\\.data\\datasets\\6e032fb74bd345e29989e4f86e195920.sqlite",
+    "name": "官方全量·修复后",
+    "counts": {
+      "notices": 1038,
+      "projects": 1038,
+      "packages": 1658,
+      "organizations": 4229,
+      "procurement_items": 6472,
+      "bid_participations": 5009,
+      "awards": 1315,
+      "import_receipts": 1038
+    },
+    "outcomes": {
+      "nonwinner": 1073,
+      "unknown": 2621,
+      "winner": 1315
+    },
+    "sha256_before": "201b68f0d39166947d9c8fa502e458d50a8ee0860fd74eccf50abca825a2bf83",
+    "selection": {
+      "buyer": [
+        {
+          "id": 124,
+          "canonical_name": "东莞职业技术学院"
+        }
+      ],
+      "supplier": [
+        {
+          "id": 114,
+          "canonical_name": "中国移动通信集团广东有限公司"
+        }
+      ],
+      "pair": [
+        {
+          "id": 114,
+          "canonical_name": "中国移动通信集团广东有限公司"
+        },
+        {
+          "id": 157,
+          "canonical_name": "中国电信股份有限公司广东分公司"
+        }
+      ]
+    },
+    "sha256_after": "201b68f0d39166947d9c8fa502e458d50a8ee0860fd74eccf50abca825a2bf83",
+    "source_unchanged": true
+  },
+  "code": {
+    "git_head": "68642fcc542a396a7224e1633d4ba0caca635b4f",
+    "analytics_sha256": "79c41209c0747dcb1ba50370909e95be4b45aad94e96d71018b121b09bffc553"
+  },
+  "environment": {
+    "python": "3.13.7",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "sqlite": "3.50.4"
+  },
+  "warm_repeats": 30,
+  "queries": {
+    "buyer_awardees": {
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/analytics/buyers/124/awardees"
+      },
+      "first_call_ms": 89.5438,
+      "warm_p50_ms": 88.9785,
+      "warm_p95_ms": 92.9278,
+      "warm_samples_ms": [
+        87.4402,
+        86.4267,
+        86.3721,
+        89.9097,
+        91.2579,
+        89.0887,
+        89.886,
+        89.4789,
+        86.987,
+        87.4905,
+        88.0875,
+        89.1306,
+        88.1214,
+        86.4375,
+        87.4055,
+        86.4782,
+        88.8683,
+        90.0935,
+        92.9278,
+        85.6497,
+        85.6828,
+        89.8972,
+        90.1193,
+        87.6872,
+        90.2784,
+        91.7424,
+        87.1269,
+        91.1379,
+        93.6653,
+        91.9321
+      ],
+      "repeat_results_identical": true,
+      "result_counts": {
+        "awardees": 15
+      },
+      "result": {
+        "buyer": {
+          "id": 124,
+          "canonical_name": "东莞职业技术学院"
+        },
+        "awardees": [
+          {
+            "organization_id": 777,
+            "name": "上海形宙数字技术有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "2198000.00",
+            "product_brands": [
+              "9 1 4 PPB",
+              "PPB",
+              "PPB 2 0 2 1- 0",
+              "字 数 宙PPB 形"
+            ]
+          },
+          {
+            "organization_id": 713,
+            "name": "东莞小豚智能技术有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "3408800.00",
+            "product_brands": [
+              "2 1- 0 9 1 4华硕",
+              "华为",
+              "华硕",
+              "定制",
+              "小豚智能",
+              "智 豚 小华硕",
+              "智谷",
+              "智谷 2 0",
+              "比丽普",
+              "比丽普 能"
+            ]
+          },
+          {
+            "organization_id": 114,
+            "name": "中国移动通信集团广东有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "3059996.00",
+            "product_brands": [
+              "8 7 8 鑫0 1城 6- 2 0",
+              "DASUNG",
+              "优力普",
+              "力扑",
+              "噢易云",
+              "安道",
+              "旺星",
+              "有 东 广 团噢易云 集",
+              "赖工",
+              "里诺",
+              "鑫城"
+            ]
+          },
+          {
+            "organization_id": 1995,
+            "name": "北京智谷星图科技有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "2667000.00",
+            "product_brands": [
+              "2 0 9 里诺0 0电脑 6- 2 0",
+              "名扬京源",
+              "固永家具",
+              "普开",
+              "智谷星图 、紫金盾",
+              "智谷星图、紫金盾",
+              "里诺电脑"
+            ]
+          },
+          {
+            "organization_id": 513,
+            "name": "广东一晨科技有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "1299930.00",
+            "product_brands": [
+              "2 1- 0 9 1 4旺星",
+              "国产",
+              "宁畅",
+              "希沃",
+              "旺星",
+              "旺星 2 0",
+              "晨 一国产 东",
+              "比丽普",
+              "超聚变"
+            ]
+          },
+          {
+            "organization_id": 496,
+            "name": "广东三胜智能装备有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "2670000.00",
+            "product_brands": [
+              "2 0 9 三0 0胜 6- 2 0",
+              "三胜"
+            ]
+          },
+          {
+            "organization_id": 125,
+            "name": "广东星振科技有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "5475000.00",
+            "product_brands": [
+              "海克斯康"
+            ]
+          },
+          {
+            "organization_id": 1574,
+            "name": "广东梓瑞信息科技有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "3493226.00",
+            "product_brands": [
+              "8 7 8 s0e1ew 6- 2 o 0",
+              "OS-Easy",
+              "seew o",
+              "seewo",
+              "鑫灿辰"
+            ]
+          },
+          {
+            "organization_id": 662,
+            "name": "广东瑞普科技股份有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "6938790.00",
+            "product_brands": [
+              "8 7 8 s0e1ew 6- 2 o 0",
+              "seew o",
+              "seewo"
+            ]
+          },
+          {
+            "organization_id": 495,
+            "name": "广东蘑菇物联科技有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "1049980.00",
+            "product_brands": [
+              "2 1- 0 9 1 4蘑菇物联",
+              "OS-Easy",
+              "TP-LINK",
+              "先科",
+              "先科 联",
+              "先锋",
+              "创维",
+              "大唐安普",
+              "定制",
+              "海康威视",
+              "物 菇 蘑先科",
+              "蘑菇物联",
+              "蘑菇物联 2 0"
+            ]
+          },
+          {
+            "organization_id": 332,
+            "name": "广东锐志教育科技有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "7497600.00",
+            "product_brands": [
+              "3nh/三恩时",
+              "H3C、惠普等详见投标文件三、分项报价表",
+              "VOXELSENSE",
+              "WACOM",
+              "xTool、华之尊等详见投标文件三、分项报价表",
+              "希沃、Wanksiya万课声扬等详见投标文件三、分项报价表",
+              "拓竹、惠普等详见投标文件三、分项报价表",
+              "数字视界",
+              "数字视界、中教智学等详见投标文件三、分项报价表",
+              "永科视觉、卡莱特等详见投标文件三、分项报价表",
+              "猛犸、OVER EXP等详见投标文件三、分项报价表",
+              "酷家乐、惠普等详见投标文件三、分项报价表",
+              "锐志"
+            ]
+          },
+          {
+            "organization_id": 620,
+            "name": "广州创智引擎智能科技有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "2450000.00",
+            "product_brands": [
+              "度量",
+              "燧光、比丽普、优力普、里诺电脑"
+            ]
+          },
+          {
+            "organization_id": 557,
+            "name": "广州市乾润信息技术有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "3397000.00",
+            "product_brands": [
+              "dahua",
+              "优必选、 PICO 、英特尔 2 0 2 1- 0 9 1 4",
+              "优必选、PICO、英特尔",
+              "元源",
+              "华为",
+              "华硕",
+              "定制",
+              "宝承",
+              "山泽",
+              "息 信 润 乾定制",
+              "拓竹",
+              "毅轩",
+              "比丽普",
+              "海康威视",
+              "深枫",
+              "绿联"
+            ]
+          },
+          {
+            "organization_id": 619,
+            "name": "江苏皓博数字科技发展有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "2080000.00",
+            "product_brands": [
+              "8 6 8 五0 0舟 6- 2 0",
+              "五舟",
+              "比丽普、定制",
+              "里诺"
+            ]
+          },
+          {
+            "organization_id": 381,
+            "name": "深圳市金凯博自动化测试有限公司",
+            "award_package_count": 1,
+            "award_amount_total": "9965000.00",
+            "product_brands": [
+              "金凯博"
+            ]
+          }
+        ]
+      },
+      "http": {
+        "status": 200,
+        "elapsed_ms": 122.4998,
+        "result_counts": {
+          "awardees": 15
+        },
+        "result": {
+          "buyer": {
+            "id": 124,
+            "canonical_name": "东莞职业技术学院"
+          },
+          "awardees": [
+            {
+              "organization_id": 777,
+              "name": "上海形宙数字技术有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "2198000.00",
+              "product_brands": [
+                "9 1 4 PPB",
+                "PPB",
+                "PPB 2 0 2 1- 0",
+                "字 数 宙PPB 形"
+              ]
+            },
+            {
+              "organization_id": 713,
+              "name": "东莞小豚智能技术有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "3408800.00",
+              "product_brands": [
+                "2 1- 0 9 1 4华硕",
+                "华为",
+                "华硕",
+                "定制",
+                "小豚智能",
+                "智 豚 小华硕",
+                "智谷",
+                "智谷 2 0",
+                "比丽普",
+                "比丽普 能"
+              ]
+            },
+            {
+              "organization_id": 114,
+              "name": "中国移动通信集团广东有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "3059996.00",
+              "product_brands": [
+                "8 7 8 鑫0 1城 6- 2 0",
+                "DASUNG",
+                "优力普",
+                "力扑",
+                "噢易云",
+                "安道",
+                "旺星",
+                "有 东 广 团噢易云 集",
+                "赖工",
+                "里诺",
+                "鑫城"
+              ]
+            },
+            {
+              "organization_id": 1995,
+              "name": "北京智谷星图科技有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "2667000.00",
+              "product_brands": [
+                "2 0 9 里诺0 0电脑 6- 2 0",
+                "名扬京源",
+                "固永家具",
+                "普开",
+                "智谷星图 、紫金盾",
+                "智谷星图、紫金盾",
+                "里诺电脑"
+              ]
+            },
+            {
+              "organization_id": 513,
+              "name": "广东一晨科技有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "1299930.00",
+              "product_brands": [
+                "2 1- 0 9 1 4旺星",
+                "国产",
+                "宁畅",
+                "希沃",
+                "旺星",
+                "旺星 2 0",
+                "晨 一国产 东",
+                "比丽普",
+                "超聚变"
+              ]
+            },
+            {
+              "organization_id": 496,
+              "name": "广东三胜智能装备有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "2670000.00",
+              "product_brands": [
+                "2 0 9 三0 0胜 6- 2 0",
+                "三胜"
+              ]
+            },
+            {
+              "organization_id": 125,
+              "name": "广东星振科技有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "5475000.00",
+              "product_brands": [
+                "海克斯康"
+              ]
+            },
+            {
+              "organization_id": 1574,
+              "name": "广东梓瑞信息科技有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "3493226.00",
+              "product_brands": [
+                "8 7 8 s0e1ew 6- 2 o 0",
+                "OS-Easy",
+                "seew o",
+                "seewo",
+                "鑫灿辰"
+              ]
+            },
+            {
+              "organization_id": 662,
+              "name": "广东瑞普科技股份有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "6938790.00",
+              "product_brands": [
+                "8 7 8 s0e1ew 6- 2 o 0",
+                "seew o",
+                "seewo"
+              ]
+            },
+            {
+              "organization_id": 495,
+              "name": "广东蘑菇物联科技有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "1049980.00",
+              "product_brands": [
+                "2 1- 0 9 1 4蘑菇物联",
+                "OS-Easy",
+                "TP-LINK",
+                "先科",
+                "先科 联",
+                "先锋",
+                "创维",
+                "大唐安普",
+                "定制",
+                "海康威视",
+                "物 菇 蘑先科",
+                "蘑菇物联",
+                "蘑菇物联 2 0"
+              ]
+            },
+            {
+              "organization_id": 332,
+              "name": "广东锐志教育科技有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "7497600.00",
+              "product_brands": [
+                "3nh/三恩时",
+                "H3C、惠普等详见投标文件三、分项报价表",
+                "VOXELSENSE",
+                "WACOM",
+                "xTool、华之尊等详见投标文件三、分项报价表",
+                "希沃、Wanksiya万课声扬等详见投标文件三、分项报价表",
+                "拓竹、惠普等详见投标文件三、分项报价表",
+                "数字视界",
+                "数字视界、中教智学等详见投标文件三、分项报价表",
+                "永科视觉、卡莱特等详见投标文件三、分项报价表",
+                "猛犸、OVER EXP等详见投标文件三、分项报价表",
+                "酷家乐、惠普等详见投标文件三、分项报价表",
+                "锐志"
+              ]
+            },
+            {
+              "organization_id": 620,
+              "name": "广州创智引擎智能科技有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "2450000.00",
+              "product_brands": [
+                "度量",
+                "燧光、比丽普、优力普、里诺电脑"
+              ]
+            },
+            {
+              "organization_id": 557,
+              "name": "广州市乾润信息技术有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "3397000.00",
+              "product_brands": [
+                "dahua",
+                "优必选、 PICO 、英特尔 2 0 2 1- 0 9 1 4",
+                "优必选、PICO、英特尔",
+                "元源",
+                "华为",
+                "华硕",
+                "定制",
+                "宝承",
+                "山泽",
+                "息 信 润 乾定制",
+                "拓竹",
+                "毅轩",
+                "比丽普",
+                "海康威视",
+                "深枫",
+                "绿联"
+              ]
+            },
+            {
+              "organization_id": 619,
+              "name": "江苏皓博数字科技发展有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "2080000.00",
+              "product_brands": [
+                "8 6 8 五0 0舟 6- 2 0",
+                "五舟",
+                "比丽普、定制",
+                "里诺"
+              ]
+            },
+            {
+              "organization_id": 381,
+              "name": "深圳市金凯博自动化测试有限公司",
+              "award_package_count": 1,
+              "award_amount_total": "9965000.00",
+              "product_brands": [
+                "金凯博"
+              ]
+            }
+          ]
+        },
+        "matches_function_result": true,
+        "differing_keys": [],
+        "display_arrays_match": true
+      }
+    },
+    "buyer_bidders": {
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/analytics/buyers/124/bidders",
+        "params": {
+          "include_winners": "false",
+          "top": 5
+        }
+      },
+      "first_call_ms": 12.5964,
+      "warm_p50_ms": 12.1403,
+      "warm_p95_ms": 13.2331,
+      "warm_samples_ms": [
+        13.1677,
+        10.7412,
+        12.1817,
+        13.2331,
+        13.8616,
+        11.4217,
+        10.7954,
+        12.2057,
+        11.2988,
+        11.1947,
+        12.4738,
+        12.4429,
+        12.482,
+        11.5871,
+        11.8707,
+        12.3084,
+        11.6363,
+        13.1157,
+        12.2867,
+        12.0218,
+        12.1774,
+        11.269,
+        12.8573,
+        12.1032,
+        11.5919,
+        11.9508,
+        12.0062,
+        12.5684,
+        12.1949,
+        11.0608
+      ],
+      "repeat_results_identical": true,
+      "result_counts": {
+        "top_bidders": 5,
+        "co_bidder_pairs": 5
+      },
+      "result": {
+        "buyer": {
+          "id": 124,
+          "canonical_name": "东莞职业技术学院"
+        },
+        "include_winners": false,
+        "top_bidders": [
+          {
+            "id": 385,
+            "canonical_name": "哈尔滨市南岗区成拾商贸行（个体工商户）",
+            "package_count": 4
+          },
+          {
+            "id": 114,
+            "canonical_name": "中国移动通信集团广东有限公司",
+            "package_count": 3
+          },
+          {
+            "id": 1132,
+            "canonical_name": "广东海格怡创科技有限公司",
+            "package_count": 3
+          },
+          {
+            "id": 1131,
+            "canonical_name": "东莞市京盾信息科技有限公司",
+            "package_count": 2
+          },
+          {
+            "id": 496,
+            "canonical_name": "广东三胜智能装备有限公司",
+            "package_count": 2
+          }
+        ],
+        "co_bidder_pairs": [
+          {
+            "org1": 1131,
+            "org2": 1132,
+            "name1": "东莞市京盾信息科技有限公司",
+            "name2": "广东海格怡创科技有限公司",
+            "package_count": 2
+          },
+          {
+            "org1": 114,
+            "org2": 1131,
+            "name1": "中国移动通信集团广东有限公司",
+            "name2": "东莞市京盾信息科技有限公司",
+            "package_count": 2
+          },
+          {
+            "org1": 114,
+            "org2": 1132,
+            "name1": "中国移动通信集团广东有限公司",
+            "name2": "广东海格怡创科技有限公司",
+            "package_count": 2
+          },
+          {
+            "org1": 385,
+            "org2": 715,
+            "name1": "哈尔滨市南岗区成拾商贸行（个体工商户）",
+            "name2": "广州中洛科技有限公司",
+            "package_count": 2
+          },
+          {
+            "org1": 1132,
+            "org2": 1575,
+            "name1": "广东海格怡创科技有限公司",
+            "name2": "广州视安智能科技有限公司",
+            "package_count": 2
+          }
+        ]
+      },
+      "http": {
+        "status": 200,
+        "elapsed_ms": 14.9405,
+        "result_counts": {
+          "top_bidders": 5,
+          "co_bidder_pairs": 5
+        },
+        "result": {
+          "buyer": {
+            "id": 124,
+            "canonical_name": "东莞职业技术学院"
+          },
+          "include_winners": false,
+          "top_bidders": [
+            {
+              "id": 385,
+              "canonical_name": "哈尔滨市南岗区成拾商贸行（个体工商户）",
+              "package_count": 4
+            },
+            {
+              "id": 114,
+              "canonical_name": "中国移动通信集团广东有限公司",
+              "package_count": 3
+            },
+            {
+              "id": 1132,
+              "canonical_name": "广东海格怡创科技有限公司",
+              "package_count": 3
+            },
+            {
+              "id": 1131,
+              "canonical_name": "东莞市京盾信息科技有限公司",
+              "package_count": 2
+            },
+            {
+              "id": 496,
+              "canonical_name": "广东三胜智能装备有限公司",
+              "package_count": 2
+            }
+          ],
+          "co_bidder_pairs": [
+            {
+              "org1": 1131,
+              "org2": 1132,
+              "name1": "东莞市京盾信息科技有限公司",
+              "name2": "广东海格怡创科技有限公司",
+              "package_count": 2
+            },
+            {
+              "org1": 114,
+              "org2": 1131,
+              "name1": "中国移动通信集团广东有限公司",
+              "name2": "东莞市京盾信息科技有限公司",
+              "package_count": 2
+            },
+            {
+              "org1": 114,
+              "org2": 1132,
+              "name1": "中国移动通信集团广东有限公司",
+              "name2": "广东海格怡创科技有限公司",
+              "package_count": 2
+            },
+            {
+              "org1": 385,
+              "org2": 715,
+              "name1": "哈尔滨市南岗区成拾商贸行（个体工商户）",
+              "name2": "广州中洛科技有限公司",
+              "package_count": 2
+            },
+            {
+              "org1": 1132,
+              "org2": 1575,
+              "name1": "广东海格怡创科技有限公司",
+              "name2": "广州视安智能科技有限公司",
+              "package_count": 2
+            }
+          ]
+        },
+        "matches_function_result": true,
+        "differing_keys": [],
+        "display_arrays_match": true
+      }
+    },
+    "supplier_co_bidders": {
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/analytics/suppliers/114/co-bidders",
+        "params": {
+          "include_winners": "false",
+          "top": 5
+        }
+      },
+      "first_call_ms": 11.3262,
+      "warm_p50_ms": 11.9091,
+      "warm_p95_ms": 13.1112,
+      "warm_samples_ms": [
+        12.1585,
+        12.2563,
+        12.626,
+        12.5483,
+        10.6909,
+        13.3765,
+        10.7109,
+        10.3619,
+        10.7842,
+        10.4968,
+        12.3559,
+        12.2385,
+        10.6445,
+        10.771,
+        11.5475,
+        13.1025,
+        12.7132,
+        11.8221,
+        11.7416,
+        13.1112,
+        11.9511,
+        11.8959,
+        11.0486,
+        12.2105,
+        11.353,
+        11.9222,
+        11.9589,
+        12.2082,
+        11.8925,
+        11.1634
+      ],
+      "repeat_results_identical": true,
+      "result_counts": {
+        "top_co_bidders": 5,
+        "packages": 25
+      },
+      "result": {
+        "supplier": {
+          "id": 114,
+          "canonical_name": "中国移动通信集团广东有限公司"
+        },
+        "base": "packages where supplier has an award",
+        "include_winners": false,
+        "top_co_bidders": [
+          {
+            "organization_id": 157,
+            "canonical_name": "中国电信股份有限公司广东分公司",
+            "package_count": 8
+          },
+          {
+            "organization_id": 70,
+            "canonical_name": "联通（广东）产业互联网有限公司",
+            "package_count": 6
+          },
+          {
+            "organization_id": 401,
+            "canonical_name": "华鑫技术有限公司",
+            "package_count": 2
+          },
+          {
+            "organization_id": 117,
+            "canonical_name": "广东品云信息技术有限公司",
+            "package_count": 2
+          },
+          {
+            "organization_id": 429,
+            "canonical_name": "广东新逸达科技有限公司",
+            "package_count": 2
+          }
+        ],
+        "packages": [
+          {
+            "package_id": 41,
+            "project_id": 32,
+            "project_name": "电子信息学科交叉平台能源智能管控调度综合研发平台",
+            "project_number": "440601-2026-00042",
+            "buyer_name": "佛山大学",
+            "target_award_amount": "3109251.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 117,
+                "canonical_name": "广东品云信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 115,
+                "canonical_name": "广东影谱科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 116,
+                "canonical_name": "广东长盈科技股份有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 42,
+            "project_id": 32,
+            "project_name": "电子信息学科交叉平台能源智能管控调度综合研发平台",
+            "project_number": "440601-2026-00042",
+            "buyer_name": "佛山大学",
+            "target_award_amount": "2800311.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 117,
+                "canonical_name": "广东品云信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 116,
+                "canonical_name": "广东长盈科技股份有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 142,
+            "project_id": 102,
+            "project_name": "省应急管理厅政务信息系统运营（2026年）项目",
+            "project_number": "GPCGD264314FG007F",
+            "buyer_name": "广东省应急管理厅",
+            "target_award_amount": "11030000.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 402,
+                "canonical_name": "北京南方高科科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 401,
+                "canonical_name": "华鑫技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 400,
+                "canonical_name": "广州腾方科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 399,
+                "canonical_name": "广州阳光耐特电子有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 151,
+            "project_id": 109,
+            "project_name": "中山市南部区域中心医院改造提升工程智能化系统建设项目",
+            "project_number": "M4400000707536271",
+            "buyer_name": "中山市卫生健康局三乡分局",
+            "target_award_amount": "22077007.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 432,
+                "canonical_name": "中山市祥合科技有限公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 430,
+                "canonical_name": "宜通世纪科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 429,
+                "canonical_name": "广东新逸达科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 431,
+                "canonical_name": "广东汇通信息科技股份有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 168,
+            "project_id": 120,
+            "project_name": "广州市公安局南沙分局2025年高清视频监控系统租赁项目",
+            "project_number": "CZ2026-0160",
+            "buyer_name": "广州市公安局南沙分局",
+            "target_award_amount": "3860000.00",
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 479,
+                "canonical_name": "广东瞬康信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 477,
+                "canonical_name": "广州感知数据科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 478,
+                "canonical_name": "深圳市中艺智能科技有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 435,
+            "project_id": 308,
+            "project_name": "区政务网互联网统一出口年费",
+            "project_number": "TC2026（NH）WZ0004",
+            "buyer_name": "佛山市南海区政务网络中心",
+            "target_award_amount": "1178000.00",
+            "participants": [
+              {
+                "organization_id": 1243,
+                "canonical_name": "中国电信股份有限公司佛山南海区分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1244,
+                "canonical_name": "中国联合网络通信有限公司佛山市分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1247,
+                "canonical_name": "佛山市和讯通信工程有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1246,
+                "canonical_name": "广东赛诺科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1245,
+                "canonical_name": "广州市千立信息科技有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 556,
+            "project_id": 378,
+            "project_name": "第二批实训室电脑更新项目(二次)",
+            "project_number": "441901-2026-01878",
+            "buyer_name": "东莞职业技术学院",
+            "target_award_amount": "3059996.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1132,
+                "canonical_name": "广东海格怡创科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1575,
+                "canonical_name": "广州视安智能科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1577,
+                "canonical_name": "广州阿甘智能科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1576,
+                "canonical_name": "锐宣信息技术(广东）有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 599,
+            "project_id": 398,
+            "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+            "project_number": "GPCGD263104FG001F",
+            "buyer_name": "广东省投资和信用中心",
+            "target_award_amount": "478400.00",
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 224,
+                "canonical_name": "京华信息科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1098,
+                "canonical_name": "北明软件有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1668,
+                "canonical_name": "卫士通（广州）信息安全技术有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 602,
+            "project_id": 399,
+            "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+            "project_number": "CZ2026-0520",
+            "buyer_name": "广州市第十二人民医院",
+            "target_award_amount": "1150000.00",
+            "participants": [
+              {
+                "organization_id": 1675,
+                "canonical_name": "上海华讯网络系统有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 603,
+            "project_id": 399,
+            "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+            "project_number": "CZ2026-0520",
+            "buyer_name": "广州市第十二人民医院",
+            "target_award_amount": "720000.00",
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1676,
+                "canonical_name": "广州领慧信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 624,
+            "project_id": 407,
+            "project_name": "2026年网络安全实战攻防能力建设项目",
+            "project_number": "GPCGD264255FG019F",
+            "buyer_name": "中共广东省委网络安全和信息化委员会办公室",
+            "target_award_amount": "1540000.00",
+            "participants": [
+              {
+                "organization_id": 1719,
+                "canonical_name": "三六零数字安全科技集团有限公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1717,
+                "canonical_name": "广东亿迅科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1718,
+                "canonical_name": "广州佳简通信科技有限公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 630,
+            "project_id": 411,
+            "project_name": "广州市新穗学校2026年信息化建设项目",
+            "project_number": "CZ2026-0502",
+            "buyer_name": "广州市新穗学校",
+            "target_award_amount": "1178806.00",
+            "participants": [
+              {
+                "organization_id": 1741,
+                "canonical_name": "东莞市凯迅电子科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 793,
+                "canonical_name": "广州实地信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1740,
+                "canonical_name": "广州肯东网络科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 709,
+                "canonical_name": "联通数字科技有限公司广东省分公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 706,
+            "project_id": 443,
+            "project_name": "东莞市樟木头中学（樟洋校区）智能化系统设备采购项目",
+            "project_number": "441900020-2026-00329",
+            "buyer_name": "东莞市樟木头中学",
+            "target_award_amount": "5920173.70",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1893,
+                "canonical_name": "佛山市粤来粤浩环保科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1892,
+                "canonical_name": "广东恒伟信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1894,
+                "canonical_name": "广西中教智云科技发展有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1891,
+                "canonical_name": "深圳市电信工程有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 745,
+            "project_id": 467,
+            "project_name": "广东省统计局手机信令大数据服务采购",
+            "project_number": "GPCGD264116FD004F.",
+            "buyer_name": "广东省统计局",
+            "target_award_amount": "790000.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              }
+            ]
+          },
+          {
+            "package_id": 785,
+            "project_id": 487,
+            "project_name": "广东轻工职业技术大学2026年度公共计算机实训室升级改造项目",
+            "project_number": "0835-260Z16901771",
+            "buyer_name": "广东轻工职业技术大学",
+            "target_award_amount": "4680000.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1350,
+                "canonical_name": "广东中鑫华科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2116,
+                "canonical_name": "广州力富科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2117,
+                "canonical_name": "广州林智智能科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1129,
+                "canonical_name": "广州正特科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2118,
+                "canonical_name": "深圳市时代尖端科技发展有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 848,
+            "project_id": 513,
+            "project_name": "博罗中等专业学校新校区续建扩建工程项目（智慧校园建设项目）三",
+            "project_number": "惠公易省云采博罗〔2026〕017号",
+            "buyer_name": "博罗中等专业学校",
+            "target_award_amount": "7690000.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 2221,
+                "canonical_name": "广东华威科智能技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2222,
+                "canonical_name": "广东汇京建设有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 899,
+            "project_id": 536,
+            "project_name": "科研智算资源整合及能力扩展采购项目",
+            "project_number": "M4400000707538350-南海室招（货）〔2026〕003号",
+            "buyer_name": "南方海洋科学与工程广东省实验室（珠海）",
+            "target_award_amount": "17349000.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 2303,
+                "canonical_name": "北京中科储天信息技术有限公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 800,
+                "canonical_name": "广东申立信息工程股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2301,
+                "canonical_name": "广东精点数据科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2302,
+                "canonical_name": "珠海迈科智能科技股份有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 901,
+            "project_id": 538,
+            "project_name": "广东省技师学院计算机广告专业建设设备采购项目",
+            "project_number": "0809-26411HZG101005401",
+            "buyer_name": "广东省技师学院",
+            "target_award_amount": "1286860.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 2309,
+                "canonical_name": "广东安信科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2308,
+                "canonical_name": "广州睿纵信息科技有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 1169,
+            "project_id": 697,
+            "project_name": "广州市公安局交管支队2026年信息化运维项目-GZ-ITMS桌面、硬件及网络基础设施维护项目(二次)",
+            "project_number": "CZ2026-0324",
+            "buyer_name": "广州市公安局",
+            "target_award_amount": "2615000.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 401,
+                "canonical_name": "华鑫技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2992,
+                "canonical_name": "广州市单元信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2991,
+                "canonical_name": "广州沃龙信息技术有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 1218,
+            "project_id": 737,
+            "project_name": "东莞市第九高级中学云终端设备采购项目",
+            "project_number": "441901-2026-04797",
+            "buyer_name": "东莞市第九高级中学",
+            "target_award_amount": "2295920.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3128,
+                "canonical_name": "华卫软件技术（广东）有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3127,
+                "canonical_name": "广东卓慧电子有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 1245,
+            "project_id": 758,
+            "project_name": "惠州市第一中学基础设施升级修缮项目信息化项目",
+            "project_number": "惠公易省云采市直〔2026〕83号",
+            "buyer_name": "惠州市第一中学",
+            "target_award_amount": "20507244.30",
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3205,
+                "canonical_name": "中国铁塔股份有限公司惠州市分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3204,
+                "canonical_name": "广东华联汇科技服务有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 1290,
+            "project_id": 786,
+            "project_name": "博罗县妇幼保健院异地升级改造信息化配套工程（二期）新增项目",
+            "project_number": "ZHCG20260015",
+            "buyer_name": "博罗县妇幼保健院",
+            "target_award_amount": "1238700.00",
+            "participants": [
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3326,
+                "canonical_name": "广东企志科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3325,
+                "canonical_name": "惠州市新航科技有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 1480,
+            "project_id": 915,
+            "project_name": "2026年东莞市公安局南城分局简易卡口运维服务项目（28个月）",
+            "project_number": "441900003-2026-00691",
+            "buyer_name": "东莞市公安局南城分局",
+            "target_award_amount": "2875000.00",
+            "participants": [
+              {
+                "organization_id": 3778,
+                "canonical_name": "东莞市文达工程技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1091,
+                "canonical_name": "中国电信股份有限公司东莞分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3777,
+                "canonical_name": "阳江市华睿信息技术有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 1499,
+            "project_id": 931,
+            "project_name": "中山市城市智慧大脑运维服务项目（2026-2028）",
+            "project_number": "442000-2026-02485",
+            "buyer_name": "中山市政务服务和数据管理局",
+            "target_award_amount": "9197094.00",
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3840,
+                "canonical_name": "广东凌臣科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 429,
+                "canonical_name": "广东新逸达科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 799,
+                "canonical_name": "新三科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          },
+          {
+            "package_id": 1593,
+            "project_id": 993,
+            "project_name": "2026-2027年度广东省无线电监测专网线路租赁及无线电管理一体化平台运营运维服务项目",
+            "project_number": "GZGK26P647C0647Z",
+            "buyer_name": "广东省工业和信息化厅",
+            "target_award_amount": "6410000.00",
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1651,
+                "canonical_name": "广东网安科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 4071,
+                "canonical_name": "广州中航智信科技有限公司",
+                "outcome": "unknown"
+              }
+            ]
+          }
+        ]
+      },
+      "http": {
+        "status": 200,
+        "elapsed_ms": 16.3286,
+        "result_counts": {
+          "top_co_bidders": 5,
+          "packages": 25
+        },
+        "result": {
+          "supplier": {
+            "id": 114,
+            "canonical_name": "中国移动通信集团广东有限公司"
+          },
+          "base": "packages where supplier has an award",
+          "top_co_bidders": [
+            {
+              "organization_id": 157,
+              "canonical_name": "中国电信股份有限公司广东分公司",
+              "package_count": 8
+            },
+            {
+              "organization_id": 70,
+              "canonical_name": "联通（广东）产业互联网有限公司",
+              "package_count": 6
+            },
+            {
+              "organization_id": 401,
+              "canonical_name": "华鑫技术有限公司",
+              "package_count": 2
+            },
+            {
+              "organization_id": 117,
+              "canonical_name": "广东品云信息技术有限公司",
+              "package_count": 2
+            },
+            {
+              "organization_id": 429,
+              "canonical_name": "广东新逸达科技有限公司",
+              "package_count": 2
+            }
+          ],
+          "packages": [
+            {
+              "package_id": 41,
+              "project_id": 32,
+              "project_name": "电子信息学科交叉平台能源智能管控调度综合研发平台",
+              "project_number": "440601-2026-00042",
+              "buyer_name": "佛山大学",
+              "target_award_amount": "3109251.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 117,
+                  "canonical_name": "广东品云信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 115,
+                  "canonical_name": "广东影谱科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 116,
+                  "canonical_name": "广东长盈科技股份有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 42,
+              "project_id": 32,
+              "project_name": "电子信息学科交叉平台能源智能管控调度综合研发平台",
+              "project_number": "440601-2026-00042",
+              "buyer_name": "佛山大学",
+              "target_award_amount": "2800311.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 117,
+                  "canonical_name": "广东品云信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 116,
+                  "canonical_name": "广东长盈科技股份有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 142,
+              "project_id": 102,
+              "project_name": "省应急管理厅政务信息系统运营（2026年）项目",
+              "project_number": "GPCGD264314FG007F",
+              "buyer_name": "广东省应急管理厅",
+              "target_award_amount": "11030000.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 402,
+                  "canonical_name": "北京南方高科科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 401,
+                  "canonical_name": "华鑫技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 400,
+                  "canonical_name": "广州腾方科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 399,
+                  "canonical_name": "广州阳光耐特电子有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 151,
+              "project_id": 109,
+              "project_name": "中山市南部区域中心医院改造提升工程智能化系统建设项目",
+              "project_number": "M4400000707536271",
+              "buyer_name": "中山市卫生健康局三乡分局",
+              "target_award_amount": "22077007.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 432,
+                  "canonical_name": "中山市祥合科技有限公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 430,
+                  "canonical_name": "宜通世纪科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 429,
+                  "canonical_name": "广东新逸达科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 431,
+                  "canonical_name": "广东汇通信息科技股份有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 168,
+              "project_id": 120,
+              "project_name": "广州市公安局南沙分局2025年高清视频监控系统租赁项目",
+              "project_number": "CZ2026-0160",
+              "buyer_name": "广州市公安局南沙分局",
+              "target_award_amount": "3860000.00",
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 479,
+                  "canonical_name": "广东瞬康信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 477,
+                  "canonical_name": "广州感知数据科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 478,
+                  "canonical_name": "深圳市中艺智能科技有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 435,
+              "project_id": 308,
+              "project_name": "区政务网互联网统一出口年费",
+              "project_number": "TC2026（NH）WZ0004",
+              "buyer_name": "佛山市南海区政务网络中心",
+              "target_award_amount": "1178000.00",
+              "participants": [
+                {
+                  "organization_id": 1243,
+                  "canonical_name": "中国电信股份有限公司佛山南海区分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1244,
+                  "canonical_name": "中国联合网络通信有限公司佛山市分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1247,
+                  "canonical_name": "佛山市和讯通信工程有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1246,
+                  "canonical_name": "广东赛诺科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1245,
+                  "canonical_name": "广州市千立信息科技有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 556,
+              "project_id": 378,
+              "project_name": "第二批实训室电脑更新项目(二次)",
+              "project_number": "441901-2026-01878",
+              "buyer_name": "东莞职业技术学院",
+              "target_award_amount": "3059996.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1132,
+                  "canonical_name": "广东海格怡创科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1575,
+                  "canonical_name": "广州视安智能科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1577,
+                  "canonical_name": "广州阿甘智能科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1576,
+                  "canonical_name": "锐宣信息技术(广东）有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 599,
+              "project_id": 398,
+              "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+              "project_number": "GPCGD263104FG001F",
+              "buyer_name": "广东省投资和信用中心",
+              "target_award_amount": "478400.00",
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 224,
+                  "canonical_name": "京华信息科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1098,
+                  "canonical_name": "北明软件有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1668,
+                  "canonical_name": "卫士通（广州）信息安全技术有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 602,
+              "project_id": 399,
+              "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+              "project_number": "CZ2026-0520",
+              "buyer_name": "广州市第十二人民医院",
+              "target_award_amount": "1150000.00",
+              "participants": [
+                {
+                  "organization_id": 1675,
+                  "canonical_name": "上海华讯网络系统有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 603,
+              "project_id": 399,
+              "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+              "project_number": "CZ2026-0520",
+              "buyer_name": "广州市第十二人民医院",
+              "target_award_amount": "720000.00",
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1676,
+                  "canonical_name": "广州领慧信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 624,
+              "project_id": 407,
+              "project_name": "2026年网络安全实战攻防能力建设项目",
+              "project_number": "GPCGD264255FG019F",
+              "buyer_name": "中共广东省委网络安全和信息化委员会办公室",
+              "target_award_amount": "1540000.00",
+              "participants": [
+                {
+                  "organization_id": 1719,
+                  "canonical_name": "三六零数字安全科技集团有限公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1717,
+                  "canonical_name": "广东亿迅科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1718,
+                  "canonical_name": "广州佳简通信科技有限公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 630,
+              "project_id": 411,
+              "project_name": "广州市新穗学校2026年信息化建设项目",
+              "project_number": "CZ2026-0502",
+              "buyer_name": "广州市新穗学校",
+              "target_award_amount": "1178806.00",
+              "participants": [
+                {
+                  "organization_id": 1741,
+                  "canonical_name": "东莞市凯迅电子科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 793,
+                  "canonical_name": "广州实地信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1740,
+                  "canonical_name": "广州肯东网络科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 709,
+                  "canonical_name": "联通数字科技有限公司广东省分公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 706,
+              "project_id": 443,
+              "project_name": "东莞市樟木头中学（樟洋校区）智能化系统设备采购项目",
+              "project_number": "441900020-2026-00329",
+              "buyer_name": "东莞市樟木头中学",
+              "target_award_amount": "5920173.70",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1893,
+                  "canonical_name": "佛山市粤来粤浩环保科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1892,
+                  "canonical_name": "广东恒伟信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1894,
+                  "canonical_name": "广西中教智云科技发展有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1891,
+                  "canonical_name": "深圳市电信工程有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 745,
+              "project_id": 467,
+              "project_name": "广东省统计局手机信令大数据服务采购",
+              "project_number": "GPCGD264116FD004F.",
+              "buyer_name": "广东省统计局",
+              "target_award_amount": "790000.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                }
+              ]
+            },
+            {
+              "package_id": 785,
+              "project_id": 487,
+              "project_name": "广东轻工职业技术大学2026年度公共计算机实训室升级改造项目",
+              "project_number": "0835-260Z16901771",
+              "buyer_name": "广东轻工职业技术大学",
+              "target_award_amount": "4680000.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1350,
+                  "canonical_name": "广东中鑫华科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2116,
+                  "canonical_name": "广州力富科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2117,
+                  "canonical_name": "广州林智智能科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1129,
+                  "canonical_name": "广州正特科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2118,
+                  "canonical_name": "深圳市时代尖端科技发展有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 848,
+              "project_id": 513,
+              "project_name": "博罗中等专业学校新校区续建扩建工程项目（智慧校园建设项目）三",
+              "project_number": "惠公易省云采博罗〔2026〕017号",
+              "buyer_name": "博罗中等专业学校",
+              "target_award_amount": "7690000.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 2221,
+                  "canonical_name": "广东华威科智能技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2222,
+                  "canonical_name": "广东汇京建设有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 899,
+              "project_id": 536,
+              "project_name": "科研智算资源整合及能力扩展采购项目",
+              "project_number": "M4400000707538350-南海室招（货）〔2026〕003号",
+              "buyer_name": "南方海洋科学与工程广东省实验室（珠海）",
+              "target_award_amount": "17349000.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 2303,
+                  "canonical_name": "北京中科储天信息技术有限公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 800,
+                  "canonical_name": "广东申立信息工程股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2301,
+                  "canonical_name": "广东精点数据科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2302,
+                  "canonical_name": "珠海迈科智能科技股份有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 901,
+              "project_id": 538,
+              "project_name": "广东省技师学院计算机广告专业建设设备采购项目",
+              "project_number": "0809-26411HZG101005401",
+              "buyer_name": "广东省技师学院",
+              "target_award_amount": "1286860.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 2309,
+                  "canonical_name": "广东安信科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2308,
+                  "canonical_name": "广州睿纵信息科技有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 1169,
+              "project_id": 697,
+              "project_name": "广州市公安局交管支队2026年信息化运维项目-GZ-ITMS桌面、硬件及网络基础设施维护项目(二次)",
+              "project_number": "CZ2026-0324",
+              "buyer_name": "广州市公安局",
+              "target_award_amount": "2615000.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 401,
+                  "canonical_name": "华鑫技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2992,
+                  "canonical_name": "广州市单元信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2991,
+                  "canonical_name": "广州沃龙信息技术有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 1218,
+              "project_id": 737,
+              "project_name": "东莞市第九高级中学云终端设备采购项目",
+              "project_number": "441901-2026-04797",
+              "buyer_name": "东莞市第九高级中学",
+              "target_award_amount": "2295920.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3128,
+                  "canonical_name": "华卫软件技术（广东）有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3127,
+                  "canonical_name": "广东卓慧电子有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 1245,
+              "project_id": 758,
+              "project_name": "惠州市第一中学基础设施升级修缮项目信息化项目",
+              "project_number": "惠公易省云采市直〔2026〕83号",
+              "buyer_name": "惠州市第一中学",
+              "target_award_amount": "20507244.30",
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3205,
+                  "canonical_name": "中国铁塔股份有限公司惠州市分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3204,
+                  "canonical_name": "广东华联汇科技服务有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 1290,
+              "project_id": 786,
+              "project_name": "博罗县妇幼保健院异地升级改造信息化配套工程（二期）新增项目",
+              "project_number": "ZHCG20260015",
+              "buyer_name": "博罗县妇幼保健院",
+              "target_award_amount": "1238700.00",
+              "participants": [
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3326,
+                  "canonical_name": "广东企志科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3325,
+                  "canonical_name": "惠州市新航科技有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 1480,
+              "project_id": 915,
+              "project_name": "2026年东莞市公安局南城分局简易卡口运维服务项目（28个月）",
+              "project_number": "441900003-2026-00691",
+              "buyer_name": "东莞市公安局南城分局",
+              "target_award_amount": "2875000.00",
+              "participants": [
+                {
+                  "organization_id": 3778,
+                  "canonical_name": "东莞市文达工程技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1091,
+                  "canonical_name": "中国电信股份有限公司东莞分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3777,
+                  "canonical_name": "阳江市华睿信息技术有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 1499,
+              "project_id": 931,
+              "project_name": "中山市城市智慧大脑运维服务项目（2026-2028）",
+              "project_number": "442000-2026-02485",
+              "buyer_name": "中山市政务服务和数据管理局",
+              "target_award_amount": "9197094.00",
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3840,
+                  "canonical_name": "广东凌臣科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 429,
+                  "canonical_name": "广东新逸达科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 799,
+                  "canonical_name": "新三科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            },
+            {
+              "package_id": 1593,
+              "project_id": 993,
+              "project_name": "2026-2027年度广东省无线电监测专网线路租赁及无线电管理一体化平台运营运维服务项目",
+              "project_number": "GZGK26P647C0647Z",
+              "buyer_name": "广东省工业和信息化厅",
+              "target_award_amount": "6410000.00",
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1651,
+                  "canonical_name": "广东网安科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 4071,
+                  "canonical_name": "广州中航智信科技有限公司",
+                  "outcome": "unknown"
+                }
+              ]
+            }
+          ]
+        },
+        "matches_function_result": false,
+        "differing_keys": [
+          "include_winners"
+        ],
+        "display_arrays_match": true
+      }
+    },
+    "common_buyers": {
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/analytics/common-buyers",
+        "json": {
+          "organization_ids": [
+            114,
+            157
+          ]
+        }
+      },
+      "first_call_ms": 9.3094,
+      "warm_p50_ms": 8.9043,
+      "warm_p95_ms": 10.1982,
+      "warm_samples_ms": [
+        8.8325,
+        8.6311,
+        9.0485,
+        9.0608,
+        9.0729,
+        8.8029,
+        8.564,
+        10.0096,
+        8.0071,
+        8.4346,
+        8.7746,
+        9.2778,
+        7.8278,
+        8.4246,
+        7.8602,
+        8.94,
+        9.4658,
+        8.8686,
+        8.6805,
+        9.4086,
+        9.059,
+        9.4571,
+        10.0935,
+        9.0119,
+        8.7061,
+        9.5724,
+        10.1982,
+        8.6895,
+        7.8427,
+        10.8635
+      ],
+      "repeat_results_identical": true,
+      "result_counts": {
+        "selected_suppliers": 2,
+        "buyers": 4
+      },
+      "result": {
+        "selected_suppliers": [
+          {
+            "id": 114,
+            "canonical_name": "中国移动通信集团广东有限公司"
+          },
+          {
+            "id": 157,
+            "canonical_name": "中国电信股份有限公司广东分公司"
+          }
+        ],
+        "buyers": [
+          {
+            "buyer": {
+              "id": 428,
+              "canonical_name": "中山市卫生健康局三乡分局"
+            },
+            "suppliers": [
+              {
+                "organization_id": 114,
+                "name": "中国移动通信集团广东有限公司",
+                "award_package_count": 1,
+                "award_amount_total": "22077007.00"
+              },
+              {
+                "organization_id": 157,
+                "name": "中国电信股份有限公司广东分公司",
+                "award_package_count": 2,
+                "award_amount_total": "6808020.33"
+              }
+            ],
+            "award_amount_total_unique_awards": "28885027.33"
+          },
+          {
+            "buyer": {
+              "id": 471,
+              "canonical_name": "广州市公安局南沙分局"
+            },
+            "suppliers": [
+              {
+                "organization_id": 114,
+                "name": "中国移动通信集团广东有限公司",
+                "award_package_count": 1,
+                "award_amount_total": "3860000.00"
+              },
+              {
+                "organization_id": 157,
+                "name": "中国电信股份有限公司广东分公司",
+                "award_package_count": 2,
+                "award_amount_total": "7410082.66"
+              }
+            ],
+            "award_amount_total_unique_awards": "11270082.66"
+          },
+          {
+            "buyer": {
+              "id": 1999,
+              "canonical_name": "广东省统计局"
+            },
+            "suppliers": [
+              {
+                "organization_id": 114,
+                "name": "中国移动通信集团广东有限公司",
+                "award_package_count": 1,
+                "award_amount_total": "790000.00"
+              },
+              {
+                "organization_id": 157,
+                "name": "中国电信股份有限公司广东分公司",
+                "award_package_count": 1,
+                "award_amount_total": "714000.00"
+              }
+            ],
+            "award_amount_total_unique_awards": "1504000.00"
+          },
+          {
+            "buyer": {
+              "id": 2823,
+              "canonical_name": "广州市公安局"
+            },
+            "suppliers": [
+              {
+                "organization_id": 114,
+                "name": "中国移动通信集团广东有限公司",
+                "award_package_count": 1,
+                "award_amount_total": "2615000.00"
+              },
+              {
+                "organization_id": 157,
+                "name": "中国电信股份有限公司广东分公司",
+                "award_package_count": 1,
+                "award_amount_total": "26228637.60"
+              }
+            ],
+            "award_amount_total_unique_awards": "28843637.60"
+          }
+        ]
+      },
+      "http": {
+        "status": 200,
+        "elapsed_ms": 11.1502,
+        "result_counts": {
+          "selected_suppliers": 2,
+          "buyers": 4
+        },
+        "result": {
+          "selected_suppliers": [
+            {
+              "id": 114,
+              "canonical_name": "中国移动通信集团广东有限公司"
+            },
+            {
+              "id": 157,
+              "canonical_name": "中国电信股份有限公司广东分公司"
+            }
+          ],
+          "buyers": [
+            {
+              "buyer": {
+                "id": 428,
+                "canonical_name": "中山市卫生健康局三乡分局"
+              },
+              "suppliers": [
+                {
+                  "organization_id": 114,
+                  "name": "中国移动通信集团广东有限公司",
+                  "award_package_count": 1,
+                  "award_amount_total": "22077007.00"
+                },
+                {
+                  "organization_id": 157,
+                  "name": "中国电信股份有限公司广东分公司",
+                  "award_package_count": 2,
+                  "award_amount_total": "6808020.33"
+                }
+              ],
+              "award_amount_total_unique_awards": "28885027.33"
+            },
+            {
+              "buyer": {
+                "id": 471,
+                "canonical_name": "广州市公安局南沙分局"
+              },
+              "suppliers": [
+                {
+                  "organization_id": 114,
+                  "name": "中国移动通信集团广东有限公司",
+                  "award_package_count": 1,
+                  "award_amount_total": "3860000.00"
+                },
+                {
+                  "organization_id": 157,
+                  "name": "中国电信股份有限公司广东分公司",
+                  "award_package_count": 2,
+                  "award_amount_total": "7410082.66"
+                }
+              ],
+              "award_amount_total_unique_awards": "11270082.66"
+            },
+            {
+              "buyer": {
+                "id": 1999,
+                "canonical_name": "广东省统计局"
+              },
+              "suppliers": [
+                {
+                  "organization_id": 114,
+                  "name": "中国移动通信集团广东有限公司",
+                  "award_package_count": 1,
+                  "award_amount_total": "790000.00"
+                },
+                {
+                  "organization_id": 157,
+                  "name": "中国电信股份有限公司广东分公司",
+                  "award_package_count": 1,
+                  "award_amount_total": "714000.00"
+                }
+              ],
+              "award_amount_total_unique_awards": "1504000.00"
+            },
+            {
+              "buyer": {
+                "id": 2823,
+                "canonical_name": "广州市公安局"
+              },
+              "suppliers": [
+                {
+                  "organization_id": 114,
+                  "name": "中国移动通信集团广东有限公司",
+                  "award_package_count": 1,
+                  "award_amount_total": "2615000.00"
+                },
+                {
+                  "organization_id": 157,
+                  "name": "中国电信股份有限公司广东分公司",
+                  "award_package_count": 1,
+                  "award_amount_total": "26228637.60"
+                }
+              ],
+              "award_amount_total_unique_awards": "28843637.60"
+            }
+          ]
+        },
+        "matches_function_result": true,
+        "differing_keys": [],
+        "display_arrays_match": true
+      }
+    },
+    "common_projects": {
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/analytics/common-projects",
+        "json": {
+          "organization_ids": [
+            114,
+            157
+          ]
+        }
+      },
+      "first_call_ms": 22.0929,
+      "warm_p50_ms": 22.8483,
+      "warm_p95_ms": 24.6457,
+      "warm_samples_ms": [
+        22.1705,
+        20.9903,
+        23.755,
+        22.8981,
+        21.4088,
+        20.6919,
+        20.8515,
+        23.1523,
+        21.0765,
+        21.4006,
+        23.5274,
+        24.6457,
+        22.4856,
+        22.2692,
+        25.3207,
+        22.2268,
+        21.6533,
+        21.0398,
+        22.9598,
+        22.9628,
+        22.7985,
+        23.8962,
+        24.2145,
+        23.8239,
+        24.6235,
+        21.7952,
+        24.4112,
+        23.6899,
+        22.384,
+        24.5636
+      ],
+      "repeat_results_identical": true,
+      "result_counts": {
+        "required_entities": 2,
+        "packages": 29,
+        "package_count": 29,
+        "project_count": 22
+      },
+      "result": {
+        "required_entities": [
+          {
+            "id": 114,
+            "canonical_name": "中国移动通信集团广东有限公司"
+          },
+          {
+            "id": 157,
+            "canonical_name": "中国电信股份有限公司广东分公司"
+          }
+        ],
+        "packages": [
+          {
+            "package_id": 53,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 42,
+            "project_name": "民众街道民众分局视频监控运维升级改造项目",
+            "project_number": "ZSJD25ZC0118",
+            "announced_total_award": "3588000.000000",
+            "package_award_total": "3588000.000000",
+            "buyer_organization_id": 156,
+            "buyer": {
+              "id": 156,
+              "canonical_name": "中山市公安局民众分局"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 158,
+                "canonical_name": "中山万鼎科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 159,
+                "canonical_name": "广东布恩网络有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "3588000.00"
+          },
+          {
+            "package_id": 103,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 73,
+            "project_name": "广东药科大学广州校区无线网络建设（一期）采购项目",
+            "project_number": "GDMZ-2026001",
+            "announced_total_award": "5697016.000000",
+            "package_award_total": "5697016.000000",
+            "buyer_organization_id": 280,
+            "buyer": {
+              "id": 280,
+              "canonical_name": "广东药科大学"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 281,
+                "canonical_name": "广州安创网络科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 283,
+                "canonical_name": "广州慧茂电子科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 282,
+                "canonical_name": "广州茂业通信科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "winner"
+              }
+            ],
+            "award_amount_total_unique_awards": "5697016.18"
+          },
+          {
+            "package_id": 168,
+            "package_code": "2",
+            "package_name": null,
+            "project_id": 120,
+            "project_name": "广州市公安局南沙分局2025年高清视频监控系统租赁项目",
+            "project_number": "CZ2026-0160",
+            "announced_total_award": "10871744.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 471,
+            "buyer": {
+              "id": 471,
+              "canonical_name": "广州市公安局南沙分局"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 479,
+                "canonical_name": "广东瞬康信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 477,
+                "canonical_name": "广州感知数据科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 478,
+                "canonical_name": "深圳市中艺智能科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "3860000.00"
+          },
+          {
+            "package_id": 386,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 267,
+            "project_name": "佛山市12345政务服务便民热线（市长直通车）运营服务外包项目（2026年-2028年）",
+            "project_number": "FS2026（SZ）WZ0002",
+            "announced_total_award": "67990000.000000",
+            "package_award_total": "67990000.000000",
+            "buyer_organization_id": 1080,
+            "buyer": {
+              "id": 1080,
+              "canonical_name": "佛山市人民政府行政服务中心"
+            },
+            "participants": [
+              {
+                "organization_id": 802,
+                "canonical_name": "上海华盖科技发展股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1082,
+                "canonical_name": "上海新积域信息技术服务有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 519,
+                "canonical_name": "中国联合网络通信有限公司广东省分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1081,
+                "canonical_name": "深圳市人力资本（集团）有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1083,
+                "canonical_name": "胜通和科技有限公司",
+                "outcome": "nonwinner"
+              }
+            ],
+            "award_amount_total_unique_awards": "67990000.00"
+          },
+          {
+            "package_id": 598,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 398,
+            "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+            "project_number": "GPCGD263104FG001F",
+            "announced_total_award": "2590800.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 1665,
+            "buyer": {
+              "id": 1665,
+              "canonical_name": "广东省投资和信用中心"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1666,
+                "canonical_name": "广东翼迅信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1667,
+                "canonical_name": "广州源典科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "winner"
+              }
+            ],
+            "award_amount_total_unique_awards": "749400.00"
+          },
+          {
+            "package_id": 599,
+            "package_code": "2",
+            "package_name": null,
+            "project_id": 398,
+            "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+            "project_number": "GPCGD263104FG001F",
+            "announced_total_award": "2590800.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 1665,
+            "buyer": {
+              "id": 1665,
+              "canonical_name": "广东省投资和信用中心"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 224,
+                "canonical_name": "京华信息科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1098,
+                "canonical_name": "北明软件有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1668,
+                "canonical_name": "卫士通（广州）信息安全技术有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "478400.00"
+          },
+          {
+            "package_id": 600,
+            "package_code": "3",
+            "package_name": null,
+            "project_id": 398,
+            "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+            "project_number": "GPCGD263104FG001F",
+            "announced_total_award": "2590800.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 1665,
+            "buyer": {
+              "id": 1665,
+              "canonical_name": "广东省投资和信用中心"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1669,
+                "canonical_name": "广东焕拓科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1670,
+                "canonical_name": "广州网为信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "winner"
+              }
+            ],
+            "award_amount_total_unique_awards": "509000.00"
+          },
+          {
+            "package_id": 602,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 399,
+            "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+            "project_number": "CZ2026-0520",
+            "announced_total_award": "1870000.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 1674,
+            "buyer": {
+              "id": 1674,
+              "canonical_name": "广州市第十二人民医院"
+            },
+            "participants": [
+              {
+                "organization_id": 1675,
+                "canonical_name": "上海华讯网络系统有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "1150000.00"
+          },
+          {
+            "package_id": 603,
+            "package_code": "2",
+            "package_name": null,
+            "project_id": 399,
+            "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+            "project_number": "CZ2026-0520",
+            "announced_total_award": "1870000.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 1674,
+            "buyer": {
+              "id": 1674,
+              "canonical_name": "广州市第十二人民医院"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1676,
+                "canonical_name": "广州领慧信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "720000.00"
+          },
+          {
+            "package_id": 630,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 411,
+            "project_name": "广州市新穗学校2026年信息化建设项目",
+            "project_number": "CZ2026-0502",
+            "announced_total_award": "1178806.000000",
+            "package_award_total": "1178806.000000",
+            "buyer_organization_id": 1739,
+            "buyer": {
+              "id": 1739,
+              "canonical_name": "广州市新穗学校"
+            },
+            "participants": [
+              {
+                "organization_id": 1741,
+                "canonical_name": "东莞市凯迅电子科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 793,
+                "canonical_name": "广州实地信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1740,
+                "canonical_name": "广州肯东网络科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 709,
+                "canonical_name": "联通数字科技有限公司广东省分公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "1178806.00"
+          },
+          {
+            "package_id": 764,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 476,
+            "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+            "project_number": "GPCGD261115FG125J",
+            "announced_total_award": "7882888.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 2060,
+            "buyer": {
+              "id": 2060,
+              "canonical_name": "广东省生态环境厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1671,
+                "canonical_name": "工业和信息化部电子第五研究所",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 990,
+                "canonical_name": "广州竞远安全技术股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 993,
+                "canonical_name": "深圳市网安计算机安全检测技术有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "1286000.00"
+          },
+          {
+            "package_id": 765,
+            "package_code": "2",
+            "package_name": null,
+            "project_id": 476,
+            "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+            "project_number": "GPCGD261115FG125J",
+            "announced_total_award": "7882888.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 2060,
+            "buyer": {
+              "id": 2060,
+              "canonical_name": "广东省生态环境厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2061,
+                "canonical_name": "广东省环境科学研究院",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1666,
+                "canonical_name": "广东翼迅信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2062,
+                "canonical_name": "广州兆飞信息科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "1388000.00"
+          },
+          {
+            "package_id": 766,
+            "package_code": "3",
+            "package_name": null,
+            "project_id": 476,
+            "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+            "project_number": "GPCGD261115FG125J",
+            "announced_total_award": "7882888.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 2060,
+            "buyer": {
+              "id": 2060,
+              "canonical_name": "广东省生态环境厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2065,
+                "canonical_name": "佛山市德讯水务信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2061,
+                "canonical_name": "广东省环境科学研究院",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 2064,
+                "canonical_name": "深圳博沃未来科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2063,
+                "canonical_name": "西安长天长软件股份有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "2100000.00"
+          },
+          {
+            "package_id": 767,
+            "package_code": "4",
+            "package_name": null,
+            "project_id": 476,
+            "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+            "project_number": "GPCGD261115FG125J",
+            "announced_total_award": "7882888.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 2060,
+            "buyer": {
+              "id": 2060,
+              "canonical_name": "广东省生态环境厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2066,
+                "canonical_name": "广州美盈智能科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 2064,
+                "canonical_name": "深圳博沃未来科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "3108888.00"
+          },
+          {
+            "package_id": 828,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 501,
+            "project_name": "广东省渔港高清视频监控系统及其配备线路租赁（2026年）项目",
+            "project_number": "GPCGD262200FC137F",
+            "announced_total_award": "3599800.000000",
+            "package_award_total": "3599800.000000",
+            "buyer_organization_id": 2168,
+            "buyer": {
+              "id": 2168,
+              "canonical_name": "广东省农业农村厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2169,
+                "canonical_name": "广州正电通信技术有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "3599800.00"
+          },
+          {
+            "package_id": 980,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 584,
+            "project_name": "省生态环境厅生态环境数据处理运营（2026年）项目",
+            "project_number": "GPCGD261115FG135F",
+            "announced_total_award": "3264200.000000",
+            "package_award_total": "3264200.000000",
+            "buyer_organization_id": 1187,
+            "buyer": {
+              "id": 1187,
+              "canonical_name": "广东省生态环境监测中心（省中心本部）"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "nonwinner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2061,
+                "canonical_name": "广东省环境科学研究院",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1666,
+                "canonical_name": "广东翼迅信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1459,
+                "canonical_name": "广州易宝信息技术有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "3264200.00"
+          },
+          {
+            "package_id": 1156,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 690,
+            "project_name": "广州市公安局科信支队2026年广州市城市视频专网之公安视频网升级改造项目",
+            "project_number": "CZ2026-0550",
+            "announced_total_award": "26228638.000000",
+            "package_award_total": "26228638.000000",
+            "buyer_organization_id": 2823,
+            "buyer": {
+              "id": 2823,
+              "canonical_name": "广州市公安局"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 240,
+                "canonical_name": "广东广信通信服务有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2971,
+                "canonical_name": "广州同潮信息科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "26228637.60"
+          },
+          {
+            "package_id": 1177,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 704,
+            "project_name": "广东省教育考试考务综合管理平台运维运营服务（2026-2027年）项目",
+            "project_number": "YKY20260704044-1210-2641YDZB10104",
+            "announced_total_award": "6537694.000000",
+            "package_award_total": "6537694.000000",
+            "buyer_organization_id": 3013,
+            "buyer": {
+              "id": 3013,
+              "canonical_name": "广东省教育考试院"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3014,
+                "canonical_name": "广州云积软件技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2217,
+                "canonical_name": "广州像素数据技术股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3015,
+                "canonical_name": "广州浩传网络科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "6537694.00"
+          },
+          {
+            "package_id": 1245,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 758,
+            "project_name": "惠州市第一中学基础设施升级修缮项目信息化项目",
+            "project_number": "惠公易省云采市直〔2026〕83号",
+            "announced_total_award": "20507244.000000",
+            "package_award_total": "20507244.000000",
+            "buyer_organization_id": 3203,
+            "buyer": {
+              "id": 3203,
+              "canonical_name": "惠州市第一中学"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3205,
+                "canonical_name": "中国铁塔股份有限公司惠州市分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3204,
+                "canonical_name": "广东华联汇科技服务有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "20507244.30"
+          },
+          {
+            "package_id": 1295,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 790,
+            "project_name": "委托第三方开展无人机巡查和数据分析处理服务",
+            "project_number": "GDJY202601CHP025",
+            "announced_total_award": "1496000.000000",
+            "package_award_total": "1496000.000000",
+            "buyer_organization_id": 3343,
+            "buyer": {
+              "id": 3343,
+              "canonical_name": "广州市从化区城市管理和综合执法局"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3345,
+                "canonical_name": "北京飞马航遥科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3346,
+                "canonical_name": "广东光锥互联科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3344,
+                "canonical_name": "广州千越飞鸿科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "1496000.00"
+          },
+          {
+            "package_id": 1310,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 799,
+            "project_name": "省国资委政务信息化运维类（2026年）项目",
+            "project_number": "M4400000707538616001",
+            "announced_total_award": "2572300.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 3376,
+            "buyer": {
+              "id": 3376,
+              "canonical_name": "广东省人民政府国有资产监督管理委员会"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3378,
+                "canonical_name": "广东东方思维科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "winner"
+              }
+            ],
+            "award_amount_total_unique_awards": "1390000.00"
+          },
+          {
+            "package_id": 1382,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 842,
+            "project_name": "广州市生态环境局2026-2027年信息化运维项目",
+            "project_number": "CZ2026-0836",
+            "announced_total_award": "2249988.000000",
+            "package_award_total": "2249988.000000",
+            "buyer_organization_id": 3541,
+            "buyer": {
+              "id": 3541,
+              "canonical_name": "广州市环境技术中心(广州市美丽城市建设中心)"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 414,
+                "canonical_name": "广东励康信息技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 709,
+                "canonical_name": "联通数字科技有限公司广东省分公司",
+                "outcome": "winner"
+              }
+            ],
+            "award_amount_total_unique_awards": "2249988.00"
+          },
+          {
+            "package_id": 1393,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 852,
+            "project_name": "2026-2028年南沙区交通管理系统通信光纤租赁服务项目",
+            "project_number": "CZ2026-0959",
+            "announced_total_award": "4452800.000000",
+            "package_award_total": "4452800.000000",
+            "buyer_organization_id": 471,
+            "buyer": {
+              "id": 471,
+              "canonical_name": "广州市公安局南沙分局"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3576,
+                "canonical_name": "天讯瑞达通信技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 240,
+                "canonical_name": "广东广信通信服务有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "4452800.00"
+          },
+          {
+            "package_id": 1436,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 886,
+            "project_name": "肇庆学院新校区理科实训楼等楼宇信息化建设项目",
+            "project_number": "440001-2026-27404",
+            "announced_total_award": "10719988.000000",
+            "package_award_total": "10719988.000000",
+            "buyer_organization_id": 3670,
+            "buyer": {
+              "id": 3670,
+              "canonical_name": "肇庆学院"
+            },
+            "participants": [
+              {
+                "organization_id": 2220,
+                "canonical_name": "东莞市弈派智能科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3674,
+                "canonical_name": "中国铁塔股份有限公司茂名市分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3580,
+                "canonical_name": "中时讯通信建设有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3350,
+                "canonical_name": "中通服中睿科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3576,
+                "canonical_name": "天讯瑞达通信技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3150,
+                "canonical_name": "广东南方通信建设有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3675,
+                "canonical_name": "广东坤宸科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3671,
+                "canonical_name": "广东恒电信息科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1246,
+                "canonical_name": "广东赛诺科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3677,
+                "canonical_name": "广州市佳业讯信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3676,
+                "canonical_name": "广州市坤龙信息系统有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3673,
+                "canonical_name": "广州市悦程信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3672,
+                "canonical_name": "杰创智能科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 2289,
+                "canonical_name": "浪潮软件股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1126,
+                "canonical_name": "联奕科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3678,
+                "canonical_name": "黑龙江省船口办公设备有限公司",
+                "outcome": "nonwinner"
+              }
+            ],
+            "award_amount_total_unique_awards": "10719988.00"
+          },
+          {
+            "package_id": 1440,
+            "package_code": "2",
+            "package_name": null,
+            "project_id": 890,
+            "project_name": "肇庆学院新校区理科实训楼等楼宇信息化建设项目",
+            "project_number": "440001-2026-27404",
+            "announced_total_award": "6383988.000000",
+            "package_award_total": "6383988.000000",
+            "buyer_organization_id": 3670,
+            "buyer": {
+              "id": 3670,
+              "canonical_name": "肇庆学院"
+            },
+            "participants": [
+              {
+                "organization_id": 2220,
+                "canonical_name": "东莞市弈派智能科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3674,
+                "canonical_name": "中国铁塔股份有限公司茂名市分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3580,
+                "canonical_name": "中时讯通信建设有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3350,
+                "canonical_name": "中通服中睿科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1098,
+                "canonical_name": "北明软件有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3576,
+                "canonical_name": "天讯瑞达通信技术有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3150,
+                "canonical_name": "广东南方通信建设有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3675,
+                "canonical_name": "广东坤宸科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3671,
+                "canonical_name": "广东恒电信息科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1246,
+                "canonical_name": "广东赛诺科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3677,
+                "canonical_name": "广州市佳业讯信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3676,
+                "canonical_name": "广州市坤龙信息系统有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3673,
+                "canonical_name": "广州市悦程信息科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3672,
+                "canonical_name": "杰创智能科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 1126,
+                "canonical_name": "联奕科技股份有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3678,
+                "canonical_name": "黑龙江省船口办公设备有限公司",
+                "outcome": "nonwinner"
+              }
+            ],
+            "award_amount_total_unique_awards": "6383988.00"
+          },
+          {
+            "package_id": 1499,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 931,
+            "project_name": "中山市城市智慧大脑运维服务项目（2026-2028）",
+            "project_number": "442000-2026-02485",
+            "announced_total_award": "9197094.000000",
+            "package_award_total": "9197094.000000",
+            "buyer_organization_id": 626,
+            "buyer": {
+              "id": 626,
+              "canonical_name": "中山市政务服务和数据管理局"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 3840,
+                "canonical_name": "广东凌臣科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 429,
+                "canonical_name": "广东新逸达科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 799,
+                "canonical_name": "新三科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 70,
+                "canonical_name": "联通（广东）产业互联网有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "9197094.00"
+          },
+          {
+            "package_id": 1571,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 981,
+            "project_name": "省政府办公厅政务外网信息化（2026年）项目",
+            "project_number": "GPCGD261103FG176J",
+            "announced_total_award": "11203800.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 4021,
+            "buyer": {
+              "id": 4021,
+              "canonical_name": "广东省人民政府办公厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3153,
+                "canonical_name": "广东南方网络信息科技有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 4024,
+                "canonical_name": "广州云途腾科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 4023,
+                "canonical_name": "广州创冠网络科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "6608100.00"
+          },
+          {
+            "package_id": 1572,
+            "package_code": "2",
+            "package_name": null,
+            "project_id": 981,
+            "project_name": "省政府办公厅政务外网信息化（2026年）项目",
+            "project_number": "GPCGD261103FG176J",
+            "announced_total_award": "11203800.000000",
+            "package_award_total": null,
+            "buyer_organization_id": 4021,
+            "buyer": {
+              "id": 4021,
+              "canonical_name": "广东省人民政府办公厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 3558,
+                "canonical_name": "中数通信息有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 4026,
+                "canonical_name": "北京卓优云智科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 4025,
+                "canonical_name": "北京国脉信安科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 223,
+                "canonical_name": "数字广东网络建设有限公司",
+                "outcome": "winner"
+              }
+            ],
+            "award_amount_total_unique_awards": "4210000.00"
+          },
+          {
+            "package_id": 1593,
+            "package_code": "1",
+            "package_name": null,
+            "project_id": 993,
+            "project_name": "2026-2027年度广东省无线电监测专网线路租赁及无线电管理一体化平台运营运维服务项目",
+            "project_number": "GZGK26P647C0647Z",
+            "announced_total_award": "6410000.000000",
+            "package_award_total": "6410000.000000",
+            "buyer_organization_id": 4070,
+            "buyer": {
+              "id": 4070,
+              "canonical_name": "广东省工业和信息化厅"
+            },
+            "participants": [
+              {
+                "organization_id": 157,
+                "canonical_name": "中国电信股份有限公司广东分公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 114,
+                "canonical_name": "中国移动通信集团广东有限公司",
+                "outcome": "winner"
+              },
+              {
+                "organization_id": 1651,
+                "canonical_name": "广东网安科技有限公司",
+                "outcome": "unknown"
+              },
+              {
+                "organization_id": 4071,
+                "canonical_name": "广州中航智信科技有限公司",
+                "outcome": "unknown"
+              }
+            ],
+            "award_amount_total_unique_awards": "6410000.00"
+          }
+        ],
+        "package_count": 29,
+        "project_count": 22
+      },
+      "http": {
+        "status": 200,
+        "elapsed_ms": 18.9869,
+        "result_counts": {
+          "required_entities": 2,
+          "packages": 29,
+          "package_count": 29,
+          "project_count": 22
+        },
+        "result": {
+          "required_entities": [
+            {
+              "id": 114,
+              "canonical_name": "中国移动通信集团广东有限公司"
+            },
+            {
+              "id": 157,
+              "canonical_name": "中国电信股份有限公司广东分公司"
+            }
+          ],
+          "packages": [
+            {
+              "package_id": 53,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 42,
+              "project_name": "民众街道民众分局视频监控运维升级改造项目",
+              "project_number": "ZSJD25ZC0118",
+              "announced_total_award": "3588000.000000",
+              "package_award_total": "3588000.000000",
+              "buyer_organization_id": 156,
+              "buyer": {
+                "id": 156,
+                "canonical_name": "中山市公安局民众分局"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 158,
+                  "canonical_name": "中山万鼎科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 159,
+                  "canonical_name": "广东布恩网络有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "3588000.00"
+            },
+            {
+              "package_id": 103,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 73,
+              "project_name": "广东药科大学广州校区无线网络建设（一期）采购项目",
+              "project_number": "GDMZ-2026001",
+              "announced_total_award": "5697016.000000",
+              "package_award_total": "5697016.000000",
+              "buyer_organization_id": 280,
+              "buyer": {
+                "id": 280,
+                "canonical_name": "广东药科大学"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 281,
+                  "canonical_name": "广州安创网络科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 283,
+                  "canonical_name": "广州慧茂电子科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 282,
+                  "canonical_name": "广州茂业通信科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "winner"
+                }
+              ],
+              "award_amount_total_unique_awards": "5697016.18"
+            },
+            {
+              "package_id": 168,
+              "package_code": "2",
+              "package_name": null,
+              "project_id": 120,
+              "project_name": "广州市公安局南沙分局2025年高清视频监控系统租赁项目",
+              "project_number": "CZ2026-0160",
+              "announced_total_award": "10871744.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 471,
+              "buyer": {
+                "id": 471,
+                "canonical_name": "广州市公安局南沙分局"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 479,
+                  "canonical_name": "广东瞬康信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 477,
+                  "canonical_name": "广州感知数据科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 478,
+                  "canonical_name": "深圳市中艺智能科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "3860000.00"
+            },
+            {
+              "package_id": 386,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 267,
+              "project_name": "佛山市12345政务服务便民热线（市长直通车）运营服务外包项目（2026年-2028年）",
+              "project_number": "FS2026（SZ）WZ0002",
+              "announced_total_award": "67990000.000000",
+              "package_award_total": "67990000.000000",
+              "buyer_organization_id": 1080,
+              "buyer": {
+                "id": 1080,
+                "canonical_name": "佛山市人民政府行政服务中心"
+              },
+              "participants": [
+                {
+                  "organization_id": 802,
+                  "canonical_name": "上海华盖科技发展股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1082,
+                  "canonical_name": "上海新积域信息技术服务有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 519,
+                  "canonical_name": "中国联合网络通信有限公司广东省分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1081,
+                  "canonical_name": "深圳市人力资本（集团）有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1083,
+                  "canonical_name": "胜通和科技有限公司",
+                  "outcome": "nonwinner"
+                }
+              ],
+              "award_amount_total_unique_awards": "67990000.00"
+            },
+            {
+              "package_id": 598,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 398,
+              "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+              "project_number": "GPCGD263104FG001F",
+              "announced_total_award": "2590800.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 1665,
+              "buyer": {
+                "id": 1665,
+                "canonical_name": "广东省投资和信用中心"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1666,
+                  "canonical_name": "广东翼迅信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1667,
+                  "canonical_name": "广州源典科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "winner"
+                }
+              ],
+              "award_amount_total_unique_awards": "749400.00"
+            },
+            {
+              "package_id": 599,
+              "package_code": "2",
+              "package_name": null,
+              "project_id": 398,
+              "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+              "project_number": "GPCGD263104FG001F",
+              "announced_total_award": "2590800.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 1665,
+              "buyer": {
+                "id": 1665,
+                "canonical_name": "广东省投资和信用中心"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 224,
+                  "canonical_name": "京华信息科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1098,
+                  "canonical_name": "北明软件有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1668,
+                  "canonical_name": "卫士通（广州）信息安全技术有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "478400.00"
+            },
+            {
+              "package_id": 600,
+              "package_code": "3",
+              "package_name": null,
+              "project_id": 398,
+              "project_name": "省发展改革委政务信息系统运营（2026年）项目（第一批）",
+              "project_number": "GPCGD263104FG001F",
+              "announced_total_award": "2590800.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 1665,
+              "buyer": {
+                "id": 1665,
+                "canonical_name": "广东省投资和信用中心"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1669,
+                  "canonical_name": "广东焕拓科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1670,
+                  "canonical_name": "广州网为信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "winner"
+                }
+              ],
+              "award_amount_total_unique_awards": "509000.00"
+            },
+            {
+              "package_id": 602,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 399,
+              "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+              "project_number": "CZ2026-0520",
+              "announced_total_award": "1870000.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 1674,
+              "buyer": {
+                "id": 1674,
+                "canonical_name": "广州市第十二人民医院"
+              },
+              "participants": [
+                {
+                  "organization_id": 1675,
+                  "canonical_name": "上海华讯网络系统有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "1150000.00"
+            },
+            {
+              "package_id": 603,
+              "package_code": "2",
+              "package_name": null,
+              "project_id": 399,
+              "project_name": "广州市第十二人民医院2026-2027年信息化运维项目",
+              "project_number": "CZ2026-0520",
+              "announced_total_award": "1870000.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 1674,
+              "buyer": {
+                "id": 1674,
+                "canonical_name": "广州市第十二人民医院"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1676,
+                  "canonical_name": "广州领慧信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "720000.00"
+            },
+            {
+              "package_id": 630,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 411,
+              "project_name": "广州市新穗学校2026年信息化建设项目",
+              "project_number": "CZ2026-0502",
+              "announced_total_award": "1178806.000000",
+              "package_award_total": "1178806.000000",
+              "buyer_organization_id": 1739,
+              "buyer": {
+                "id": 1739,
+                "canonical_name": "广州市新穗学校"
+              },
+              "participants": [
+                {
+                  "organization_id": 1741,
+                  "canonical_name": "东莞市凯迅电子科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 793,
+                  "canonical_name": "广州实地信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1740,
+                  "canonical_name": "广州肯东网络科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 709,
+                  "canonical_name": "联通数字科技有限公司广东省分公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "1178806.00"
+            },
+            {
+              "package_id": 764,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 476,
+              "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+              "project_number": "GPCGD261115FG125J",
+              "announced_total_award": "7882888.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 2060,
+              "buyer": {
+                "id": 2060,
+                "canonical_name": "广东省生态环境厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1671,
+                  "canonical_name": "工业和信息化部电子第五研究所",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 990,
+                  "canonical_name": "广州竞远安全技术股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 993,
+                  "canonical_name": "深圳市网安计算机安全检测技术有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "1286000.00"
+            },
+            {
+              "package_id": 765,
+              "package_code": "2",
+              "package_name": null,
+              "project_id": 476,
+              "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+              "project_number": "GPCGD261115FG125J",
+              "announced_total_award": "7882888.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 2060,
+              "buyer": {
+                "id": 2060,
+                "canonical_name": "广东省生态环境厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2061,
+                  "canonical_name": "广东省环境科学研究院",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1666,
+                  "canonical_name": "广东翼迅信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2062,
+                  "canonical_name": "广州兆飞信息科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "1388000.00"
+            },
+            {
+              "package_id": 766,
+              "package_code": "3",
+              "package_name": null,
+              "project_id": 476,
+              "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+              "project_number": "GPCGD261115FG125J",
+              "announced_total_award": "7882888.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 2060,
+              "buyer": {
+                "id": 2060,
+                "canonical_name": "广东省生态环境厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2065,
+                  "canonical_name": "佛山市德讯水务信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2061,
+                  "canonical_name": "广东省环境科学研究院",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 2064,
+                  "canonical_name": "深圳博沃未来科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2063,
+                  "canonical_name": "西安长天长软件股份有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "2100000.00"
+            },
+            {
+              "package_id": 767,
+              "package_code": "4",
+              "package_name": null,
+              "project_id": 476,
+              "project_name": "省生态环境厅政务信息化运营（2026年）项目",
+              "project_number": "GPCGD261115FG125J",
+              "announced_total_award": "7882888.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 2060,
+              "buyer": {
+                "id": 2060,
+                "canonical_name": "广东省生态环境厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2066,
+                  "canonical_name": "广州美盈智能科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 2064,
+                  "canonical_name": "深圳博沃未来科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "3108888.00"
+            },
+            {
+              "package_id": 828,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 501,
+              "project_name": "广东省渔港高清视频监控系统及其配备线路租赁（2026年）项目",
+              "project_number": "GPCGD262200FC137F",
+              "announced_total_award": "3599800.000000",
+              "package_award_total": "3599800.000000",
+              "buyer_organization_id": 2168,
+              "buyer": {
+                "id": 2168,
+                "canonical_name": "广东省农业农村厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2169,
+                  "canonical_name": "广州正电通信技术有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "3599800.00"
+            },
+            {
+              "package_id": 980,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 584,
+              "project_name": "省生态环境厅生态环境数据处理运营（2026年）项目",
+              "project_number": "GPCGD261115FG135F",
+              "announced_total_award": "3264200.000000",
+              "package_award_total": "3264200.000000",
+              "buyer_organization_id": 1187,
+              "buyer": {
+                "id": 1187,
+                "canonical_name": "广东省生态环境监测中心（省中心本部）"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "nonwinner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2061,
+                  "canonical_name": "广东省环境科学研究院",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1666,
+                  "canonical_name": "广东翼迅信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1459,
+                  "canonical_name": "广州易宝信息技术有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "3264200.00"
+            },
+            {
+              "package_id": 1156,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 690,
+              "project_name": "广州市公安局科信支队2026年广州市城市视频专网之公安视频网升级改造项目",
+              "project_number": "CZ2026-0550",
+              "announced_total_award": "26228638.000000",
+              "package_award_total": "26228638.000000",
+              "buyer_organization_id": 2823,
+              "buyer": {
+                "id": 2823,
+                "canonical_name": "广州市公安局"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 240,
+                  "canonical_name": "广东广信通信服务有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2971,
+                  "canonical_name": "广州同潮信息科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "26228637.60"
+            },
+            {
+              "package_id": 1177,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 704,
+              "project_name": "广东省教育考试考务综合管理平台运维运营服务（2026-2027年）项目",
+              "project_number": "YKY20260704044-1210-2641YDZB10104",
+              "announced_total_award": "6537694.000000",
+              "package_award_total": "6537694.000000",
+              "buyer_organization_id": 3013,
+              "buyer": {
+                "id": 3013,
+                "canonical_name": "广东省教育考试院"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3014,
+                  "canonical_name": "广州云积软件技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2217,
+                  "canonical_name": "广州像素数据技术股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3015,
+                  "canonical_name": "广州浩传网络科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "6537694.00"
+            },
+            {
+              "package_id": 1245,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 758,
+              "project_name": "惠州市第一中学基础设施升级修缮项目信息化项目",
+              "project_number": "惠公易省云采市直〔2026〕83号",
+              "announced_total_award": "20507244.000000",
+              "package_award_total": "20507244.000000",
+              "buyer_organization_id": 3203,
+              "buyer": {
+                "id": 3203,
+                "canonical_name": "惠州市第一中学"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3205,
+                  "canonical_name": "中国铁塔股份有限公司惠州市分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3204,
+                  "canonical_name": "广东华联汇科技服务有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "20507244.30"
+            },
+            {
+              "package_id": 1295,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 790,
+              "project_name": "委托第三方开展无人机巡查和数据分析处理服务",
+              "project_number": "GDJY202601CHP025",
+              "announced_total_award": "1496000.000000",
+              "package_award_total": "1496000.000000",
+              "buyer_organization_id": 3343,
+              "buyer": {
+                "id": 3343,
+                "canonical_name": "广州市从化区城市管理和综合执法局"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3345,
+                  "canonical_name": "北京飞马航遥科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3346,
+                  "canonical_name": "广东光锥互联科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3344,
+                  "canonical_name": "广州千越飞鸿科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "1496000.00"
+            },
+            {
+              "package_id": 1310,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 799,
+              "project_name": "省国资委政务信息化运维类（2026年）项目",
+              "project_number": "M4400000707538616001",
+              "announced_total_award": "2572300.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 3376,
+              "buyer": {
+                "id": 3376,
+                "canonical_name": "广东省人民政府国有资产监督管理委员会"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3378,
+                  "canonical_name": "广东东方思维科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "winner"
+                }
+              ],
+              "award_amount_total_unique_awards": "1390000.00"
+            },
+            {
+              "package_id": 1382,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 842,
+              "project_name": "广州市生态环境局2026-2027年信息化运维项目",
+              "project_number": "CZ2026-0836",
+              "announced_total_award": "2249988.000000",
+              "package_award_total": "2249988.000000",
+              "buyer_organization_id": 3541,
+              "buyer": {
+                "id": 3541,
+                "canonical_name": "广州市环境技术中心(广州市美丽城市建设中心)"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 414,
+                  "canonical_name": "广东励康信息技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 709,
+                  "canonical_name": "联通数字科技有限公司广东省分公司",
+                  "outcome": "winner"
+                }
+              ],
+              "award_amount_total_unique_awards": "2249988.00"
+            },
+            {
+              "package_id": 1393,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 852,
+              "project_name": "2026-2028年南沙区交通管理系统通信光纤租赁服务项目",
+              "project_number": "CZ2026-0959",
+              "announced_total_award": "4452800.000000",
+              "package_award_total": "4452800.000000",
+              "buyer_organization_id": 471,
+              "buyer": {
+                "id": 471,
+                "canonical_name": "广州市公安局南沙分局"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3576,
+                  "canonical_name": "天讯瑞达通信技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 240,
+                  "canonical_name": "广东广信通信服务有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "4452800.00"
+            },
+            {
+              "package_id": 1436,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 886,
+              "project_name": "肇庆学院新校区理科实训楼等楼宇信息化建设项目",
+              "project_number": "440001-2026-27404",
+              "announced_total_award": "10719988.000000",
+              "package_award_total": "10719988.000000",
+              "buyer_organization_id": 3670,
+              "buyer": {
+                "id": 3670,
+                "canonical_name": "肇庆学院"
+              },
+              "participants": [
+                {
+                  "organization_id": 2220,
+                  "canonical_name": "东莞市弈派智能科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3674,
+                  "canonical_name": "中国铁塔股份有限公司茂名市分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3580,
+                  "canonical_name": "中时讯通信建设有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3350,
+                  "canonical_name": "中通服中睿科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3576,
+                  "canonical_name": "天讯瑞达通信技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3150,
+                  "canonical_name": "广东南方通信建设有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3675,
+                  "canonical_name": "广东坤宸科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3671,
+                  "canonical_name": "广东恒电信息科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1246,
+                  "canonical_name": "广东赛诺科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3677,
+                  "canonical_name": "广州市佳业讯信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3676,
+                  "canonical_name": "广州市坤龙信息系统有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3673,
+                  "canonical_name": "广州市悦程信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3672,
+                  "canonical_name": "杰创智能科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 2289,
+                  "canonical_name": "浪潮软件股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1126,
+                  "canonical_name": "联奕科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3678,
+                  "canonical_name": "黑龙江省船口办公设备有限公司",
+                  "outcome": "nonwinner"
+                }
+              ],
+              "award_amount_total_unique_awards": "10719988.00"
+            },
+            {
+              "package_id": 1440,
+              "package_code": "2",
+              "package_name": null,
+              "project_id": 890,
+              "project_name": "肇庆学院新校区理科实训楼等楼宇信息化建设项目",
+              "project_number": "440001-2026-27404",
+              "announced_total_award": "6383988.000000",
+              "package_award_total": "6383988.000000",
+              "buyer_organization_id": 3670,
+              "buyer": {
+                "id": 3670,
+                "canonical_name": "肇庆学院"
+              },
+              "participants": [
+                {
+                  "organization_id": 2220,
+                  "canonical_name": "东莞市弈派智能科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3674,
+                  "canonical_name": "中国铁塔股份有限公司茂名市分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3580,
+                  "canonical_name": "中时讯通信建设有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3350,
+                  "canonical_name": "中通服中睿科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1098,
+                  "canonical_name": "北明软件有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3576,
+                  "canonical_name": "天讯瑞达通信技术有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3150,
+                  "canonical_name": "广东南方通信建设有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3675,
+                  "canonical_name": "广东坤宸科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3671,
+                  "canonical_name": "广东恒电信息科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1246,
+                  "canonical_name": "广东赛诺科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3677,
+                  "canonical_name": "广州市佳业讯信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3676,
+                  "canonical_name": "广州市坤龙信息系统有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3673,
+                  "canonical_name": "广州市悦程信息科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3672,
+                  "canonical_name": "杰创智能科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 1126,
+                  "canonical_name": "联奕科技股份有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3678,
+                  "canonical_name": "黑龙江省船口办公设备有限公司",
+                  "outcome": "nonwinner"
+                }
+              ],
+              "award_amount_total_unique_awards": "6383988.00"
+            },
+            {
+              "package_id": 1499,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 931,
+              "project_name": "中山市城市智慧大脑运维服务项目（2026-2028）",
+              "project_number": "442000-2026-02485",
+              "announced_total_award": "9197094.000000",
+              "package_award_total": "9197094.000000",
+              "buyer_organization_id": 626,
+              "buyer": {
+                "id": 626,
+                "canonical_name": "中山市政务服务和数据管理局"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 3840,
+                  "canonical_name": "广东凌臣科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 429,
+                  "canonical_name": "广东新逸达科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 799,
+                  "canonical_name": "新三科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 70,
+                  "canonical_name": "联通（广东）产业互联网有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "9197094.00"
+            },
+            {
+              "package_id": 1571,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 981,
+              "project_name": "省政府办公厅政务外网信息化（2026年）项目",
+              "project_number": "GPCGD261103FG176J",
+              "announced_total_award": "11203800.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 4021,
+              "buyer": {
+                "id": 4021,
+                "canonical_name": "广东省人民政府办公厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3153,
+                  "canonical_name": "广东南方网络信息科技有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 4024,
+                  "canonical_name": "广州云途腾科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 4023,
+                  "canonical_name": "广州创冠网络科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "6608100.00"
+            },
+            {
+              "package_id": 1572,
+              "package_code": "2",
+              "package_name": null,
+              "project_id": 981,
+              "project_name": "省政府办公厅政务外网信息化（2026年）项目",
+              "project_number": "GPCGD261103FG176J",
+              "announced_total_award": "11203800.000000",
+              "package_award_total": null,
+              "buyer_organization_id": 4021,
+              "buyer": {
+                "id": 4021,
+                "canonical_name": "广东省人民政府办公厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 3558,
+                  "canonical_name": "中数通信息有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 4026,
+                  "canonical_name": "北京卓优云智科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 4025,
+                  "canonical_name": "北京国脉信安科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 223,
+                  "canonical_name": "数字广东网络建设有限公司",
+                  "outcome": "winner"
+                }
+              ],
+              "award_amount_total_unique_awards": "4210000.00"
+            },
+            {
+              "package_id": 1593,
+              "package_code": "1",
+              "package_name": null,
+              "project_id": 993,
+              "project_name": "2026-2027年度广东省无线电监测专网线路租赁及无线电管理一体化平台运营运维服务项目",
+              "project_number": "GZGK26P647C0647Z",
+              "announced_total_award": "6410000.000000",
+              "package_award_total": "6410000.000000",
+              "buyer_organization_id": 4070,
+              "buyer": {
+                "id": 4070,
+                "canonical_name": "广东省工业和信息化厅"
+              },
+              "participants": [
+                {
+                  "organization_id": 157,
+                  "canonical_name": "中国电信股份有限公司广东分公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 114,
+                  "canonical_name": "中国移动通信集团广东有限公司",
+                  "outcome": "winner"
+                },
+                {
+                  "organization_id": 1651,
+                  "canonical_name": "广东网安科技有限公司",
+                  "outcome": "unknown"
+                },
+                {
+                  "organization_id": 4071,
+                  "canonical_name": "广州中航智信科技有限公司",
+                  "outcome": "unknown"
+                }
+              ],
+              "award_amount_total_unique_awards": "6410000.00"
+            }
+          ],
+          "package_count": 29,
+          "project_count": 22
+        },
+        "matches_function_result": true,
+        "differing_keys": [],
+        "display_arrays_match": true
+      }
+    }
+  },
+  "http": {
+    "base_url": "http://127.0.0.1:8000",
+    "health": {
+      "status": "ok",
+      "notices_imported": 1038
+    },
+    "authentication": "normal login",
+    "server_code_revision": "unknown; existing running service, not restarted",
+    "X-Dataset-ID": "6e032fb74bd345e29989e4f86e195920",
+    "browser_rendering_checked": false
+  },
+  "limitations": [
+    "本报告只验证返回结果、条数与耗时；1038 条回灌数据没有 gold，不能证明答案正确。",
+    "所选主体已知有关系，用于非空演示；不是所有主体/主体组合的覆盖率或准确率测量。",
+    "源库以 mode=ro 打开，经 SQLite backup 建临时副本；分析函数在副本执行，未注入主体或修正抽取数据。",
+    "函数计时包含建连、initialize 和结果组装，不含备份、选参、HTTP、网络或浏览器渲染。",
+    "首调为该进程该场景首次函数调用，未清理 OS 缓存；随后 30 次 warm，p50 为中位数，p95 为 nearest-rank。",
+    "HTTP 实测若启用，单次耗时含本机 HTTP、鉴权和 JSON 传输；不代表浏览器渲染或多用户负载。",
+    "场景 2/3 的 include_winners=false 当前执行 outcome != 'winner'，仍含 unknown，不能等同确定未中标。",
+    "频次沿用当前实现按采购包统计；场景 5 同时报告去重项目数与包数，金额未按原件核验。",
+    "未验证 Neo4j、独立 gold 对照（6a）或第二台设备；未调用模型、未重新抽取公告。"
+  ],
+  "reproduction_command": "& \"D:\\ICT\\bid-intel\\backend\\.venv\\Scripts\\python.exe\" scripts/check_analytics_display.py --database \"D:\\ICT\\bid-intel\\backend\\.data\\datasets\\6e032fb74bd345e29989e4f86e195920.sqlite\" --buyer-id 124 --supplier-id 114 --pair 114 157 --repeats 30 --output \"D:\\ICT\\bid-intel\\docs\\benchmarks\\official-full-20260927-analytics.json\" --api-base \"http://127.0.0.1:8000\" --env-file \"D:\\ICT\\bid-intel\\backend\\.env\""
+}

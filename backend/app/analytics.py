@@ -107,22 +107,22 @@ def buyer_bidders(
         buyer = _organization(connection, buyer_id)
         if not buyer:
             return {"buyer": None, "top_bidders": [], "co_bidder_pairs": []}
-        status_clause = "" if include_winners else "AND b.outcome != 'winner'"
+        status_clause = "" if include_winners else "AND b.outcome = 'nonwinner'"
         bidder_rows = connection.execute(
-            f"""SELECT o.id, o.canonical_name, COUNT(DISTINCT b.package_id) AS package_count
+            f"""SELECT o.id, o.canonical_name, COUNT(DISTINCT x.id) AS project_count
                 FROM bid_participations b
                 JOIN packages p ON p.id = b.package_id
                 JOIN projects x ON x.id = p.project_id
                 JOIN organizations o ON o.id = b.organization_id
                 WHERE x.buyer_organization_id = ? {status_clause}
                 GROUP BY o.id, o.canonical_name
-                ORDER BY package_count DESC, o.canonical_name LIMIT ?""",
+                ORDER BY project_count DESC, o.canonical_name LIMIT ?""",
             (buyer_id, max(1, min(top, 100))),
         ).fetchall()
         pair_rows = connection.execute(
             f"""SELECT b1.organization_id AS org1, b2.organization_id AS org2,
                        o1.canonical_name AS name1, o2.canonical_name AS name2,
-                       COUNT(DISTINCT b1.package_id) AS package_count
+                       COUNT(DISTINCT x.id) AS project_count
                 FROM bid_participations b1
                 JOIN bid_participations b2 ON b2.package_id = b1.package_id
                      AND b1.organization_id < b2.organization_id
@@ -131,9 +131,9 @@ def buyer_bidders(
                 JOIN organizations o1 ON o1.id = b1.organization_id
                 JOIN organizations o2 ON o2.id = b2.organization_id
                 WHERE x.buyer_organization_id = ?
-                  {"" if include_winners else "AND b1.outcome != 'winner' AND b2.outcome != 'winner'"}
+                  {"" if include_winners else "AND b1.outcome = 'nonwinner' AND b2.outcome = 'nonwinner'"}
                 GROUP BY b1.organization_id, b2.organization_id, o1.canonical_name, o2.canonical_name
-                ORDER BY package_count DESC, name1, name2 LIMIT ?""",
+                ORDER BY project_count DESC, name1, name2 LIMIT ?""",
             (buyer_id, max(1, min(top, 100))),
         ).fetchall()
         return {
@@ -158,15 +158,17 @@ def supplier_co_bidders(
                 "packages": [],
             }
         rows = connection.execute(
-            f"""SELECT b.organization_id, o.canonical_name, COUNT(DISTINCT b.package_id) AS package_count
+            f"""SELECT b.organization_id, o.canonical_name, COUNT(DISTINCT x.id) AS project_count
                FROM awards own_award
+               JOIN packages p ON p.id = own_award.package_id
+               JOIN projects x ON x.id = p.project_id
                JOIN bid_participations b ON b.package_id = own_award.package_id
                     AND b.organization_id != own_award.organization_id
                JOIN organizations o ON o.id = b.organization_id
                WHERE own_award.organization_id = ?
-                 {"" if include_winners else "AND b.outcome != 'winner'"}
+                 {"" if include_winners else "AND b.outcome = 'nonwinner'"}
                GROUP BY b.organization_id, o.canonical_name
-               ORDER BY package_count DESC, o.canonical_name LIMIT ?""",
+               ORDER BY project_count DESC, o.canonical_name LIMIT ?""",
             (supplier_id, max(1, min(top, 100))),
         ).fetchall()
         package_rows = connection.execute(

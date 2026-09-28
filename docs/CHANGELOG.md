@@ -4,6 +4,40 @@
 > 可复用的结论（怎么跑、红线、哪些坑不要再踩）在 [`ONBOARDING.md`](ONBOARDING.md)，本文不重复。
 > 开放问题在 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md)。
 
+## 2026-09-28 · 任务一：6 条 Gold 附件 pilot
+
+同一批 6 条 reviewed Gold 的 HTML+附件/OCR 回放已完成 `rules / hybrid / model` 三路线。字段本地代理 Weighted 为 **92.1179% / 70.8524% / 77.9191%**，完整记录为 **74.9145% / 47.2286% / 49.1913%**；模型路线新增大量 FP，没有证明优于 rules。实际请求为 hybrid 44 次、model 45 次（含 1 次断线重试），累计 132,380 prompt 与 80,317 completion tokens。阶段只覆盖 6/24，不能代表余下 18 条或官方评分。详见 [`附件 pilot 报告`](benchmarks/route-evaluation-attachments-pilot-20260928.md)。
+
+---
+
+## 2026-09-28 · 任务一：24 条 Gold 三路线 HTML-only 评测
+
+完成同一批 24 条 reviewed Gold 的 `rules / hybrid / model` 可续跑比较。三路线均覆盖 24/24 个相同 notice ID；Gold SHA-256 为 `cfa3fa242bf6f1eec0bd474731e1d48a126df9259e9148c837c8f8458bb5759f`。本地代理字段 Weighted 为 `89.5457% / 83.6201% / 90.8097%`，完整记录 Weighted 为 `74.3357% / 66.6153% / 73.8601%`（rules / hybrid / model）。model 的字段分只比 rules 高 1.2640 个百分点，完整记录反而低 0.4756 个百分点；hybrid 两项均低于 rules，因此不能宣称模型路线全面优于规则路线。
+
+评测驱动支持按公告检查点续跑、Gold/source/code hash 身份校验和按路线统计请求/耗时/token；输出和限制见 [`route-evaluation-html-20260928.md`](benchmarks/route-evaluation-html-20260928.md)。本轮只评 HTML，不代表附件/OCR 回放，也不是官方竞赛成绩。
+
+---
+
+## 2026-09-27 · GAP 6b：1038 条回灌数据五类查询演示覆盖
+
+对数据集 `6e032fb74bd345e29989e4f86e195920`（1038 公告、1658 包、4229 主体、6472 标的、5009 投标参与、1315 中标记录）运行五类查询。采购单位为东莞职业技术学院（124），供应商为中国移动通信集团广东有限公司（114），共同关系查询另选中国电信股份有限公司广东分公司（157）；三个主体均在当前网页下拉前 500 项。
+
+五场景分别返回 **15 家合作供应商；5 家投标方和 5 对组合；5 家共同竞标者及 25 个中标包；4 个共同采购单位；29 个共同投标包、22 个项目**。首调 **9.3–89.5 ms**，每类重复 30 次，warm p50 **8.9–89.0 ms**、p95 **10.2–92.9 ms**，重复结果一致。实际本机 HTTP 五接口均 **200**，单次 **11.2–122.5 ms**，结果数组与基准一致；场景三缺少 `include_winners` 回显字段，已在 JSON 保留两份完整响应。
+
+新增 [`check_analytics_display.py`](../scripts/check_analytics_display.py)，只读打开原库并备份到临时库测量，核对源文件 SHA-256 前后相同；无模型调用。完整响应、耗时样本和复现步骤见 [`实测报告`](benchmarks/official-full-20260927-analytics.md)及同名 JSON。脚本 Ruff 检查通过。
+
+**边界**：测量固定在 `68642fc` 独立 checkout，避免混入同时进行的 6a 修改；实际服务没有重启，未确认其提交版本。该基准场景 2/3 仍含 `unknown`，频次按包；不代表 6a 修改后的行为。这里仅确认所选主体能返回可展示结果，不证明答案正确、不代表全部主体覆盖率，也未验收浏览器渲染或第二台设备。
+
+---
+
+## 2026-09-27 · GAP 6a：五类 SQLite 查询通过 Gold 交叉校验
+
+新增 `backend/scripts/validate_gold_queries.py`，从 reviewed Gold 独立计算查询 oracle，将 24 条公告隔离导入全新临时 SQLite，并穷举两方输入、抽验三方交集。首轮发现：场景二 9/48、场景三 6/74 个查询结果不符；默认过滤把 `unknown` 当作未中标，且多包项目按包重复计频。修复后五场景共 **6471/6471** 项通过。
+
+场景二/三改为明确筛 `nonwinner`，频次改按项目去重；`include_winners=true` 保留完整状态查询。SQLite、Neo4j 查询模板和前端计数标签同步使用项目粒度。标注实体 ID 是提及级，oracle 按存储层的空白/大小写精确归一名对齐，不做模糊合并。
+
+验证：后端全量 **215 passed、1 skipped**；Ruff 检查通过；前端 **13 passed**、生产构建通过（仍有既有大 chunk 提示）；24 条 Gold 独立查询比较 **6471 passed、0 failed**。本轮只实测 SQLite，未连接 Neo4j；它验证已有关系与输出字段，不代表场景 3/5 缺失的金额汇总（GAP 2.5/2.6）已完成。完整范围、命令和局限见 [`GAP 6a 查询验证`](benchmarks/gap-6a-gold-query-validation.md)。
+
 ---
 
 ## 2026-09-27 · B-5 hybrid Gold 首轮实测（部分范围）

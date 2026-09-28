@@ -15,3 +15,18 @@ export function resolveSection(value = '') {
 export function sectionHash(section) {
   return `#${resolveSection(section)}`
 }
+
+const transitionGroups = new Map([
+  ['overview', 'direction-overview'],
+  ['import', 'direction-import'],
+  ['batch', 'direction-batch'],
+  ['items', 'direction-items'],
+  ['analytics', 'direction-analytics'],
+  ['quality', 'direction-quality'],
+  ['datasets', 'direction-settings'],
+  ['model', 'direction-settings'],
+])
+
+export function sectionTransition(section) {
+  return transitionGroups.get(resolveSection(section)) || 'direction-overview'
+}

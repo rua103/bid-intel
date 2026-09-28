@@ -306,7 +306,7 @@ async function evaluate() {
 </script>
 
 <template>
-  <section id="annotation" class="panel annotation-panel">
+  <section id="annotation" class="panel annotation-panel annotation-shell">
     <div class="panel-heading"><div><span class="step">{{ teamMode ? '任务' : '05' }}</span><h3>{{ teamMode ? '人工标注任务' : '人工标注与质量评测' }}</h3></div><span class="hint">任务按人隔离 · 每条单独核验 · 自动保存</span></div>
     <p class="annotation-note">队友操作：载入协调员发来的任务包 → 对照左侧原文逐条填写 → 勾选每条公告的核验框 → 下载已核验 Gold 和进度备份。系统预测只能作线索，不能照抄。</p>
     <div class="annotation-toolbar assignment-toolbar">

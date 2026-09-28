@@ -5,7 +5,7 @@ import BatchJobs from './components/BatchJobs.vue'
 import AuthGate from './components/AuthGate.vue'
 import { resolveApiBase } from './utils/browser.js'
 import { createDatasetClient } from './utils/datasets.js'
-import { navigationGroups, resolveSection, sectionHash } from './utils/navigation.js'
+import { navigationGroups, resolveSection, sectionHash, sectionTransition } from './utils/navigation.js'
 
 const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location, import.meta.env.VITE_API_PORT || '8000')
 const activeSection = ref(resolveSection(window.location.hash))
@@ -48,6 +48,7 @@ const prettyAmount = (value) => value == null ? '—' : Number(value).toLocaleSt
 const activeSectionLabel = computed(() => navigationGroups
   .flatMap((group) => group.items)
   .find((item) => item.id === activeSection.value)?.label || '首页概览')
+const pageTransition = computed(() => `page-${sectionTransition(activeSection.value)}`)
 const currentDatasetName = computed(() => datasets.value.find((row) => row.id === datasetId.value)?.name || '正在读取')
 
 const statusText = computed(() => {
@@ -361,6 +362,8 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
       </header>
 
       <div class="workspace-content">
+        <Transition :name="pageTransition" mode="out-in">
+        <div :key="activeSection" class="page-stage">
         <section v-if="activeSection === 'overview'" class="overview-view">
           <div class="overview-hero">
             <div>
@@ -598,6 +601,8 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
           <div class="test-only-note"><strong>测试阶段功能</strong><span>人工标注与审核工具用于完善比赛数据和检查抽取质量，正式交付版本可以移除。</span></div>
         </section>
 
+        </div>
+        </Transition>
         <footer>数据抽取为候选结果，进入竞赛验证集前应进行人工抽样核验。<span>数据留痕 · 结果可核验 · 关系可追溯</span></footer>
       </div>
     </main>

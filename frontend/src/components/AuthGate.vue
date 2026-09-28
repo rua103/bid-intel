@@ -75,24 +75,42 @@ onMounted(refreshSession)
       <button v-if="error && !authEnabled" type="button" class="secondary" @click="refreshSession">重试连接</button>
     </form>
   </main>
-  <div v-else class="auth-content">
-    <div v-if="authEnabled" class="auth-toolbar">
-      <span>已登录：{{ username }}</span>
-      <button type="button" class="secondary" @click="logout">退出登录</button>
+  <div v-else class="auth-content annotation-app-shell">
+    <div class="annotation-topbar">
+      <div class="annotation-brand">
+        <span class="annotation-brandmark" aria-hidden="true">标</span>
+        <div>
+          <strong>人工标注工作台</strong>
+          <small>ICT 创新大赛 · 赛题五</small>
+        </div>
+      </div>
+      <div class="annotation-session">
+        <span class="annotation-session-status"><i aria-hidden="true"></i>{{ authEnabled ? `已登录：${username}` : '本地评测模式' }}</span>
+        <button v-if="authEnabled" type="button" class="secondary" @click="logout">退出登录</button>
+      </div>
     </div>
     <slot />
   </div>
 </template>
 
 <style scoped>
-.auth-loading,.auth-page{min-height:100vh;display:grid;place-items:center;background:#f4f6f7;padding:24px}
-.auth-card{width:min(100%,420px);padding:36px;border:1px solid #dce3e4;border-radius:18px;background:#fff;box-shadow:0 18px 50px #19333812}
-.auth-card h1{margin:8px 0;font-size:28px}.auth-description{color:#667579;line-height:1.6;margin-bottom:24px}
-.auth-card label{display:grid;gap:7px;margin:16px 0;color:#34484c;font-size:14px}
-.auth-card input{box-sizing:border-box;width:100%;padding:12px;border:1px solid #ccd8d9;border-radius:8px;font:inherit}
-.auth-card button,.auth-toolbar button{padding:10px 16px;border:0;border-radius:8px;background:#176b65;color:white;font:inherit;cursor:pointer}
+.auth-loading,.auth-page{min-height:100vh;display:grid;place-items:center;background:var(--annotation-workspace,#f6f7fb);padding:24px}
+.auth-card{width:min(100%,420px);padding:36px;border:1px solid var(--annotation-line,#e6e2ef);border-radius:22px;background:#fff;box-shadow:0 18px 50px rgba(61,51,98,.10)}
+.auth-card h1{margin:8px 0;font-size:28px;color:var(--annotation-ink,#28243a)}.auth-description{color:var(--annotation-muted,#76718a);line-height:1.6;margin-bottom:24px}
+.auth-card label{display:grid;gap:7px;margin:16px 0;color:var(--annotation-ink,#28243a);font-size:14px}
+.auth-card input{box-sizing:border-box;width:100%;padding:12px;border:1px solid var(--annotation-line,#e6e2ef);border-radius:11px;font:inherit;background:#fcfbff}
+.auth-card input:focus{border-color:var(--annotation-violet,#7658d8);outline:3px solid rgba(118,88,216,.14);outline-offset:1px}
+.auth-card button,.annotation-session button{padding:10px 16px;border:0;border-radius:999px;background:var(--annotation-violet,#7658d8);color:white;font:inherit;cursor:pointer}
 .auth-card button{width:100%;margin-top:10px}.auth-card button:disabled{opacity:.6;cursor:wait}
-.auth-card button.secondary,.auth-toolbar button.secondary{background:#e8eeee;color:#31504e}
+.auth-card button.secondary,.annotation-session button.secondary{background:var(--annotation-violet-soft,#eeeaff);color:#6048b1}
 .auth-error{color:#aa3434;font-size:14px;line-height:1.5}
-.auth-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:8px 4vw;background:#f3f6f5;color:#526265;font-size:13px}
+.annotation-app-shell{min-height:100vh;background:var(--annotation-workspace,#f6f7fb);padding:14px 0 28px}
+.annotation-topbar{width:min(1440px,calc(100% - 32px));min-height:58px;margin:0 auto 18px;padding:8px 12px;border:1px solid var(--annotation-line,#e6e2ef);border-radius:999px;background:rgba(255,255,255,.9);box-shadow:0 12px 35px rgba(74,55,130,.10);backdrop-filter:blur(18px);display:flex;align-items:center;justify-content:space-between;gap:16px;animation:annotation-topbar-in .34s cubic-bezier(.22,.8,.28,1) both}
+.annotation-brand,.annotation-session{display:flex;align-items:center;gap:10px}.annotation-brandmark{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--annotation-violet,#7658d8);color:#fff;font-size:14px;font-weight:800;box-shadow:0 5px 12px rgba(118,88,216,.25)}
+.annotation-brand strong,.annotation-brand small{display:block}.annotation-brand strong{font-size:12px;color:#2d2940;font-weight:750}.annotation-brand small{margin-top:2px;color:#9189aa;font:9px var(--mono,'DM Mono',monospace);letter-spacing:.06em}
+.annotation-session{color:#8d87a1;font-size:11px}.annotation-session-status{display:inline-flex;align-items:center;gap:8px}.annotation-session-status i{width:7px;height:7px;border-radius:999px;background:#62ba95;box-shadow:0 0 0 4px #e5f5ee}
+.annotation-session button{font-size:11px;min-height:36px}
+@keyframes annotation-topbar-in{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+@media(max-width:620px){.annotation-app-shell{padding-top:10px}.annotation-topbar{width:calc(100% - 20px);margin-bottom:12px;padding:8px 10px}.annotation-brand small{display:none}.annotation-session-status{font-size:10px}.annotation-session button{padding:8px 11px}}
+@media(prefers-reduced-motion:reduce){.annotation-topbar{animation:none}}
 </style>

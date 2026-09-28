@@ -28,3 +28,16 @@ test('dashboard section resolver accepts known hashes and rejects unknown ones',
   assert.equal(sectionHash('batch'), '#batch')
   assert.equal(sectionHash('missing'), '#overview')
 })
+
+test('dashboard sections expose stable four-direction page motion groups', async () => {
+  const { sectionTransition } = await loadNavigation()
+  assert.equal(sectionTransition('overview'), 'direction-overview')
+  assert.equal(sectionTransition('import'), 'direction-import')
+  assert.equal(sectionTransition('batch'), 'direction-batch')
+  assert.equal(sectionTransition('items'), 'direction-items')
+  assert.equal(sectionTransition('analytics'), 'direction-analytics')
+  assert.equal(sectionTransition('quality'), 'direction-quality')
+  assert.equal(sectionTransition('datasets'), 'direction-settings')
+  assert.equal(sectionTransition('model'), 'direction-settings')
+  assert.equal(sectionTransition('missing'), 'direction-overview')
+})

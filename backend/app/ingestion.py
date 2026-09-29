@@ -31,19 +31,51 @@ _DEFAULT_PARSE_DOCUMENT = parse_document
 def _merge_model_items(
     rules: list[ItemCandidate], modeled: list[ItemCandidate], warnings: list[str],
 ) -> list[ItemCandidate]:
-    """Align original rule/model rows once; never consume an appended model row."""
-    result = list(rules)
+    """Merge model candidates into rule rows without manufacturing duplicates.
 
-    def key(value: str | None) -> str:
-        return "".join(unicodedata.normalize("NFKC", value or "").split()).casefold()
+    The table parser owns row structure, package evidence, and numeric validation. The
+    model owns semantic labels (category/brand/model). A model row is appended only when
+    no rule row with the same product/package could be its source; an ambiguous match is
+    retained by the rule row and reported for manual review.
+    """
 
-    def same_item(row: ItemCandidate, candidate: ItemCandidate) -> bool:
+    # Pydantic validates normal construction, but model_copy(update=...) deliberately
+    # skips validators. Normalize again at this boundary so matching, package fill,
+    # and model-only additions all use the same canonical package ids.
+    rules = [
+        row.model_copy(update={"package_code": normalize_package_code(row.package_code)})
+        for row in rules
+    ]
+    modeled = [
+        row.model_copy(update={"package_code": normalize_package_code(row.package_code)})
+        for row in modeled
+    ]
+
+    def key(value: object) -> str:
+        return "".join(unicodedata.normalize("NFKC", str(value or "")).split()).casefold()
+
+    def package_key(value: object) -> str:
+        return key(normalize_package_code(str(value or "")))
+
+    def present(value: object) -> bool:
+        return value is not None and (not isinstance(value, str) or bool(key(value)))
+
+    def same_source_product(row: ItemCandidate, candidate: ItemCandidate) -> bool:
+        row_name = key(row.product_name)
+        candidate_name = key(candidate.product_name)
         return bool(
             row.source_file == candidate.source_file
-            and key(row.product_name)
-            and key(row.product_name) == key(candidate.product_name)
-            and (not row.model or not candidate.model or key(row.model) == key(candidate.model))
+            # A missing rule name may be filled by a named model row, but a
+            # nameless model row must never match every table row.
+            and candidate_name
+            and (not row_name or row_name == candidate_name)
         )
+
+    def package_relation(row: ItemCandidate, candidate: ItemCandidate) -> str | None:
+        row_package, model_package = package_key(row.package_code), package_key(candidate.package_code)
+        if row_package != "default" and model_package != "default":
+            return "exact" if row_package == model_package else None
+        return "missing"
 
     def numbers_compatible(row: ItemCandidate, candidate: ItemCandidate) -> bool:
         return all(
@@ -52,67 +84,212 @@ def _merge_model_items(
             for field in ("quantity", "unit_price", "total_price")
         )
 
+    def compatible_values(left: ItemCandidate, right: ItemCandidate) -> bool:
+        return all(
+            getattr(left, field) is None or getattr(right, field) is None
+            or getattr(left, field) == getattr(right, field)
+            for field in ("quantity", "unit_price", "total_price")
+        )
+
+    def merge_duplicate_models(rows: list[ItemCandidate]) -> list[ItemCandidate]:
+        """Collapse only exact repeated model rows.
+
+        Same names and compatible numbers do not identify a physical procurement row;
+        official notices may contain multiple identical purchases. Require the same
+        package, the same evidence excerpt (including both excerpts being absent),
+        and equality of every extracted value. Sparse/complementary rows remain
+        separate.
+        """
+        output: list[ItemCandidate] = []
+        all_fields = ("package_code", "product_name", "category", "brand", "model",
+                      "quantity", "quantity_unit", "unit_price", "total_price")
+        for candidate in rows:
+            duplicate = None
+            for index, prior in enumerate(output):
+                if not same_source_product(prior, candidate):
+                    continue
+                prior_package = package_key(prior.package_code)
+                candidate_package = package_key(candidate.package_code)
+                if prior_package != candidate_package:
+                    continue
+                prior_evidence = key(prior.source_evidence)
+                candidate_evidence = key(candidate.source_evidence)
+                if prior_evidence != candidate_evidence:
+                    continue
+                values_equal = all(
+                    ((key(getattr(prior, field)) == key(getattr(candidate, field)))
+                     if isinstance(getattr(prior, field), str)
+                     else getattr(prior, field) == getattr(candidate, field))
+                    for field in all_fields
+                )
+                if values_equal:
+                    duplicate = index
+                    break
+                conflicts = [
+                    field for field in all_fields
+                    if present(getattr(prior, field)) and present(getattr(candidate, field))
+                    and ((key(getattr(prior, field)) != key(getattr(candidate, field)))
+                         if isinstance(getattr(prior, field), str)
+                         else getattr(prior, field) != getattr(candidate, field))
+                ]
+                if conflicts:
+                    warnings.append(
+                        f"模型重复候选字段冲突，保留两行并保留证据："
+                        f"{candidate.product_name} / {','.join(conflicts)}"
+                    )
+            if duplicate is None:
+                output.append(candidate)
+                continue
+            prior = output[duplicate]
+            evidence = "\n".join(dict.fromkeys(filter(None, (
+                prior.source_evidence, candidate.source_evidence))))
+            changes = {"source_evidence": evidence} if evidence else {}
+            output[duplicate] = prior.model_copy(update=changes)
+            warnings.append(f"模型重复候选合并 2→1：{candidate.product_name}")
+        return output
+
+    modeled = merge_duplicate_models(modeled)
+    result = list(rules)
     unmatched_rules = set(range(len(rules)))
     unmatched_models = set(range(len(modeled)))
     pairs: dict[int, int] = {}
-    # Known equal packages have priority over a missing package. A pair must be
-    # unique in both directions so the outcome cannot depend on model row order.
-    for exact_package in (True, False):
-        edges: dict[int, list[int]] = {}
-        for m in sorted(unmatched_models):
-            candidate = modeled[m]
-            matches = []
-            for r in sorted(unmatched_rules):
-                row = rules[r]
-                known_equal = (row.package_code != "default"
-                               and key(row.package_code) == key(candidate.package_code))
-                missing = "default" in (row.package_code, candidate.package_code)
-                package_matches = known_equal if exact_package else missing
-                if not same_item(row, candidate) or not package_matches:
-                    continue
-                # With a missing package, conflicting amounts cannot identify
-                # the same row. Known packages can retain a flagged field conflict.
-                if exact_package or numbers_compatible(row, candidate):
-                    matches.append(r)
-            if len(matches) > 1:
-                compatible = [r for r in matches if numbers_compatible(rules[r], candidate)]
-                matches = compatible or matches
-            edges[m] = matches
-        for m, matches in edges.items():
-            if len(matches) != 1:
-                continue
-            r = matches[0]
-            if sum(r in possible for possible in edges.values()) != 1:
-                continue
-            pairs[m] = r
-            unmatched_rules.remove(r)
-            unmatched_models.remove(m)
+    def _maximum_matching(edges: dict[int, list[int]]) -> dict[int, int]:
+        """Return a deterministic maximum cardinality model→rule matching."""
+        owners: dict[int, int] = {}
 
-    fields = ("product_name", "category", "brand", "model", "quantity", "quantity_unit",
-              "unit_price", "total_price")
+        def visit(model_index: int, seen: set[int]) -> bool:
+            for rule_index in edges.get(model_index, ()):
+                if rule_index in seen:
+                    continue
+                seen.add(rule_index)
+                owner = owners.get(rule_index)
+                if owner is None or visit(owner, seen):
+                    owners[rule_index] = model_index
+                    return True
+            return False
+
+        for model_index in sorted(edges):
+            visit(model_index, set())
+        return {model_index: rule_index for rule_index, model_index in owners.items()}
+
+    def _matching_size(edges: dict[int, list[int]]) -> int:
+        return len(_maximum_matching(edges))
+
+    def _pair_forced_edges(edges: dict[int, list[int]]) -> dict[int, int]:
+        """Pair only assignments present in every maximum matching.
+
+        A plain greedy join can pair one model row with an arbitrary duplicate
+        table row. Conversely, accepting only degree-one rows misses forced
+        assignments such as ``m1→{r1,r2}, m2→{r1}``. We compute a maximum
+        cardinality matching, then retain an edge only when removing it lowers
+        that cardinality. Ambiguous cycles therefore stay unmatched and are
+        handled by the warning/extra-candidate policy below.
+        """
+        if not edges:
+            return {}
+        maximum = _maximum_matching(edges)
+        target_size = len(maximum)
+        forced: dict[int, int] = {}
+        for model_index, rule_index in maximum.items():
+            alternatives = {
+                candidate: [rule for rule in rows if not (
+                    candidate == model_index and rule == rule_index
+                )]
+                for candidate, rows in edges.items()
+            }
+            if _matching_size(alternatives) < target_size:
+                forced[model_index] = rule_index
+        return forced
+
+    # Known equal packages have priority over a missing package. Re-evaluate the
+    # graph after every forced assignment so a global one-to-one match is found
+    # without choosing an arbitrary edge from an ambiguous cycle.
+    for exact_package in (True, False):
+        while unmatched_models and unmatched_rules:
+            edges: dict[int, list[int]] = {}
+            for m in sorted(unmatched_models):
+                candidate = modeled[m]
+                matches = []
+                for r in sorted(unmatched_rules):
+                    row = rules[r]
+                    known_equal = (package_key(row.package_code) != "default"
+                                   and package_key(row.package_code) == package_key(candidate.package_code))
+                    missing = "default" in (package_key(row.package_code), package_key(candidate.package_code))
+                    package_matches = known_equal if exact_package else missing
+                    if not same_source_product(row, candidate) or not package_matches:
+                        continue
+                    # With a missing package, conflicting amounts cannot identify
+                    # the same row. Known packages can retain a flagged field conflict.
+                    if exact_package or numbers_compatible(row, candidate):
+                        matches.append(r)
+                if len(matches) > 1:
+                    compatible = [r for r in matches if numbers_compatible(rules[r], candidate)]
+                    matches = compatible or matches
+                if matches:
+                    edges[m] = matches
+            forced = _pair_forced_edges(edges)
+            if not forced:
+                break
+            for m, r in forced.items():
+                if m not in unmatched_models or r not in unmatched_rules:
+                    continue
+                pairs[m] = r
+                unmatched_rules.remove(r)
+                unmatched_models.remove(m)
+
     for m, candidate in enumerate(modeled):
         if m not in pairs:
-            if any(same_item(row, candidate) and (
-                key(row.package_code) == key(candidate.package_code)
-                or "default" in (row.package_code, candidate.package_code)
-            ) for row in rules):
-                warnings.append(f"模型行无法唯一对齐表格，请核验：{candidate.product_name}")
+            related = any(
+                same_source_product(row, candidate)
+                and (
+                    package_relation(row, candidate) == "exact"
+                    or (
+                        package_relation(row, candidate) == "missing"
+                        and (
+                            package_key(candidate.package_code) == "default"
+                            or compatible_values(row, candidate)
+                        )
+                    )
+                )
+                for row in rules
+            )
+            if related:
+                warnings.append(f"模型行无法唯一对齐表格，保留规则行待核验：{candidate.product_name}")
+                continue
+            if not key(candidate.product_name):
+                warnings.append("模型行缺少标的名称，已丢弃无法核验候选")
+                continue
+            warnings.append(f"模型额外候选保留，规则表格无对应行：{candidate.product_name}")
             result.append(candidate)
             continue
         index = pairs[m]
         row = rules[index]
-        changes = {field: getattr(candidate, field) for field in fields
-                   if getattr(row, field) is None and getattr(candidate, field) is not None}
+        semantic_fields = ("product_name", "category", "brand", "model", "quantity_unit")
+        numeric_fields = ("quantity", "unit_price", "total_price")
+        changes = {
+            field: getattr(candidate, field)
+            for field in semantic_fields
+            if present(getattr(candidate, field))
+        }
+        changes.update({
+            field: getattr(candidate, field)
+            for field in numeric_fields
+            if getattr(row, field) is None and getattr(candidate, field) is not None
+        })
         if row.package_code == "default" and candidate.package_code != "default":
-            changes["package_code"] = candidate.package_code
-        conflicts = [field for field in fields if getattr(row, field) is not None
-                     and getattr(candidate, field) is not None
-                     and (key(getattr(row, field)) if isinstance(getattr(row, field), str)
-                          else str(getattr(row, field)).casefold())
-                     != (key(getattr(candidate, field)) if isinstance(getattr(candidate, field), str)
-                         else str(getattr(candidate, field)).casefold())]
-        if conflicts:
-            warnings.append(f"表格与模型字段不一致，保留表格值待核验：{candidate.product_name} / {','.join(conflicts)}")
+            changes["package_code"] = normalize_package_code(candidate.package_code)
+        semantic_conflicts = [field for field in semantic_fields
+                              if present(getattr(row, field)) and present(getattr(candidate, field))
+                              and key(getattr(row, field)) != key(getattr(candidate, field))]
+        numeric_conflicts = [field for field in numeric_fields if getattr(row, field) is not None
+                             and getattr(candidate, field) is not None
+                             and getattr(row, field) != getattr(candidate, field)]
+        if semantic_conflicts or numeric_conflicts:
+            conflict_fields = semantic_conflicts + numeric_conflicts
+            warnings.append(
+                f"表格与模型字段不一致，模型语义/规则数值优先待核验："
+                f"{candidate.product_name} / {','.join(conflict_fields)}"
+            )
         changes.update(extraction_method="hybrid_source_verified",
                        source_evidence="\n".join(dict.fromkeys(filter(None, (
                            row.source_evidence, candidate.source_evidence)))))
@@ -134,13 +311,65 @@ def _deduplicate(
 
     fields = ('category', 'brand', 'model', 'quantity', 'quantity_unit',
               'unit_price', 'total_price')
+
+    def same_source_exact_duplicate(left: ItemCandidate, right: ItemCandidate) -> bool:
+        """Recognize duplicate parser output for the same physical table row.
+
+        Same-file rows at different locations are distinct procurement lines even
+        when every extracted field is equal. Model evidence does not contain a
+        reliable row address, so model candidates are never collapsed here.
+        """
+        if left.source_file != right.source_file:
+            return False
+        row_address = r'(?:^|/)table:\d+/row:\d+$'
+        if (left.source_location != right.source_location
+                or not re.search(row_address, left.source_location)):
+            return False
+        if not left.source_evidence or left.source_evidence != right.source_evidence:
+            return False
+        if left.extraction_method != right.extraction_method:
+            return False
+        if (left.extraction_method.casefold().startswith(('qwen', 'deepseek', 'model'))
+                or 'model' in left.source_location.casefold()
+                or 'model' in right.source_location.casefold()):
+            return False
+        values = ('package_code', 'product_name', 'category', 'brand', 'model',
+                  'quantity', 'quantity_unit', 'unit_price', 'total_price')
+        return all(
+            (key(normalize_package_code(getattr(left, field)))
+             == key(normalize_package_code(getattr(right, field))))
+            if field == 'package_code' else getattr(left, field) == getattr(right, field)
+            for field in values
+        )
+
+    def source_row_conflicts(left: ItemCandidate, right: ItemCandidate) -> list[str]:
+        row_address = r'(?:^|/)table:\d+/row:\d+$'
+        if (left.source_file != right.source_file
+                or left.source_location != right.source_location
+                or not re.search(row_address, left.source_location)):
+            return []
+        fields_to_compare = ('package_code', 'product_name', *fields)
+        return [field for field in fields_to_compare
+                if getattr(left, field) != getattr(right, field)]
+
     edges: list[set[int]] = [set() for _ in items]
     for i, left in enumerate(items):
         for j in range(i + 1, len(items)):
             right = items[j]
-            if left.source_file == right.source_file or not key(left.product_name) or (
-                key(left.product_name) != key(right.product_name)
-            ):
+            if left.source_file == right.source_file:
+                if same_source_exact_duplicate(left, right):
+                    edges[i].add(j)
+                    edges[j].add(i)
+                else:
+                    conflicts = source_row_conflicts(left, right)
+                    if conflicts:
+                        warnings.append(
+                            f'同一来源行候选字段冲突，保留待核验：'
+                            f'{left.product_name or right.product_name or "未命名标的"} / '
+                            + ','.join(conflicts)
+                        )
+                continue
+            if not key(left.product_name) or key(left.product_name) != key(right.product_name):
                 continue
             packages = (package(left.package_code), package(right.package_code))
             if packages[0] != packages[1] and 'default' not in packages:
@@ -202,11 +431,16 @@ def _deduplicate(
             merged = merged.model_copy(update=changes)
             evidence.append(f'[{row.source_file} @ {row.source_location}]\n'
                             + (row.source_evidence or ''))
+        same_source = len({items[index].source_file for index in indices}) == 1
         output.append(merged.model_copy(update={
             'source_evidence': '\n'.join(evidence),
-            'extraction_method': 'cross_file_source_verified',
+            'extraction_method': (
+                'same_source_replay_verified' if same_source
+                else 'cross_file_source_verified'
+            ),
         }))
-        warnings.append(f'跨文件重复候选合并 {len(indices)}→1（保留来源证据）：{merged.product_name}')
+        relation = '同源重复候选' if same_source else '跨文件重复候选'
+        warnings.append(f'{relation}合并 {len(indices)}→1（保留来源证据）：{merged.product_name}')
     return output
 
 

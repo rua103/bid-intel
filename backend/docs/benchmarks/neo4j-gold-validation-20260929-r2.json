@@ -1,0 +1,408 @@
+{
+  "validation": "GAP 6a reviewed-gold SQLite versus live Neo4j",
+  "created_at_utc": "2026-09-29T04:49:22.481031+00:00",
+  "gold_path": "E:\\Users\\16606\\桌面\\official-20260926-LHH-YHR\\official-20260926-LHH-YHR\\gold.merged.json",
+  "gold_status": "reviewed",
+  "gold_sha256": "cfa3fa242bf6f1eec0bd474731e1d48a126df9259e9148c837c8f8458bb5759f",
+  "neo4j": {
+    "uri": "bolt://127.0.0.1:63950",
+    "database": "neo4j",
+    "dataset": "gold-24-neo4j-20260929-r2"
+  },
+  "sqlite_database": "E:\\Users\\16606\\桌面\\bid-intel\\backend\\.data\\query-validation\\neo4j-gold-20260929T044854Z-25380.sqlite",
+  "import": {
+    "notices": 24,
+    "projects": 24,
+    "packages": 39,
+    "items": 251,
+    "participants": 111,
+    "awards": 39,
+    "backend": "neo4j",
+    "dataset": "gold-24-neo4j-20260929-r2",
+    "nodes": 442,
+    "relationships": 464,
+    "project_count": 24
+  },
+  "sqlite_validation": {
+    "validation": "GAP 6a reviewed-gold SQLite relationship validation",
+    "created_at_utc": "2026-09-29T04:48:55.249993+00:00",
+    "gold_status": "reviewed",
+    "gold_sha256": "cfa3fa242bf6f1eec0bd474731e1d48a126df9259e9148c837c8f8458bb5759f",
+    "database_path": "E:\\Users\\16606\\桌面\\bid-intel\\backend\\.data\\query-validation\\neo4j-gold-20260929T044854Z-25380.sqlite",
+    "scenes": {
+      "scene1_buyer_awardees": {
+        "checked": 24,
+        "failed": 0
+      },
+      "scene2_buyer_bidders": {
+        "checked": 48,
+        "failed": 0
+      },
+      "scene3_supplier_co_bidders": {
+        "checked": 74,
+        "failed": 0
+      },
+      "scene4_common_award_buyers": {
+        "checked": 673,
+        "failed": 0
+      },
+      "scene5_common_bid_projects": {
+        "checked": 5652,
+        "failed": 0
+      }
+    },
+    "mismatches": [],
+    "summary": {
+      "checked": 6471,
+      "failed": 0
+    }
+  },
+  "neo4j_validation": {
+    "validation": "GAP 6a reviewed-gold Neo4j relationship validation",
+    "created_at_utc": "2026-09-29T04:49:09.128677+00:00",
+    "gold_status": "reviewed",
+    "gold_sha256": "cfa3fa242bf6f1eec0bd474731e1d48a126df9259e9148c837c8f8458bb5759f",
+    "database_path": "E:\\Users\\16606\\桌面\\bid-intel\\backend\\.data\\query-validation\\neo4j-gold-20260929T044854Z-25380.sqlite",
+    "scenes": {
+      "scene1_buyer_awardees": {
+        "checked": 24,
+        "failed": 0
+      },
+      "scene2_buyer_bidders": {
+        "checked": 48,
+        "failed": 0
+      },
+      "scene3_supplier_co_bidders": {
+        "checked": 74,
+        "failed": 0
+      },
+      "scene4_common_award_buyers": {
+        "checked": 673,
+        "failed": 0
+      },
+      "scene5_common_bid_projects": {
+        "checked": 5652,
+        "failed": 0
+      }
+    },
+    "mismatches": [],
+    "summary": {
+      "checked": 6471,
+      "failed": 0
+    }
+  },
+  "comparison": {
+    "checked": 6471,
+    "mismatched": 0,
+    "passed": 6471,
+    "mismatches": [],
+    "scene_samples": {
+      "scene1_buyer_awardees": {
+        "call": "[\"buyer_awardees\", [106], {}]",
+        "sqlite": {
+          "awardees": [
+            {
+              "award_amount_total": "1819830",
+              "award_package_count": 1,
+              "name": "中移建设有限公司",
+              "organization_id": 107,
+              "product_brands": [
+                "BTR",
+                "H3C",
+                "三固",
+                "中移建设",
+                "云创智能",
+                "依米康龙控",
+                "宇启恒飞",
+                "安兴",
+                "崇瀚",
+                "希捷",
+                "森奢",
+                "泛海三江",
+                "海康",
+                "耐普",
+                "豪恩",
+                "雷安"
+              ]
+            }
+          ],
+          "buyer": {
+            "canonical_name": "广东工程职业技术学院",
+            "id": 106
+          }
+        },
+        "neo4j": {
+          "awardees": [
+            {
+              "award_amount_total": "1819830",
+              "award_package_count": 1,
+              "name": "中移建设有限公司",
+              "organization_id": 107,
+              "product_brands": [
+                "BTR",
+                "H3C",
+                "三固",
+                "中移建设",
+                "云创智能",
+                "依米康龙控",
+                "宇启恒飞",
+                "安兴",
+                "崇瀚",
+                "希捷",
+                "森奢",
+                "泛海三江",
+                "海康",
+                "耐普",
+                "豪恩",
+                "雷安"
+              ]
+            }
+          ],
+          "buyer": {
+            "canonical_name": "广东工程职业技术学院",
+            "id": 106
+          }
+        },
+        "matches": true
+      },
+      "scene2_buyer_bidders": {
+        "call": "[\"buyer_bidders\", [106], {\"include_winners\": false, \"top\": 5}]",
+        "sqlite": {
+          "buyer": {
+            "canonical_name": "广东工程职业技术学院",
+            "id": 106
+          },
+          "co_bidder_pairs": [
+            {
+              "name1": "广州宏邦伟信信息科技有限公司",
+              "name2": "广州市伟粤通讯设备有限公司",
+              "org1": 108,
+              "org2": 109,
+              "project_count": 1
+            }
+          ],
+          "include_winners": false,
+          "top_bidders": [
+            {
+              "canonical_name": "广州宏邦伟信信息科技有限公司",
+              "id": 108,
+              "project_count": 1
+            },
+            {
+              "canonical_name": "广州市伟粤通讯设备有限公司",
+              "id": 109,
+              "project_count": 1
+            }
+          ]
+        },
+        "neo4j": {
+          "buyer": {
+            "canonical_name": "广东工程职业技术学院",
+            "id": 106
+          },
+          "co_bidder_pairs": [
+            {
+              "name1": "广州宏邦伟信信息科技有限公司",
+              "name2": "广州市伟粤通讯设备有限公司",
+              "org1": 108,
+              "org2": 109,
+              "project_count": 1
+            }
+          ],
+          "include_winners": false,
+          "top_bidders": [
+            {
+              "canonical_name": "广州宏邦伟信信息科技有限公司",
+              "id": 108,
+              "project_count": 1
+            },
+            {
+              "canonical_name": "广州市伟粤通讯设备有限公司",
+              "id": 109,
+              "project_count": 1
+            }
+          ]
+        },
+        "matches": true
+      },
+      "scene4_common_award_buyers": {
+        "call": "[\"common_award_buyers\", [[10, 107]], {}]",
+        "sqlite": {
+          "buyers": [],
+          "selected_suppliers": [
+            {
+              "canonical_name": "中招工业发展（北京）有限公司",
+              "id": 10
+            },
+            {
+              "canonical_name": "中移建设有限公司",
+              "id": 107
+            }
+          ]
+        },
+        "neo4j": {
+          "buyers": [],
+          "selected_suppliers": [
+            {
+              "canonical_name": "中招工业发展（北京）有限公司",
+              "id": 10
+            },
+            {
+              "canonical_name": "中移建设有限公司",
+              "id": 107
+            }
+          ]
+        },
+        "matches": true
+      },
+      "scene5_common_bid_projects": {
+        "call": "[\"common_bid_packages\", [[10, 101]], {}]",
+        "sqlite": {
+          "package_count": 0,
+          "packages": [],
+          "project_count": 0,
+          "required_entities": [
+            {
+              "canonical_name": "中招工业发展（北京）有限公司",
+              "id": 10
+            },
+            {
+              "canonical_name": "广东省广播电视网络股份有限公司韶关分公司",
+              "id": 101
+            }
+          ]
+        },
+        "neo4j": {
+          "package_count": 0,
+          "packages": [],
+          "project_count": 0,
+          "required_entities": [
+            {
+              "canonical_name": "中招工业发展（北京）有限公司",
+              "id": 10
+            },
+            {
+              "canonical_name": "广东省广播电视网络股份有限公司韶关分公司",
+              "id": 101
+            }
+          ]
+        },
+        "matches": true
+      },
+      "scene3_supplier_co_bidders": {
+        "call": "[\"supplier_co_bidders\", [107], {\"include_winners\": false, \"top\": 5}]",
+        "sqlite": {
+          "base": "packages where supplier has an award",
+          "include_winners": false,
+          "packages": [
+            {
+              "buyer_name": "广东工程职业技术学院",
+              "package_id": 32,
+              "participants": [
+                {
+                  "canonical_name": "中移建设有限公司",
+                  "organization_id": 107,
+                  "outcome": "winner"
+                },
+                {
+                  "canonical_name": "广州宏邦伟信信息科技有限公司",
+                  "organization_id": 108,
+                  "outcome": "nonwinner"
+                },
+                {
+                  "canonical_name": "广州市伟粤通讯设备有限公司",
+                  "organization_id": 109,
+                  "outcome": "nonwinner"
+                }
+              ],
+              "project_id": 22,
+              "project_name": "gold project e9d6a97b74b8ec0aa279",
+              "project_number": "e9d6a97b74b8ec0aa279",
+              "target_award_amount": "1819830"
+            }
+          ],
+          "supplier": {
+            "canonical_name": "中移建设有限公司",
+            "id": 107
+          },
+          "top_co_bidders": [
+            {
+              "canonical_name": "广州宏邦伟信信息科技有限公司",
+              "organization_id": 108,
+              "project_count": 1
+            },
+            {
+              "canonical_name": "广州市伟粤通讯设备有限公司",
+              "organization_id": 109,
+              "project_count": 1
+            }
+          ]
+        },
+        "neo4j": {
+          "base": "packages where supplier has an award",
+          "include_winners": false,
+          "packages": [
+            {
+              "buyer_name": "广东工程职业技术学院",
+              "package_id": 32,
+              "participants": [
+                {
+                  "canonical_name": "中移建设有限公司",
+                  "organization_id": 107,
+                  "outcome": "winner"
+                },
+                {
+                  "canonical_name": "广州宏邦伟信信息科技有限公司",
+                  "organization_id": 108,
+                  "outcome": "nonwinner"
+                },
+                {
+                  "canonical_name": "广州市伟粤通讯设备有限公司",
+                  "organization_id": 109,
+                  "outcome": "nonwinner"
+                }
+              ],
+              "project_id": 22,
+              "project_name": "gold project e9d6a97b74b8ec0aa279",
+              "project_number": "e9d6a97b74b8ec0aa279",
+              "target_award_amount": "1819830"
+            }
+          ],
+          "supplier": {
+            "canonical_name": "中移建设有限公司",
+            "id": 107
+          },
+          "top_co_bidders": [
+            {
+              "canonical_name": "广州宏邦伟信信息科技有限公司",
+              "organization_id": 108,
+              "project_count": 1
+            },
+            {
+              "canonical_name": "广州市伟粤通讯设备有限公司",
+              "organization_id": 109,
+              "project_count": 1
+            }
+          ]
+        },
+        "matches": true
+      }
+    }
+  },
+  "coverage": {
+    "multi_package": true,
+    "unknown": true,
+    "nonwinner": true,
+    "party_selection_calls": {
+      "scene4_common_award_buyers": {
+        "two_party": 666,
+        "three_party": 7
+      },
+      "scene5_common_bid_projects": {
+        "two_party": 5356,
+        "three_party": 296
+      }
+    },
+    "three_party_gold_combinations": 297
+  }
+}

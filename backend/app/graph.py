@@ -213,7 +213,13 @@ def create_driver(uri: str, user: str, password: str):
         from neo4j import GraphDatabase
     except ImportError as exc:
         raise RuntimeError('请安装可选依赖：pip install -e ".[graph]"') from exc
-    return GraphDatabase.driver(uri, auth=(user, password))
+    driver = GraphDatabase.driver(uri, auth=(user, password))
+    try:
+        driver.verify_connectivity()
+    except Exception as exc:
+        driver.close()
+        raise RuntimeError(f"Neo4j unavailable at {uri}: {exc}") from exc
+    return driver
 
 
 def _validate_dataset(dataset: str) -> str:
@@ -253,12 +259,17 @@ def sync_to_neo4j(path: Path, driver: Any, *, dataset: str, database: str = "neo
     if not path.is_file():
         raise ValueError(f"SQLite 数据库不存在：{path}")
     snapshot = graph_snapshot(path)
-    with driver.session(database=database) as session:
-        session.run("CREATE CONSTRAINT bidintel_node_identity IF NOT EXISTS "
-                    "FOR (n:BidIntelNode) REQUIRE (n.dataset,n.uid) IS UNIQUE").consume()
-        session.run("CREATE CONSTRAINT bidintel_dataset_identity IF NOT EXISTS "
-                    "FOR (d:BidIntelDataset) REQUIRE d.name IS UNIQUE").consume()
-        return session.execute_write(_write_snapshot, snapshot, dataset)
+    try:
+        with driver.session(database=database) as session:
+            session.run("CREATE CONSTRAINT bidintel_node_identity IF NOT EXISTS "
+                        "FOR (n:BidIntelNode) REQUIRE (n.dataset,n.uid) IS UNIQUE").consume()
+            session.run("CREATE CONSTRAINT bidintel_dataset_identity IF NOT EXISTS "
+                        "FOR (d:BidIntelDataset) REQUIRE d.name IS UNIQUE").consume()
+            return session.execute_write(_write_snapshot, snapshot, dataset)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"Neo4j unavailable while exporting dataset {dataset}: {exc}") from exc
 
 
 def _sum_amounts(values: list[str | None]) -> str | None:
@@ -328,5 +339,10 @@ def query_neo4j(driver: Any, scene: str, *, dataset: str, database: str = "neo4j
         raise ValueError("该场景需要 supplier_id")
     if scene.startswith("common_") and len(params["supplier_ids"]) < 2:
         raise ValueError("至少选择两家不同主体")
-    with driver.session(database=database) as session:
-        return session.execute_read(_read_scene, scene, params)
+    try:
+        with driver.session(database=database) as session:
+            return session.execute_read(_read_scene, scene, params)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"Neo4j unavailable while querying scene {scene}: {exc}") from exc

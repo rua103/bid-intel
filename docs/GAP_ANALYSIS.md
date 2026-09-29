@@ -257,6 +257,8 @@ hybrid   6 items: [前三项, 同样的三项再来一遍]
 
 **影响**：赛题技术要求明写「推荐采用 Neo4j 完成业务场景的关系建模」，任务二要求「结合知识图谱建模、图检索增强技术」。现状是评委在平台里既看不到 Neo4j、也看不到图检索增强，**答辩若声称用了 Neo4j 拿不出运行证据**；且那 5 段 Cypher 从未执行，演示时可能直接报错。
 
+**当前状态（2026-09-29）：已完成本次验收范围。** 已增加固定版本 Neo4j Community Compose 配置、不可用时的明确 `RuntimeError`、无 `skipif` 的真实集成测试，并用正式 reviewed Gold 在独立 dataset `gold-24-neo4j-20260929-r2` 实际执行五场景。SQLite 与 Neo4j **6471/6471** 项一致，导入统计为 24 项目、39 包、251 标的、111 参与关系、39 中标关系，Neo4j 442 节点/464 关系；覆盖多包、`unknown`、`nonwinner`、两方和三方组合。完整证据见 [`NEO4J_VALIDATION.md`](NEO4J_VALIDATION.md) 和 [`neo4j-gold-validation-20260929-r2.json`](../backend/docs/benchmarks/neo4j-gold-validation-20260929-r2.json)。应用五个 API 仍使用 SQLite，且 Neo4j 5.26 有待后续清理的 `CALL` 作用域弃用提示。
+
 ### 2.4 场景 1 的「产品供应商」维度无数据 · high · 天
 
 **证据**：`item_fields` 累计——`model` 模式 `product_name` 19 / `category` 3 / `brand` **4** / `model` 4 / `quantity` 19 / `unit_price` 4 / `total_price` 0。回放后 `analytics.py:89-95` 用 `procurement_items.brand` 反推产品供应商，`brand` 为空则该维度整体为空（实测 `product_brands` 全为 `[]`）。根因：上游公告的「中标情况」表经常只有「见附件」占位，真实品牌在附件里，而当前开发集**全是纯 HTML、零附件**。

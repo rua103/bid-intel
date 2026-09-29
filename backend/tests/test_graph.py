@@ -159,6 +159,11 @@ class _Driver:
         return self.current
 
 
+class _UnavailableDriver:
+    def session(self, **_):
+        raise ConnectionError("bolt endpoint is unavailable")
+
+
 def test_sync_uses_one_transaction_and_scopes_every_mutation(tmp_path):
     path = tmp_path / "graph.db"
     _fixture(path)
@@ -178,14 +183,33 @@ def test_sync_uses_one_transaction_and_scopes_every_mutation(tmp_path):
         query_neo4j(driver, "common_projects", dataset="test-data", supplier_ids=[1, 1])
 
 
-@pytest.mark.skipif(not os.getenv("BIDINTEL_TEST_NEO4J_URI"), reason="optional live Neo4j endpoint not configured")
+def test_neo4j_unavailable_is_an_explicit_error(tmp_path):
+    path = tmp_path / "graph.db"
+    _fixture(path)
+    driver = _UnavailableDriver()
+    with pytest.raises(RuntimeError, match="Neo4j.*unavailable"):
+        sync_to_neo4j(path, driver, dataset="unavailable")
+    with pytest.raises(RuntimeError, match="Neo4j.*unavailable"):
+        query_neo4j(driver, "common_projects", dataset="unavailable", supplier_ids=[1, 2])
+
+
+@pytest.mark.integration
 def test_live_neo4j_all_five_scenes_match_sqlite_and_isolate_datasets(tmp_path):
-    """Opt-in integration test: real Cypher, idempotency, and scope isolation."""
+    """Required integration test: real Cypher, idempotency, and scope isolation."""
     path = tmp_path / "live.db"
     buyer, a, b, _ = _fixture(path)
     dataset = f"pytest-{uuid.uuid4()}"
     other = dataset + "-other"
-    driver = create_driver(os.environ["BIDINTEL_TEST_NEO4J_URI"], os.getenv("BIDINTEL_TEST_NEO4J_USER", "neo4j"), os.environ["BIDINTEL_TEST_NEO4J_PASSWORD"])
+    uri = os.getenv("BIDINTEL_TEST_NEO4J_URI")
+    if not uri:
+        pytest.fail("Neo4j integration requires BIDINTEL_TEST_NEO4J_URI; start the documented server first")
+    password = os.getenv("BIDINTEL_TEST_NEO4J_PASSWORD")
+    if not password:
+        pytest.fail("Neo4j integration requires BIDINTEL_TEST_NEO4J_PASSWORD")
+    try:
+        driver = create_driver(uri, os.getenv("BIDINTEL_TEST_NEO4J_USER", "neo4j"), password)
+    except RuntimeError as exc:
+        pytest.fail(str(exc))
     try:
         sync_to_neo4j(path, driver, dataset=other)
         initial = sync_to_neo4j(path, driver, dataset=dataset)

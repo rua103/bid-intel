@@ -4,6 +4,28 @@
 > 可复用的结论（怎么跑、红线、哪些坑不要再踩）在 [`ONBOARDING.md`](ONBOARDING.md)，本文不重复。
 > 开放问题在 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md)。
 
+## 2026-09-29 · Neo4j 路径可用性修复
+
+检查远端 `main2` 后确认其 Neo4j 实现不能直接移植：验证脚本依赖已被同一分支删除的 `validate_gold_queries.py`，并把场景二/三改回包粒度和默认包含未知/中标主体。当前 main 只移植 Neo4j 范围：连接可达性校验、导出/查询错误包装、数据集隔离、五类 Cypher、场景三/五金额返回、独立 Compose 运行目录和不可用连接回归测试。运行目录使用 `backend/neo4j_runtime`，避免 `backend/neo4j` 遮蔽 Python 驱动包。
+
+验证：Docker Neo4j **5.26.14** 已启动；真实五场景集成测试 **1 passed**。使用 `gold.merged.json` 导入 24 条 reviewed Gold 后，Neo4j 与 SQLite 独立对照 **6471/6471 passed、0 mismatched**（442 节点、464 条关系）；校验脚本默认使用唯一临时 dataset 并在结束时清理。离线相关测试 **6 passed、1 skipped**，Ruff 通过。
+
+## 2026-09-29 · 任务二：场景三/五金额汇总与独立留出抽样
+
+场景三 API 现在返回共同竞标方的项目数、采购包数及所选中标供应商在这些共同参与包中的中标金额；场景五保留包级明细，并新增按项目去重的金额汇总和全局唯一 award 总额。多包、多中标记录回归测试通过，避免因参与方连接重复计额。前端同步展示项目级和总金额。
+
+同时为人工标注任务生成器增加 `--exclude-notice-id`，从 1038 条官方原始材料中抽取第二批分层留出样本。新任务包 24 条与原调优 Gold 24 条 **0 重叠**，覆盖要求无缺口；4 个交付 ZIP 均通过 `ZipFile.testzip()`。该包只有原始材料、解析文本和预测，不含伪造 Gold。
+
+验证：后端目标测试 **7 passed**，Ruff 通过；前端 Node 测试 **15 passed**。前端生产构建因当前环境 `node_modules` 缺少 Vite，且 `npm ci` 被占用的 Rollup 原生文件阻断，尚未完成。
+
+## 2026-09-29 · 任务一：区分合法重复行与 hybrid 合并重复
+
+复核公告 `cc68909a55d0d29eb8b6`：rules、model 与团队 Gold 均为 **61 行 / 21 个唯一产品名**；七字段完全相同的重复行超额均为 **22**，且原文确有不同采购明细行，不能按名称或字段相等去重。旧 hybrid 为 **93 行 / 21 个唯一产品名 / 44 条完全重复超额**。当前同源去重只折叠相同 source file、相同物理表格行位置、相同原文证据、解析方式和全部字段都相同的 parser replay；当前 hybrid 合并使用本机缓存的模型响应重新跑该公告后为 **61 行 / 21 个唯一产品名 / 22 条完全重复超额**。本次没有真实模型 API 调用，也没有改动 Gold。
+
+验证：后端全量 **235 passed、1 skipped**；目标解析/合并与同源去重定向测试 **27 passed**；Ruff 和 `git diff --check` 通过。该数字是单公告回归，证明此例的行数与 Gold 计数一致；不代表 24 条路线指标已重算，需保留全量三路线与附件/OCR复评。
+
+---
+
 ## 2026-09-28 · 任务一：6 条 Gold 附件 pilot
 
 同一批 6 条 reviewed Gold 的 HTML+附件/OCR 回放已完成 `rules / hybrid / model` 三路线。字段本地代理 Weighted 为 **92.1179% / 70.8524% / 77.9191%**，完整记录为 **74.9145% / 47.2286% / 49.1913%**；模型路线新增大量 FP，没有证明优于 rules。实际请求为 hybrid 44 次、model 45 次（含 1 次断线重试），累计 132,380 prompt 与 80,317 completion tokens。阶段只覆盖 6/24，不能代表余下 18 条或官方评分。详见 [`附件 pilot 报告`](benchmarks/route-evaluation-attachments-pilot-20260928.md)。

@@ -111,6 +111,29 @@ def test_builds_isolated_worker_bundles_with_matching_prediction_ids(tmp_path, m
         build_task_package(job_dir, output, sample_size=4, pilot_size=0, seed=9)
 
 
+def test_excludes_notices_from_prior_gold_sample(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / ".data" / "bidintel.db"))
+    job_dir = write_job(tmp_path)
+    prior_html = tmp_path / "source" / "notice-0.html"
+    excluded_id = hashlib.sha256(prior_html.read_bytes()).hexdigest()[:20]
+    output = tmp_path / ".data" / "holdout-tasks"
+
+    summary = build_task_package(
+        job_dir,
+        output,
+        sample_size=2,
+        pilot_size=0,
+        seed=17,
+        exclude_notice_ids={excluded_id},
+    )
+
+    canonical = json.loads((output / "predictions.canonical.json").read_text(encoding="utf-8"))
+    selected_ids = {row["notice_id"] for row in canonical["notices"]}
+    assert excluded_id not in selected_ids
+    assert len(selected_ids) == 2
+    assert summary["excluded_notice_count"] == 1
+
+
 def test_annotator_names_reach_every_bundle_and_keep_the_default_wording(tmp_path, monkeypatch):
     """The name shows at the top of the annotation page, so a teammate can tell whose task they opened."""
     monkeypatch.setattr(settings, "database_path", str(tmp_path / ".data" / "bidintel.db"))

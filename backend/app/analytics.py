@@ -157,8 +157,9 @@ def supplier_co_bidders(
                 "top_co_bidders": [],
                 "packages": [],
             }
-        rows = connection.execute(
-            f"""SELECT b.organization_id, o.canonical_name, COUNT(DISTINCT x.id) AS project_count
+        co_bidder_rows = connection.execute(
+            f"""SELECT b.organization_id, o.canonical_name, x.id AS project_id,
+                      p.id AS package_id, own_award.award_amount
                FROM awards own_award
                JOIN packages p ON p.id = own_award.package_id
                JOIN projects x ON x.id = p.project_id
@@ -167,10 +168,40 @@ def supplier_co_bidders(
                JOIN organizations o ON o.id = b.organization_id
                WHERE own_award.organization_id = ?
                  {"" if include_winners else "AND b.outcome = 'nonwinner'"}
-               GROUP BY b.organization_id, o.canonical_name
-               ORDER BY project_count DESC, o.canonical_name LIMIT ?""",
-            (supplier_id, max(1, min(top, 100))),
+               ORDER BY o.canonical_name, x.id, p.id""",
+            (supplier_id,),
         ).fetchall()
+        co_bidders: dict[int, dict[str, Any]] = {}
+        for row in co_bidder_rows:
+            bidder_id = int(row["organization_id"])
+            bidder = co_bidders.setdefault(
+                bidder_id,
+                {
+                    "organization_id": bidder_id,
+                    "canonical_name": row["canonical_name"],
+                    "project_ids": set(),
+                    "package_ids": set(),
+                    "award_amounts": [],
+                },
+            )
+            bidder["project_ids"].add(int(row["project_id"]))
+            bidder["package_ids"].add(int(row["package_id"]))
+            bidder["award_amounts"].append(row["award_amount"])
+        top_co_bidders = [
+            {
+                "organization_id": bidder["organization_id"],
+                "canonical_name": bidder["canonical_name"],
+                "project_count": len(bidder["project_ids"]),
+                "award_package_count": len(bidder["package_ids"]),
+                "selected_supplier_award_amount_total": _sum_decimal(
+                    bidder["award_amounts"]
+                ),
+            }
+            for bidder in sorted(
+                co_bidders.values(),
+                key=lambda item: (-len(item["project_ids"]), item["canonical_name"]),
+            )[: max(1, min(top, 100))]
+        ]
         package_rows = connection.execute(
             """SELECT DISTINCT p.id AS package_id, x.id AS project_id, x.project_name,
                       x.project_number, o.canonical_name AS buyer_name,
@@ -196,7 +227,7 @@ def supplier_co_bidders(
             "supplier": supplier,
             "base": "packages where supplier has an award",
             "include_winners": include_winners,
-            "top_co_bidders": [dict(row) for row in rows],
+            "top_co_bidders": top_co_bidders,
             "packages": packages,
         }
 
@@ -280,6 +311,7 @@ def common_bid_packages(path: Path, supplier_ids: list[int]) -> dict[str, Any]:
             [*supplier_ids, len(supplier_ids)],
         ).fetchall()
         results: list[dict[str, Any]] = []
+        projects: dict[int, dict[str, Any]] = {}
         for package in package_rows:
             participants = connection.execute(
                 """SELECT o.id AS organization_id, o.canonical_name, b.outcome
@@ -288,13 +320,29 @@ def common_bid_packages(path: Path, supplier_ids: list[int]) -> dict[str, Any]:
                 (package["package_id"],),
             ).fetchall()
             award_rows = connection.execute(
-                "SELECT award_amount FROM awards WHERE package_id = ? ORDER BY id",
+                "SELECT id, award_amount FROM awards WHERE package_id = ? ORDER BY id",
                 (package["package_id"],),
             ).fetchall()
             buyer = (
                 _organization(connection, int(package["buyer_organization_id"]))
                 if package["buyer_organization_id"]
                 else None
+            )
+            project_id = int(package["project_id"])
+            project = projects.setdefault(
+                project_id,
+                {
+                    "project_id": project_id,
+                    "project_name": package["project_name"],
+                    "project_number": package["project_number"],
+                    "buyer": buyer,
+                    "package_ids": set(),
+                    "awards": {},
+                },
+            )
+            project["package_ids"].add(int(package["package_id"]))
+            project["awards"].update(
+                {int(row["id"]): row["award_amount"] for row in award_rows}
             )
             results.append(
                 {
@@ -306,10 +354,30 @@ def common_bid_packages(path: Path, supplier_ids: list[int]) -> dict[str, Any]:
                     ),
                 }
             )
-        project_ids = {row["project_id"] for row in results}
+        project_results = [
+            {
+                "project_id": project["project_id"],
+                "project_name": project["project_name"],
+                "project_number": project["project_number"],
+                "buyer": project["buyer"],
+                "package_count": len(project["package_ids"]),
+                "award_amount_total_unique_awards": _sum_decimal(
+                    list(project["awards"].values())
+                ),
+            }
+            for project in sorted(projects.values(), key=lambda item: item["project_id"])
+        ]
         return {
             "required_entities": selected,
             "packages": results,
+            "projects": project_results,
             "package_count": len(results),
-            "project_count": len(project_ids),
+            "project_count": len(project_results),
+            "award_amount_total_unique_awards": _sum_decimal(
+                [
+                    amount
+                    for project in projects.values()
+                    for amount in project["awards"].values()
+                ]
+            ),
         }

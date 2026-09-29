@@ -37,6 +37,9 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "integration: requires a live Neo4j endpoint configured by environment variables",
+]
 
 [tool.ruff]
 line-length = 100

@@ -554,7 +554,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
           <label>选择中标供应商<select v-model="selectedSupplierId"><option value="">选择主体</option><option v-for="org in organizations" :key="org.id" :value="String(org.id)">{{ org.canonical_name }}</option></select></label>
           <button class="secondary" :disabled="!selectedSupplierId || analyticsLoading === 'coBidders'" @click="runScene('coBidders')">{{ analyticsLoading === 'coBidders' ? '查询中…' : '查询共同竞标方' }} <span>→</span></button>
           <div v-if="analyticsResults.coBidders" class="query-result">
-            <p v-for="bidder in analyticsResults.coBidders.top_co_bidders" :key="bidder.organization_id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.project_count }} 个项目</span></p>
+            <p v-for="bidder in analyticsResults.coBidders.top_co_bidders" :key="bidder.organization_id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.project_count }} 个项目 · {{ bidder.award_package_count }} 个采购包</span><small>所选供应商在共同参与包中的中标金额 ¥{{ prettyAmount(bidder.selected_supplier_award_amount_total) }}</small></p>
             <p v-if="!analyticsResults.coBidders.top_co_bidders.length" class="empty-note">暂无已确认的共同投标关系</p>
           </div>
         </article>
@@ -574,6 +574,8 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
             </div>
             <div v-if="analyticsResults.commonProjects" class="query-result">
               <strong class="result-label">共同投标项目 · {{ analyticsResults.commonProjects.project_count }} 个项目 / {{ analyticsResults.commonProjects.package_count }} 个采购包</strong>
+              <p><strong>共同项目中标金额合计</strong><span>¥{{ prettyAmount(analyticsResults.commonProjects.award_amount_total_unique_awards) }}</span></p>
+              <p v-for="project in analyticsResults.commonProjects.projects" :key="project.project_id"><strong>{{ project.project_name || project.project_number || `项目 ${project.project_id}` }}</strong><span>{{ project.package_count }} 个采购包 · 项目中标金额合计 ¥{{ prettyAmount(project.award_amount_total_unique_awards) }}</span></p>
               <p v-for="entry in analyticsResults.commonProjects.packages" :key="entry.package_id"><strong>{{ entry.project_name || entry.project_number }}</strong><span>成交金额 ¥{{ prettyAmount(entry.award_amount_total_unique_awards) }}</span><small>{{ entry.participants.map(row => `${row.canonical_name}（${row.outcome}）`).join('、') }}</small></p>
               <p v-if="!analyticsResults.commonProjects.packages.length" class="empty-note">暂无共同投标项目</p>
             </div>

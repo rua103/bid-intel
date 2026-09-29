@@ -8,7 +8,7 @@ The optional driver is imported only when a Neo4j operation is requested.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -106,8 +106,7 @@ MATCH (:Organization {dataset:$dataset,id:$buyer_id})-[:PURCHASES]->
       (:Project {dataset:$dataset})-[:HAS_PACKAGE]->(k:Package {dataset:$dataset})
       -[a:AWARDED_TO]->(s:Organization {dataset:$dataset})
 WITH s, collect(DISTINCT k) AS packages, collect(DISTINCT a) AS awards
-CALL {
-  WITH packages
+CALL (packages) {
   UNWIND packages AS k
   OPTIONAL MATCH (k)-[:HAS_ITEM]->(i:Item)
   WITH DISTINCT i.brand AS brand WHERE brand IS NOT NULL AND trim(brand) <> ''
@@ -119,16 +118,14 @@ ORDER BY award_package_count DESC, name
 """,
     "buyer_bidders": """
 MATCH (buyer:Organization {dataset:$dataset,id:$buyer_id})
-CALL {
-  WITH buyer
+CALL (buyer) {
   MATCH (buyer)-[:PURCHASES]->(p:Project)-[:HAS_PACKAGE]->(k:Package)<-[b:BID_IN]-(o:Organization)
   WHERE $include_winners OR b.outcome = 'nonwinner'
   WITH o, count(DISTINCT p) AS project_count
   ORDER BY project_count DESC, o.name LIMIT $top
   RETURN collect({id:o.id,canonical_name:o.name,project_count:project_count}) AS top_bidders
 }
-CALL {
-  WITH buyer
+CALL (buyer) {
   MATCH (buyer)-[:PURCHASES]->(p:Project)-[:HAS_PACKAGE]->(k:Package)
   MATCH (a:Organization)-[ba:BID_IN]->(k)<-[bb:BID_IN]-(b:Organization)
   WHERE a.id < b.id AND ($include_winners OR (ba.outcome = 'nonwinner' AND bb.outcome = 'nonwinner'))
@@ -140,21 +137,21 @@ RETURN top_bidders,co_bidder_pairs
 """,
     "supplier_co_bidders": """
 MATCH (supplier:Organization {dataset:$dataset,id:$supplier_id})
-CALL {
-  WITH supplier
-  MATCH (supplier)<-[:AWARDED_TO]-(k:Package)<-[:HAS_PACKAGE]-(p:Project)
+CALL (supplier) {
+  MATCH (supplier)<-[award:AWARDED_TO]-(k:Package)<-[:HAS_PACKAGE]-(p:Project)
   MATCH (o:Organization)-[b:BID_IN]->(k)
   WHERE o.id <> supplier.id AND ($include_winners OR b.outcome = 'nonwinner')
-  WITH o,count(DISTINCT p) AS project_count
+  WITH o,count(DISTINCT p) AS project_count, count(DISTINCT k) AS award_package_count,
+       collect(DISTINCT award) AS awards
   ORDER BY project_count DESC,o.name LIMIT $top
-  RETURN collect({organization_id:o.id,canonical_name:o.name,project_count:project_count}) AS top_co_bidders
+  RETURN collect({organization_id:o.id,canonical_name:o.name,project_count:project_count,
+                  award_package_count:award_package_count,
+                  amount_values:[award IN awards | award.award_amount]}) AS top_co_bidders
 }
-CALL {
-  WITH supplier
+CALL (supplier) {
   MATCH (supplier)<-[a:AWARDED_TO]-(k:Package)<-[:HAS_PACKAGE]-(p:Project)
   OPTIONAL MATCH (buyer:Organization)-[:PURCHASES]->(p)
-  CALL {
-    WITH k
+  CALL (k) {
     OPTIONAL MATCH (o:Organization)-[b:BID_IN]->(k)
     WITH o,b ORDER BY o.name
     RETURN collect(CASE WHEN o IS NOT NULL THEN {organization_id:o.id,canonical_name:o.name,outcome:b.outcome} END) AS participants
@@ -186,19 +183,17 @@ WITH k,collect(DISTINCT s.id) AS seen
 WHERE all(id IN $supplier_ids WHERE id IN seen)
 MATCH (p:Project)-[:HAS_PACKAGE]->(k)
 OPTIONAL MATCH (buyer:Organization)-[:PURCHASES]->(p)
-CALL {
-  WITH k
+CALL (k) {
   MATCH (o:Organization)-[b:BID_IN]->(k)
   WITH o,b ORDER BY o.name
   RETURN collect({organization_id:o.id,canonical_name:o.name,outcome:b.outcome}) AS participants
 }
-CALL {
-  WITH k
+CALL (k) {
   OPTIONAL MATCH (k)-[a:AWARDED_TO]->(:Organization)
   WITH DISTINCT a ORDER BY a.id
   RETURN collect(a.award_amount) AS amount_values
 }
-RETURN k.id AS package_id,k.package_code AS package_code,k.package_name AS package_name,
+RETURN k.id AS package_id,k.package_code AS package_code,properties(k)['package_name'] AS package_name,
        p.id AS project_id,p.project_name AS project_name,p.project_number AS project_number,
        p.announced_total_award AS announced_total_award,k.package_award_total AS package_award_total,
        buyer.id AS buyer_organization_id,
@@ -214,7 +209,13 @@ def create_driver(uri: str, user: str, password: str):
         from neo4j import GraphDatabase
     except ImportError as exc:
         raise RuntimeError('请安装可选依赖：pip install -e ".[graph]"') from exc
-    return GraphDatabase.driver(uri, auth=(user, password))
+    driver = GraphDatabase.driver(uri, auth=(user, password))
+    try:
+        driver.verify_connectivity()
+    except Exception as exc:
+        driver.close()
+        raise RuntimeError(f"Neo4j unavailable at {uri}: {exc}") from exc
+    return driver
 
 
 def _validate_dataset(dataset: str) -> str:
@@ -254,17 +255,28 @@ def sync_to_neo4j(path: Path, driver: Any, *, dataset: str, database: str = "neo
     if not path.is_file():
         raise ValueError(f"SQLite 数据库不存在：{path}")
     snapshot = graph_snapshot(path)
-    with driver.session(database=database) as session:
-        session.run("CREATE CONSTRAINT bidintel_node_identity IF NOT EXISTS "
-                    "FOR (n:BidIntelNode) REQUIRE (n.dataset,n.uid) IS UNIQUE").consume()
-        session.run("CREATE CONSTRAINT bidintel_dataset_identity IF NOT EXISTS "
-                    "FOR (d:BidIntelDataset) REQUIRE d.name IS UNIQUE").consume()
-        return session.execute_write(_write_snapshot, snapshot, dataset)
+    try:
+        with driver.session(database=database) as session:
+            session.run("CREATE CONSTRAINT bidintel_node_identity IF NOT EXISTS "
+                        "FOR (n:BidIntelNode) REQUIRE (n.dataset,n.uid) IS UNIQUE").consume()
+            session.run("CREATE CONSTRAINT bidintel_dataset_identity IF NOT EXISTS "
+                        "FOR (d:BidIntelDataset) REQUIRE d.name IS UNIQUE").consume()
+            return session.execute_write(_write_snapshot, snapshot, dataset)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"Neo4j unavailable while exporting dataset {dataset}: {exc}") from exc
 
 
 def _sum_amounts(values: list[str | None]) -> str | None:
     present = [str(value) for value in values if value not in (None, "")]
-    return str(sum((Decimal(value) for value in present), Decimal(0))) if present else None
+    total = Decimal(0)
+    for value in present:
+        try:
+            total += Decimal(value)
+        except InvalidOperation:
+            continue
+    return str(total) if present else None
 
 
 def _organization(tx: Any, dataset: str, organization_id: int) -> dict[str, Any] | None:
@@ -297,9 +309,13 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
         return {"buyer": primary, "include_winners": params["include_winners"],
                 **(rows[0] if rows else {"top_bidders": [], "co_bidder_pairs": []})}
     if scene == "supplier_co_bidders":
+        result = rows[0] if rows else {"top_co_bidders": [], "packages": []}
+        for bidder in result["top_co_bidders"]:
+            bidder["selected_supplier_award_amount_total"] = _sum_amounts(
+                bidder.pop("amount_values", [])
+            )
         return {"supplier": primary, "base": "packages where supplier has an award",
-                "include_winners": params["include_winners"],
-                **(rows[0] if rows else {"top_co_bidders": [], "packages": []})}
+                "include_winners": params["include_winners"], **result}
     if scene == "common_buyers":
         for row in rows:
             all_amounts = []
@@ -309,10 +325,37 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
                 supplier["award_amount_total"] = _sum_amounts(values)
             row["award_amount_total_unique_awards"] = _sum_amounts(all_amounts)
         return {"selected_suppliers": selected, "buyers": rows}
+    projects: dict[int, dict[str, Any]] = {}
+    all_amounts: list[str | None] = []
     for row in rows:
-        row["award_amount_total_unique_awards"] = _sum_amounts(row.pop("amount_values"))
-    return {"required_entities": selected, "packages": rows, "package_count": len(rows),
-            "project_count": len({row["project_id"] for row in rows})}
+        amounts = row.pop("amount_values")
+        row["award_amount_total_unique_awards"] = _sum_amounts(amounts)
+        all_amounts.extend(amounts)
+        project = projects.setdefault(
+            int(row["project_id"]),
+            {
+                "project_id": row["project_id"],
+                "project_name": row["project_name"],
+                "project_number": row["project_number"],
+                "buyer": row["buyer"],
+                "package_count": 0,
+                "amounts": [],
+            },
+        )
+        project["package_count"] += 1
+        project["amounts"].extend(amounts)
+    project_rows = [
+        {
+            **{key: project[key] for key in (
+                "project_id", "project_name", "project_number", "buyer", "package_count"
+            )},
+            "award_amount_total_unique_awards": _sum_amounts(project["amounts"]),
+        }
+        for project in sorted(projects.values(), key=lambda value: value["project_id"])
+    ]
+    return {"required_entities": selected, "packages": rows, "projects": project_rows,
+            "package_count": len(rows), "project_count": len(project_rows),
+            "award_amount_total_unique_awards": _sum_amounts(all_amounts)}
 
 
 def query_neo4j(driver: Any, scene: str, *, dataset: str, database: str = "neo4j",
@@ -330,5 +373,10 @@ def query_neo4j(driver: Any, scene: str, *, dataset: str, database: str = "neo4j
         raise ValueError("该场景需要 supplier_id")
     if scene.startswith("common_") and len(params["supplier_ids"]) < 2:
         raise ValueError("至少选择两家不同主体")
-    with driver.session(database=database) as session:
-        return session.execute_read(_read_scene, scene, params)
+    try:
+        with driver.session(database=database) as session:
+            return session.execute_read(_read_scene, scene, params)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"Neo4j unavailable while querying scene {scene}: {exc}") from exc

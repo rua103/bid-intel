@@ -316,7 +316,8 @@ def _write_delivery_archive(
 
 def build_task_package(job_dir: Path, output_dir: Path, *, sample_size: int = 24, pilot_size: int = 6,
                        seed: int = 20260926,
-                       annotator_a: str = "标注员 A", annotator_b: str = "标注员 B") -> dict[str, Any]:
+                       annotator_a: str = "标注员 A", annotator_b: str = "标注员 B",
+                       exclude_notice_ids: set[str] | None = None) -> dict[str, Any]:
     job_dir = job_dir.expanduser().resolve(strict=True)
     output_dir = output_dir.expanduser().resolve()
     data_root = settings.resolved_database_path.parent.resolve()
@@ -361,10 +362,16 @@ def build_task_package(job_dir: Path, output_dir: Path, *, sample_size: int = 24
         })
     if len({record["notice_id"] for record in records}) != len(records):
         raise ValueError("发现重复公告 HTML 摘要，拒绝生成可能冲突的标注任务")
+    excluded_ids = set(exclude_notice_ids or ())
+    record_ids = {record["notice_id"] for record in records}
+    unknown_exclusions = excluded_ids - record_ids
+    if unknown_exclusions:
+        raise ValueError(f"排除清单包含当前任务不存在的公告 ID：{', '.join(sorted(unknown_exclusions))}")
+    eligible_records = [record for record in records if record["notice_id"] not in excluded_ids]
     if pilot_size > sample_size // 2:
         raise ValueError("为让两位标注员完成同一试标，pilot 数不能超过样本数的一半")
 
-    chosen, _ = stratified_sample(records, sample_size, seed)
+    chosen, _ = stratified_sample(eligible_records, sample_size, seed)
     pilot = chosen[:pilot_size]
     unique_a, unique_b = _balanced_unique_assignment(chosen[pilot_size:], seed)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -444,6 +451,7 @@ def build_task_package(job_dir: Path, output_dir: Path, *, sample_size: int = 24
         "sample_size": sample_size,
         "pilot_size": pilot_size,
         "seed": seed,
+        "excluded_notice_count": len(excluded_ids),
         "coverage": {CATEGORY_LABELS[key]: counts[key] for key in QUOTAS},
         "requested_coverage": {CATEGORY_LABELS[key]: min(QUOTAS[key], sum(key in row["categories"] for row in records)) for key in QUOTAS},
         "coverage_shortfall": {CATEGORY_LABELS[key]: value for key, value in unmet.items()},
@@ -495,6 +503,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sample-size", type=int, default=24, help="分层样本总数，默认 24")
     parser.add_argument("--pilot-size", type=int, default=6, help="两位标注员共同独立标注的试点数，默认 6")
     parser.add_argument("--seed", type=int, default=20260926, help="固定随机种子，默认 20260926")
+    parser.add_argument("--exclude-notice-id", action="append", default=[],
+                        help="排除已用于调优或标注的 notice ID；可重复传入")
     parser.add_argument("--annotator-a", default="标注员 A",
                         help="A 的名字，写在任务包和标注页顶部，便于队友确认拿到的是自己那份")
     parser.add_argument("--annotator-b", default="标注员 B", help="B 的名字")
@@ -502,7 +512,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         summary = build_task_package(args.job_dir, args.output_dir,
                                      sample_size=args.sample_size, pilot_size=args.pilot_size, seed=args.seed,
-                                     annotator_a=args.annotator_a, annotator_b=args.annotator_b)
+                                     annotator_a=args.annotator_a, annotator_b=args.annotator_b,
+                                     exclude_notice_ids=set(args.exclude_notice_id))
     except (OSError, ValueError, ValidationError) as exc:
         print(f"Annotation task generation failed: {exc}", file=sys.stderr)
         return 2

@@ -360,7 +360,10 @@ def test_two_jobs_run_concurrently_without_crossing_dataset_boundaries(tmp_path)
         assert count_notices(database) == 1
 
 
-@pytest.mark.parametrize('failure', ['timeout', '429', 'invalid-json'])
+@pytest.mark.parametrize('failure', [
+    '401', '429', 'timeout', 'invalid-json', 'truncated-json',
+    'unsupported-chat-template', 'finish-reason-length',
+])
 def test_model_failure_is_isolated_retryable_and_does_not_import_failed_notice(
     tmp_path, monkeypatch, failure,
 ):
@@ -386,19 +389,27 @@ def test_model_failure_is_isolated_retryable_and_does_not_import_failed_notice(
     calls = []
 
     class Response:
-        def __init__(self, content, status_code=200):
+        def __init__(self, content, status_code=200, finish_reason=None):
             self.content = content
             self.status_code = status_code
+            self.finish_reason = finish_reason
 
         def raise_for_status(self):
             if self.status_code >= 400:
                 request = httpx.Request('POST', 'https://model.example/v1/chat/completions')
-                response = httpx.Response(self.status_code, request=request)
+                response = httpx.Response(
+                    self.status_code,
+                    text='Unsupported parameter: chat_template_kwargs',
+                    request=request,
+                )
                 raise httpx.HTTPStatusError('synthetic HTTP failure', request=request,
                                             response=response)
 
         def iter_lines(self):
-            frame = json.dumps({'choices': [{'delta': {'content': self.content}}]})
+            choice = {'delta': {'content': self.content}}
+            if self.finish_reason:
+                choice['finish_reason'] = self.finish_reason
+            frame = json.dumps({'choices': [choice]})
             return iter([f'data: {frame}', 'data: [DONE]'])
 
     class Stream:
@@ -418,8 +429,17 @@ def test_model_failure_is_isolated_retryable_and_does_not_import_failed_notice(
         if '01-fail.html' in user_message and keep_failing[0]:
             if failure == 'timeout':
                 raise httpx.ReadTimeout('synthetic timeout')
+            if failure == '401':
+                return Stream(Response('{}', status_code=401))
             if failure == '429':
                 return Stream(Response('{}', status_code=429))
+            if failure == 'truncated-json':
+                return Stream(Response('{"metadata":{},"items":['))
+            if failure == 'unsupported-chat-template':
+                assert call['chat_template_kwargs'] == {'enable_thinking': False}
+                return Stream(Response('{}', status_code=400))
+            if failure == 'finish-reason-length':
+                return Stream(Response('{}', finish_reason='length'))
             return Stream(Response('not valid JSON'))
         return Stream(Response('{}'))
 
@@ -430,6 +450,20 @@ def test_model_failure_is_isolated_retryable_and_does_not_import_failed_notice(
     assert first['status'] == 'completed_with_errors'
     assert first['failed'] == 1 and first['done'] == 1
     assert len(calls) == 2
+    failed_checkpoint = jobs.read_json(root / 'notices' / '00000.json')
+    warning_text = ' '.join(failed_checkpoint.get('warnings', []))
+    expected_warning = {
+        '401': 'HTTP 401',
+        '429': 'HTTP 429',
+        'timeout': '超时',
+        'invalid-json': '非法 JSON',
+        'truncated-json': 'JSON 不完整或被截断',
+        'unsupported-chat-template': 'chat_template_kwargs',
+        'finish-reason-length': 'finish_reason=length',
+    }[failure]
+    assert failed_checkpoint['status'] == 'failed'
+    assert expected_warning in warning_text
+    assert not (root / 'notices' / '00000.result.json').exists()
     with connect(database) as connection:
         notices = connection.execute('SELECT source_files_json FROM notices').fetchall()
         assert [json.loads(row['source_files_json']) for row in notices] == [['02-good.html']]

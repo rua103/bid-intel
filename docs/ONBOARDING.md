@@ -35,7 +35,7 @@
 
 ## 二、现在到哪了
 
-- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `291 passed / 1 skipped`、Ruff clean；前端 `15 passed` 并可构建。
+- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `296 passed / 1 skipped`（2 条 warning）、Ruff clean；前端 `15 passed` 并可构建，生产构建通过但有大 chunk 警告。
 - ✅ **模型抽取已修好**并用真实公告验证（原本 0 条 → 19 条）。**P0 七项已完成本地回归**，验收边界见 [`CHANGELOG.md`](CHANGELOG.md)。
 - ✅ **P1-1 结构化投标主体抽取已实现**：从带有投标/评审/报价/成交上下文的结构化表格提取主体、包号和明示结果，保留来源证据；仅凭排名不会推断中标。1038 条全量规则/OCR回灌已有主体和中标候选，但仍需独立 Gold 验证，不能把入库数量当准确率。
 - ✅ **P1-4 演示三件套已加入**：Windows 启动/停止脚本、包含 XLSX 附件的虚构 HTML/ZIP 样例、无需模型的离线合成数据集。离线数据有 3 条公告和 7 条投标参与记录，可走五类查询；不能用于比赛评分。
@@ -54,12 +54,15 @@
 
 ```powershell
 cd backend
+# 以下以 Python 3.13 为例；若本机没有 3.13，请改为已安装的 3.12 或 3.11。
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,ocr]"
 Copy-Item .env.example .env
 uvicorn app.main:app --reload
 ```
+
+项目支持 Python 3.11–3.13；`scripts/Start-Demo.ps1` 会自动选择已安装的最高受支持版本。
 
 前端（终端 B）：
 
@@ -285,7 +288,7 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q             # 当前基线 291 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
+./.venv/Scripts/python.exe -m pytest -q             # 当前基线 296 passed, 1 skipped（2 条 warning；需 LibreOffice 才能跑 DOC 集成用例）
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 

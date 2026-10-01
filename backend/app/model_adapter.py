@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 
 import httpx
+from pydantic import ValidationError
 
 from app.config import Settings
 from app.package_codes import (
@@ -92,6 +93,7 @@ def _stream_completion(
     """
     parts: list[str] = []
     usage: dict[str, object] = {}
+    finish_reason: str | None = None
     deadline = time.monotonic() + max(1, total_seconds)
     timeout = httpx.Timeout(connect=15, read=max(5, read_timeout), write=30, pool=15)
     with httpx.stream(
@@ -117,10 +119,53 @@ def _stream_completion(
             if isinstance(chunk.get("usage"), dict):
                 usage = chunk["usage"]
             for choice in chunk.get("choices") or []:
+                if choice.get("finish_reason"):
+                    finish_reason = str(choice["finish_reason"])
                 piece = (choice.get("delta") or {}).get("content")
                 if piece:
                     parts.append(piece)
+    if finish_reason:
+        # Keep transport metadata separate from provider token usage.
+        usage = {**usage, "_finish_reason": finish_reason}
     return "".join(parts), usage
+
+
+def _model_failure_warning(
+    filename: str,
+    exc: Exception,
+    *,
+    content: str = "",
+    settings: Settings,
+) -> str:
+    """Return a safe, actionable warning without exposing provider response bodies."""
+    prefix = f"{filename}: 模型抽取失败："
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        if status in (401, 403):
+            return prefix + f"接口鉴权失败（HTTP {status}），检查 API Key、权限和模型访问范围"
+        if status == 429:
+            return prefix + "服务限流（HTTP 429），检查额度/并发并在解除限流后重试"
+        if status in (400, 422):
+            parameters = "、chat_template_kwargs" if settings.model_disable_thinking else ""
+            return prefix + (
+                f"端点拒绝请求参数（HTTP {status}），检查模型名、JSON 模式{parameters}的兼容性"
+            )
+        return prefix + f"接口返回 HTTP {status}，检查端点状态和请求配置"
+    if isinstance(exc, httpx.TimeoutException):
+        return prefix + (
+            f"流式请求超时（{type(exc).__name__}）；检查服务响应，"
+            "必要时调整 MODEL_TIMEOUT_SECONDS / MODEL_STREAM_TOTAL_SECONDS 后重试"
+        )
+    if isinstance(exc, json.JSONDecodeError):
+        stripped = content.rstrip()
+        truncated = exc.msg.startswith("Unterminated") or exc.pos >= max(0, len(stripped) - 1)
+        kind = "JSON 不完整或被截断" if truncated else "返回非法 JSON"
+        return prefix + f"{kind}（JSONDecodeError），检查输出 token 预算和端点 JSON 输出能力"
+    if isinstance(exc, ValidationError):
+        return prefix + "返回 JSON 结构不符合抽取协议（ValidationError），检查端点结构化输出兼容性"
+    if isinstance(exc, httpx.HTTPError):
+        return prefix + f"网络请求失败（{type(exc).__name__}），检查地址、TLS 和网络后重试"
+    return prefix + f"返回内容无法解析（{type(exc).__name__}）"
 
 
 def extract_unstructured_items(
@@ -190,10 +235,25 @@ def extract_unstructured_items(
                 [],
                 [f"{filename}: 模型返回空内容（可能输出被截断或只返回了推理）"],
             )
+        if token_usage.get("_finish_reason") == "length":
+            return (
+                NoticeMetadata(),
+                [],
+                [],
+                [f"{filename}: 模型抽取失败：输出达到 token 上限（finish_reason=length），JSON 可能被截断；检查输出预算"],
+            )
         content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content.strip(), flags=re.IGNORECASE)
-        parsed = ModelExtractionPayload.model_validate(json.loads(content))
+        try:
+            parsed_json = json.loads(content)
+        except json.JSONDecodeError as exc:
+            return NoticeMetadata(), [], [], [
+                _model_failure_warning(filename, exc, content=content, settings=settings)
+            ]
+        parsed = ModelExtractionPayload.model_validate(parsed_json)
     except (httpx.HTTPError, KeyError, IndexError, ValueError, TypeError) as exc:
-        return NoticeMetadata(), [], [], [f"{filename}: 模型抽取失败（{type(exc).__name__}）"]
+        return NoticeMetadata(), [], [], [
+            _model_failure_warning(filename, exc, settings=settings)
+        ]
 
     verified_text = _compact(text)
     accepted: list[ItemCandidate] = []
@@ -325,7 +385,13 @@ def extract_unstructured_items(
     return NoticeMetadata(**verified_metadata), accepted, accepted_participants, warnings
 
 
-def test_model_connection(base_url: str, api_key: str, model_name: str) -> tuple[bool, str]:
+def test_model_connection(
+    base_url: str,
+    api_key: str,
+    model_name: str,
+    *,
+    disable_thinking: bool = True,
+) -> tuple[bool, str]:
     model = model_name.strip().casefold()
     if not model.startswith(("qwen", "deepseek")):
         return False, "模型名需以 qwen 或 deepseek 开头"
@@ -337,9 +403,11 @@ def test_model_connection(base_url: str, api_key: str, model_name: str) -> tuple
         "model": model_name.strip(),
         "temperature": 0,
         "max_tokens": 16,
-        "thinking": {"type": "disabled"},
+        "response_format": {"type": "json_object"},
         "messages": [{"role": "user", "content": "ping"}],
     }
+    if disable_thinking:
+        body["chat_template_kwargs"] = {"enable_thinking": False}
     try:
         response = httpx.post(
             endpoint,
@@ -351,7 +419,16 @@ def test_model_connection(base_url: str, api_key: str, model_name: str) -> tuple
         return False, f"连接失败：{type(exc).__name__}"
     if response.status_code in (401, 403):
         return False, f"鉴权失败（HTTP {response.status_code}），请检查 API Key"
+    if response.status_code == 429:
+        return False, "服务限流（HTTP 429），检查额度/并发后重试"
+    if response.status_code in (400, 422):
+        parameters = "、chat_template_kwargs" if disable_thinking else ""
+        return False, (
+            f"端点拒绝请求参数（HTTP {response.status_code}），检查模型名、JSON 模式{parameters}的兼容性"
+        )
     if response.status_code >= 400:
-        detail = response.text[:200].replace("\n", " ")
-        return False, f"服务返回错误（HTTP {response.status_code}）：{detail}"
-    return True, f"连接成功，模型 {model_name.strip()} 响应正常"
+        return False, f"服务返回错误（HTTP {response.status_code}），检查端点状态和请求配置"
+    return True, (
+        f"短请求连通，模型 {model_name.strip()} 返回成功状态；"
+        "是否完整支持请求参数仍需长样本验收"
+    )

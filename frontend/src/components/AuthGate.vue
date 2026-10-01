@@ -27,7 +27,9 @@ async function refreshSession() {
     authEnabled.value = data.auth_enabled
     authenticated.value = data.authenticated
   } catch (cause) {
-    error.value = cause.message || '无法连接后端，请检查服务状态'
+    error.value = cause instanceof TypeError
+      ? '无法连接后端 API。请检查演示主机、网络、防火墙端口和 CORS 配置。'
+      : cause.message || '无法连接后端，请检查服务状态'
   } finally { checking.value = false }
 }
 

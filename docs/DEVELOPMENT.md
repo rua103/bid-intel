@@ -11,6 +11,7 @@
 
 ```powershell
 cd backend
+# 以下以 Python 3.13 为例；若本机没有 3.13，请改为已安装的 3.12 或 3.11。
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,ocr,graph]"
@@ -19,6 +20,8 @@ Copy-Item .env.example .env
 cd ..\frontend
 npm ci
 ```
+
+项目要求 Python 3.11–3.13（`backend/pyproject.toml` 的范围约束）。`scripts/Start-Demo.ps1` 会按 3.13、3.12、3.11 的顺序自动选择可用版本；手动执行初始化命令时，请把示例版本号替换为本机已安装的受支持版本。
 
 API Key、Neo4j 密码和评审账号只放在本地 `.env` 或 Git 忽略的 `.data` 文件，不能写入提交、截图或文档。
 
@@ -58,7 +61,7 @@ npm test
 npm run build
 ```
 
-当前基线：后端 `291 passed, 1 skipped`，Ruff 通过，前端 `15 passed`，生产构建通过。数字会随代码变化；提交前以本次实际命令输出为准。
+当前基线：后端 `296 passed, 1 skipped`（2 条 warning），Ruff 通过，前端 `15 passed`，生产构建通过但有大 chunk 警告。数字会随代码变化；提交前以本次实际命令输出为准。
 
 ### Neo4j 集成测试
 
@@ -70,7 +73,7 @@ cd ..
 $env:BIDINTEL_TEST_NEO4J_URI = "bolt://127.0.0.1:7687"
 $env:BIDINTEL_TEST_NEO4J_USER = "neo4j"
 $env:BIDINTEL_TEST_NEO4J_PASSWORD = "本地 Compose 密码"
-..\.venv\Scripts\python.exe -m pytest tests/test_graph.py -m integration -v
+.\.venv\Scripts\python.exe -m pytest tests/test_graph.py -m integration -v
 ```
 
 不需要 Neo4j 时，离线测试应明确记录跳过原因；需要提交 Neo4j 验收证据时，必须记录版本、数据集、测试命令和结果。停止服务：`docker compose down`。

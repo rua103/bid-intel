@@ -154,7 +154,9 @@ def test_model_config(payload: ModelConfigPayload):
     if not api_key:
         stored = load_model_config()
         api_key = stored.get("model_api_key", "") or settings.model_api_key
-    ok, message = test_model_connection(base_url, api_key, name)
+    ok, message = test_model_connection(
+        base_url, api_key, name, disable_thinking=settings.model_disable_thinking
+    )
     return ModelTestResponse(ok=ok, message=message)
 
 

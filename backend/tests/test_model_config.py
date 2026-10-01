@@ -72,8 +72,10 @@ def test_model_config_rejects_noncompliant_model(tmp_path, monkeypatch):
 
 def test_model_config_test_pings_endpoint(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "database_path", str(tmp_path / "cfg4.db"))
+    calls = []
 
     def fake_post(url, **kwargs):
+        calls.append({"url": url, **kwargs})
         request = httpx.Request("POST", url)
         return httpx.Response(200, json={"choices": [{"message": {"content": "pong"}}]}, request=request)
 
@@ -88,3 +90,28 @@ def test_model_config_test_pings_endpoint(tmp_path, monkeypatch):
             },
         ).json()
         assert result["ok"] is True
+    assert calls[0]["json"]["response_format"] == {"type": "json_object"}
+    assert calls[0]["json"]["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "thinking" not in calls[0]["json"]
+
+
+def test_model_config_probe_reports_rejected_compatibility_parameters(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / "cfg5.db"))
+
+    def fake_post(url, **kwargs):
+        request = httpx.Request("POST", url)
+        return httpx.Response(400, text="unsupported chat_template_kwargs", request=request)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    with TestClient(app) as client:
+        result = client.post(
+            "/api/v1/model-config/test",
+            json={
+                "model_base_url": "https://m/v1",
+                "model_api_key": "k",
+                "model_name": "qwen-plus",
+            },
+        ).json()
+    assert result["ok"] is False
+    assert "HTTP 400" in result["message"]
+    assert "chat_template_kwargs" in result["message"]

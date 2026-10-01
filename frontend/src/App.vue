@@ -15,6 +15,7 @@ const notice = ref(null)
 const batchResult = ref(null)
 const error = ref('')
 const health = ref(null)
+const connectionError = ref('')
 const datasets = ref([])
 const datasetId = ref('default')
 const datasetName = ref('')
@@ -73,9 +74,13 @@ async function refreshHealth() {
     const response = await datasetFetch(`${apiBase}/api/v1/health`)
     if (!response.ok) throw new Error('后端暂不可用')
     health.value = await response.json()
+    connectionError.value = ''
   } catch (cause) {
     if (cause.name === 'AbortError') return
     health.value = null
+    connectionError.value = cause instanceof TypeError
+      ? '无法连接后端 API。请检查演示主机、网络、防火墙端口和 CORS 配置。'
+      : cause.message || '后端暂不可用，请检查服务状态。'
   }
 }
 
@@ -368,6 +373,9 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
       </header>
 
       <div class="workspace-content">
+        <p v-if="connectionError" class="notice is-error connection-banner" role="alert">
+          {{ connectionError }} <button type="button" class="secondary" @click="refreshHealth">重试连接</button>
+        </p>
         <Transition :name="pageTransition" mode="out-in">
         <div :key="activeSection" class="page-stage">
         <section v-if="activeSection === 'overview'" class="overview-view">

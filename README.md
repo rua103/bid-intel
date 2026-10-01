@@ -15,7 +15,7 @@
 | 后台任务 | 检查点、暂停、续跑、失败重试、损坏结果恢复和数据集隔离已实现 |
 | 评测状态 | 24 条 tuning Gold 已完成；独立 holdout Gold 尚待队友完成和裁决 |
 
-当前验证基线：后端 `291 passed, 1 skipped`，Ruff 通过，前端 `15 passed`，生产构建通过。最终指标必须在代码和提示冻结后使用独立 `gold.reviewed.json` 运行 `stage=final`。
+当前验证基线：后端 `296 passed, 1 skipped`（2 条 warning），Ruff 通过，前端 `15 passed`，生产构建通过但有大 chunk 警告。最终指标必须在代码和提示冻结后使用独立 `gold.reviewed.json` 运行 `stage=final`。
 
 ## 文档导航
 
@@ -42,6 +42,7 @@
 
 ```powershell
 cd backend
+# 以下以 Python 3.13 为例；若本机没有 3.13，请改为已安装的 3.12 或 3.11。
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,ocr,graph]"
@@ -51,7 +52,7 @@ cd ..\frontend
 npm ci
 ```
 
-Python 版本支持 3.11–3.13。旧 DOC 需要 LibreOffice；Neo4j 只在启用图数据库后需要 Docker Desktop。
+Python 版本支持 3.11–3.13。`scripts/Start-Demo.ps1` 会按 3.13、3.12、3.11 的顺序自动选择已安装版本；手动初始化时将示例命令中的版本号替换为本机可用版本。旧 DOC 需要 LibreOffice；Neo4j 只在启用图数据库后需要 Docker Desktop。
 
 ### 开发运行
 

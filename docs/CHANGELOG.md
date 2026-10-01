@@ -10,14 +10,14 @@
 
 - 新增 [`ARCHITECTURE.md`](ARCHITECTURE.md)、[`DEVELOPMENT.md`](DEVELOPMENT.md)、[`MODEL_AND_EXTRACTION.md`](MODEL_AND_EXTRACTION.md)、[`DATA_QUALITY.md`](DATA_QUALITY.md) 和 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)，分别固定数据流、开发环境、模型证据链、官方附件质量边界和比赛提交前检查。
 - 根目录新增 [`CONTRIBUTING.md`](../CONTRIBUTING.md) 与 [`SECURITY.md`](../SECURITY.md)，README 改为 GitHub 首页式入口，并明确当前未声明开源许可证。
-- 更新 ONBOARDING、DATA_INTAKE、EVALUATION、QUERY_SEMANTICS 和 GAP_ANALYSIS 的当前状态，统一后端 `291 passed, 1 skipped`、前端 `15 passed`，区分 24 条 tuning Gold、独立 holdout Gold 和官方原始数据。
+- 更新 ONBOARDING、DATA_INTAKE、EVALUATION、QUERY_SEMANTICS 和 GAP_ANALYSIS 的当前状态，统一后端 `296 passed, 1 skipped`（2 条 warning）、前端 `15 passed`，区分 24 条 tuning Gold、独立 holdout Gold 和官方原始数据。
 - 本次只修改文档，没有重跑模型、全量数据或生产代码；PPT、视频和正式比赛报告仍待 holdout 评测后制作。
 
 ## 2026-10-01 · GAP 4.9：后台任务恢复与最终评测闸门
 
 - 后台任务现在能从损坏的单条进度或结果检查点恢复；状态与报告接口隔离坏记录，续跑不会重复入库。暂停收尾期间发起续跑会等待任务锁；模型超时、429 和非法 JSON 标记为可重试失败，不写入失败结果或数据库，其他公告继续处理。
 - 最终评测闸门现在拒绝缺少 `gold.reviewed.json`、draft Gold、调优/留出 notice ID 重叠、路线未全部完成或缺少路线预测/评测产物的运行目录。
-- 合成测试覆盖多数据集并发、恢复与重试、附件隔离、重复回执和 final 闸门；补充 `null`、数组、标量、缺字段和非法 `items` 进度文件回归，并要求 final run 覆盖 holdout Gold 的全部公告。最终后端 **291 passed、1 skipped**、Ruff 通过。测试使用本地 mock，不调用真实模型或 1038 条官方数据。
+- 合成测试覆盖多数据集并发、恢复与重试、附件隔离、重复回执和 final 闸门；补充 `null`、数组、标量、缺字段和非法 `items` 进度文件回归，并要求 final run 覆盖 holdout Gold 的全部公告。该提交时点后端为 **291 passed、1 skipped**、Ruff 通过；当前统一基线已在本文件顶部文档整理条目更新为 296 passed。测试使用本地 mock，不调用真实模型或 1038 条官方数据。
 
 ## 2026-10-01 · GAP 2.3：Neo4j 接入五类在线分析 API/UI
 

@@ -18,8 +18,8 @@ docker compose ps
 
 ```powershell
 cd backend
-..\.venv\Scripts\python.exe -m pip install -e ".[graph,dev]"
-..\.venv\Scripts\python.exe -m pytest tests/test_graph.py -q
+.\.venv\Scripts\python.exe -m pip install -e ".[graph,dev]"
+.\.venv\Scripts\python.exe -m pytest tests/test_graph.py -q
 ```
 
 配置真实集成测试：
@@ -28,7 +28,7 @@ cd backend
 $env:BIDINTEL_TEST_NEO4J_URI = "bolt://127.0.0.1:7687"
 $env:BIDINTEL_TEST_NEO4J_USER = "neo4j"
 $env:BIDINTEL_TEST_NEO4J_PASSWORD = "change-this-password"
-..\.venv\Scripts\python.exe -m pytest tests/test_graph.py -m integration -v
+.\.venv\Scripts\python.exe -m pytest tests/test_graph.py -m integration -v
 ```
 
 集成测试不跳过连接错误；没有配置或 Neo4j 不可用时应明确失败。在线分析 API 的真实 Neo4j 覆盖位于 `tests/test_graph.py` 的集成测试中，覆盖五个接口及 SQLite 结果一致性。`/api/v1/graph` 的可视化投影仍来自 SQLite；Neo4j 切换只控制五类关系分析查询。

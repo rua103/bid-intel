@@ -2,6 +2,18 @@
 
 这套工具评估本地人工标注集上的抽取结果。它不是官方评测，也不会产生或宣称官方实测得分。赛题提供的加权公式没有完整公开字段匹配、缺失值和准确率口径，本实现的匹配规则与 Accuracy 都是明确可复现的本地约定，收到官方说明后应逐项校准。
 
+## 数据集角色与最终闸门
+
+官方只提供原始公告、压缩包和附件，不提供逐条 ground-truth。仓库中的 Gold 按角色分开：
+
+- **tuning**：24 条 `gold.merged.json`，用于发现解析、合并和提示问题；可以反复使用，但不能作为最终成绩。
+- **targeted**：针对某个修复范围的定向回放，用于诊断包号、附件或模型证据问题；不能替代 holdout。
+- **holdout**：与 tuning notice ID 不重叠的独立原始材料。两位标注员独立完成共同 pilot、裁决后再完成正式分工，最终文件必须是 `gold.reviewed.json`。
+
+最终路线报告使用 `backend/app/route_evaluation_report.py` 的 `stage=final`。闸门会检查 Gold 文件名和 `reviewed` 状态、tuning/holdout notice ID 不重叠、三条路线全部完成、每条路线覆盖全部 holdout 公告、代码哈希冻结以及预测/评测产物齐全。未通过闸门的报告只能标为 prep 或 targeted。
+
+报告除七字段和主体指标外，还应保留包号集合精确对齐率、重复候选数、附件/OCR覆盖、warning 分类、请求数、耗时和 token。所有结果必须注明“团队本地 Gold 验证，不是官方成绩”。
+
 ## 两份独立输入
 
 - Gold：`examples/evaluation_gold.json`，人工标注文件，`status` 是 `draft` 或 `reviewed`。

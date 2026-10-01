@@ -1,10 +1,15 @@
 # 接手必读
 
-> 面向**新加入的队友**和**接手本仓库的 AI agent**。整理于 2026-09-25。
+> 面向**新加入的队友**和**接手本仓库的 AI agent**。当前状态整理于 2026-10-01。
 >
 > | 想找什么 | 去哪 |
 > |---|---|
 > | **现在优先做什么** | [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) **第零节** |
+> | **系统怎么分层** | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+> | **如何开发和验收** | [`DEVELOPMENT.md`](DEVELOPMENT.md) |
+> | **模型路线与证据** | [`MODEL_AND_EXTRACTION.md`](MODEL_AND_EXTRACTION.md) |
+> | **数据质量边界** | [`DATA_QUALITY.md`](DATA_QUALITY.md) |
+> | **发布前检查** | [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md) |
 > | **gold 数据在哪** | **本文第九节**（⚠️ 不在 Git 里，只在一台机器上） |
 > | **动代码前后要做什么** | **本文第十一节（必读）** |
 > | 历史决策与验收记录 | [`CHANGELOG.md`](CHANGELOG.md) |
@@ -26,17 +31,17 @@
 
 计分口径（来自赛题原文）：**准确性 = 准确率 × 0.4 + 精确率 × 0.3 + 召回率 × 0.3**；任务一另有**处理速率 5 分**。
 
-技术栈：Python/FastAPI + SQLite（Neo4j 可选）+ Vue3。模型必须是赛题允许的 **Qwen/DeepSeek 系列**（代码里有校验，模型名不以 qwen/deepseek 开头会直接跳过）。
+技术栈：Python/FastAPI + SQLite（Neo4j 可选）+ Vue3。模型必须是赛题允许的 **Qwen/DeepSeek 系列**（代码只做模型名 `qwen`/`deepseek` 前缀筛选；不校验具体版本、参数规模、微调状态或资源来源，合规证据需单独登记，见[模型端点验收说明](MODEL_ENDPOINT_ACCEPTANCE.md)）。
 
 ## 二、现在到哪了
 
-- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `184 passed / 1 skipped`、Ruff clean；前端 `11 passed` 并可构建。
+- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `291 passed / 1 skipped`、Ruff clean；前端 `15 passed` 并可构建。
 - ✅ **模型抽取已修好**并用真实公告验证（原本 0 条 → 19 条）。**P0 七项已完成本地回归**，验收边界见 [`CHANGELOG.md`](CHANGELOG.md)。
-- ✅ **P1-1 结构化投标主体抽取已实现**：从带有投标/评审/报价/成交上下文的结构化表格提取主体、包号和明示结果，保留来源证据；仅凭排名不会推断中标。现有官方全量数据库仍是旧批次的 0 条主体/中标记录，不能据此说原公告没有主体；新规则也还没有 Gold 准确率验证。
+- ✅ **P1-1 结构化投标主体抽取已实现**：从带有投标/评审/报价/成交上下文的结构化表格提取主体、包号和明示结果，保留来源证据；仅凭排名不会推断中标。1038 条全量规则/OCR回灌已有主体和中标候选，但仍需独立 Gold 验证，不能把入库数量当准确率。
 - ✅ **P1-4 演示三件套已加入**：Windows 启动/停止脚本、包含 XLSX 附件的虚构 HTML/ZIP 样例、无需模型的离线合成数据集。离线数据有 3 条公告和 7 条投标参与记录，可走五类查询；不能用于比赛评分。
 - ✅ **P1-5 评审登录已实现**：单评审账号 + HMAC 签名 HttpOnly Cookie，账号配置脚本和操作指南已加入。自动化覆盖本机登录/API 保护/退出流程；第二台物理设备的局域网登录、Cookie 与防火墙访问尚未验收。
-- ❌ **没有人工金标**，所以没有任何可以对外宣称的准确率。
-- ⚠️ **官方全量处理已完成，结果仍待核验**：1038 条公告已进入独立数据集，后台任务最终 1038/1038 完成、0 失败。使用 `rules + 本地 RapidOCR`，没有真实模型调用；产生 6814 条标的候选，但投标参与方与中标记录均为 0。附件统计显示 12,124 个成功或部分解析、986 个按参考材料保留、19 个程序解析失败和 7 个不支持文件；87 个无效下载响应保持原样，未伪造附件内容。**这不是准确率结果**，必须对照原文人工标注；细节见 [官方接入检查](OFFICIAL_INTAKE_REVIEW.md) 和 [附件统计](benchmarks/official-attachments-20260930.json)。
+- ✅ **24 条调优 Gold 已合并**，用于本地路线调试；❌ **独立 holdout Gold 尚未完成**，因此仍没有可以对外宣称的官方准确率。
+- ⚠️ **官方全量处理已完成，结果仍待核验**：1038 条公告已进入独立数据集，后台任务最终 1038/1038 完成、0 失败。使用 `rules + 本地 RapidOCR`，没有真实模型调用；修复后全量回灌为 5009 条投标参与候选、1315 条中标记录，另有标的候选和 warning 仍需对照原文人工核验。附件统计显示 12,124 个成功或部分解析、986 个按参考材料保留、19 个程序解析失败和 7 个不支持文件；87 个无效下载响应保持原样，未伪造附件内容。**这不是准确率结果**，必须对照原文人工标注；细节见 [官方接入检查](OFFICIAL_INTAKE_REVIEW.md) 和 [附件统计](benchmarks/official-attachments-20260930.json)。
 - ⚠️ **速度基线有范围**：本次规则 + OCR 使用 3 个进程，逐条检查点估算活动处理时间约 66 分 45 秒，中位每条 1.127 秒、P95 41.249 秒。它不代表 hybrid/model 模式速度；优化模型调用前先读第七节。
 
 **开放问题不在这份文档里**——去 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) 的优先级表看，那里是唯一事实来源。
@@ -79,6 +84,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 
 账号文件位于 Git 忽略的 `backend/.data/reviewer-credentials.txt`；通过受控渠道交给评审方，不要提交或公开。默认开发配置 `AUTH_ENABLED=false`，运行账号脚本后登录才会启用。`-Offline` 建立独立虚构数据集并锁定 rules 模式，不需要 API Key；数据集可切换到“离线演示样例（纯虚构）”。脚本会把 Vite 和后端监听在所有网络接口，但远程访问尚未做第二台设备验证。账号设置、Cookie 和故障排查见 [`REVIEWER_GUIDE.md`](REVIEWER_GUIDE.md)。
 
+执行第二台设备验收前，按 [P1-5 局域网验收清单](LAN_ACCEPTANCE.md) 的命令运行 `scripts/Test-LanDemo.ps1` 并完成跨设备登录、刷新、退出和断网提示检查。诊断脚本只验证演示主机本身，**不代表第二台设备已验收通过**。
+
 模型配置**可以直接在网页「模型配置」面板填**（写入 `backend/.data/model_config.json`，重启不丢；`backend/.env` 作兜底默认值）。页面只显示打码尾号。
 
 > ⚠️ 网页单次导入接口没有 mode 参数，默认走 `hybrid`（[`config.py`](../backend/app/config.py)）；配好模型后每份参与抽取的文档都会调用模型。批量任务是另一条链路：可在「大批量后台处理」中选择 rules/hybrid/model，默认 **`hybrid + OCR`（模型主导，规则做结构化校验与兜底）**，会显示进度并支持暂停、续跑和失败重试。两种路径的处理范围与耗时不同；需要生成可复现的规则基线时请明确选 rules。
@@ -91,7 +98,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 |---|---|---|
 | 1 | [`README.md`](../README.md) | 全局：能干什么、怎么跑、API 清单 |
 | 2 | 本文第三节 + 第五节 | 先把环境跑通、把红线记住 |
-| 3 | [`QUERY_SEMANTICS.md`](QUERY_SEMANTICS.md) | **任务二 25 分的核心**：五类查询当前口径 + 必须拿官方样例确认的歧义 |
+| 3 | [`QUERY_SEMANTICS.md`](QUERY_SEMANTICS.md) | **任务二 25 分的核心**：五类查询当前口径、金额定义和本地 Gold 验证 |
 | 4 | [`EVALUATION.md`](EVALUATION.md) | 本地指标怎么算：Hungarian 一对一匹配、阈值、Accuracy 为何是 `TP/(TP+FP+FN)` |
 | 5 | [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) | 现在的任务清单 |
 | 6 | 后端代码，按数据流读 | `schemas.py`（数据形状）→ `parsers.py`（解析）→ `model_adapter.py`（模型调用）→ `ingestion.py`（编排）→ `storage.py`（落库）→ `analytics.py`（五类查询）→ `main.py`（API） |
@@ -102,7 +109,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 
 1. **不要把 `backend/.data/` 或 `backend/.env` 打包外发。** `model_config.json` 里是**明文 API Key**（已 gitignore，不会被提交，但别手动发出去，也别 `git add -f`，更不要贴进任何文档或 commit message）。
 2. **不要把 `.data/` 的路径写成文档里的链接**——gitignore 了，别人 clone 下来是死链。
-3. **不要给模型请求加顶层 `thinking` / `enable_thinking` / `reasoning_effort`**，也**不要**把 `chat_template_kwargs` 那个写法"简化"掉（原因见 6.1）。回归测试锁死了这个 payload 形状。
+3. **不要给模型请求加顶层 `thinking` / `enable_thinking` / `reasoning_effort`**，也**不要**把 `chat_template_kwargs` 那个写法"简化"掉（原因见 6.1）。回归测试锁定默认 payload；新端点必须先通过[换端点验收清单](MODEL_ENDPOINT_ACCEPTANCE.md)。
 4. **不要把 `docs/benchmarks/*` 或合成压测的 100% 说成官方成绩。**
 5. **不要把自动抽取结果当金标。** 标注集与留出验证集要分开。
 6. 没有独立人工金标和明确评测口径时，**不要对外宣称准确率数字**；官方数据到手本身不满足这两个条件。
@@ -125,14 +132,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 
 ### 6.2 模型网关的行为（当前配置）
 
-实际地址与密钥在 `backend/.data/model_config.json`（本地，未提交）——**自己读，别写进文档**。已知特性：
+实际地址与密钥在 `backend/.data/model_config.json`（本地，未提交）——**自己读，别写进文档**。截至 2026-10-01，本机模型 ID 为 `deepseek-v4-flash`。该 ID 不足以证明发布版本、参数规模、微调状态或资源来源；此前记录称使用校内网关，赛事资源来源仍未验证。其他已知特性：
 
 - 只有 `deepseek-v4-flash` 一个 chat 模型，是**重推理模型**（这就是 6.1 第 ③ 层的根源）。
 - 支持流式 + `stream_options.include_usage` + `response_format: json_object`。
 - **忽略**顶层 `thinking` / `enable_thinking` / `reasoning_effort`。
-- 只认 `chat_template_kwargs` 形式的关闭开关。
+- 只认 `chat_template_kwargs` 形式的关闭开关。换到不认该字段的端点会收到可读的请求参数 warning，后台公告保持失败且不落成功预测；不会自动移除参数并继续处理。
 
-> ⚠️ **换端点（比如官方提供赛事模型资源）后必须重跑 A/B 验证。** 新端点若不认 `chat_template_kwargs`，会重新回到 0 条。验收清单见 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) 4.7。
+> ⚠️ **换端点（比如官方提供赛事模型资源）后必须重跑验收。** 网页连接探测只覆盖短 JSON 参数请求，不能证明 SSE、长输入或生成完整性。先看[模型端点配置与验收说明](MODEL_ENDPOINT_ACCEPTANCE.md)，不要用 1038 条官方数据做端点试跑。
 
 ### 6.3 `experiments.py` 拒绝覆盖已有报告
 
@@ -278,7 +285,7 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q             # 当前基线 184 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
+./.venv/Scripts/python.exe -m pytest -q             # 当前基线 291 passed, 1 skipped（需 LibreOffice 才能跑 DOC 集成用例）
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 

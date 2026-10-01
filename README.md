@@ -1,107 +1,144 @@
 # 招采数据智能分析引擎
 
-赛题五项目起步仓库：从招采公告和附件提取标的物字段，构建采购单位与投标主体关系，并提供可核验的查询平台。
+面向政府采购公告的模型主导抽取、关系建模与可核验分析平台，对应赛题五“面向行业数据的智能实体挖掘与关系建模”。系统从公告 HTML、压缩包和附件中抽取标的物七字段、采购单位、投标主体和中标结果，并提供五类关系查询、图谱分析和人工核验工作台。
 
-## 文档
+> **数据边界**：命题方提供原始公告和附件，不提供逐条 Gold / ground-truth。仓库中的 24 条 reviewed Gold、指标和 1038 条全量结果都是团队本地验证证据，不能写成官方准确率或官方成绩。
 
-| 文档 | 给谁看 | 内容 |
-|---|---|---|
-| [`docs/ONBOARDING.md`](docs/ONBOARDING.md) | 新队友 / 接手的 AI agent | **先读这个**：怎么跑、红线、已踩过的坑、性能优化判据 |
-| [`docs/GAP_ANALYSIS.md`](docs/GAP_ANALYSIS.md) | 所有人 | 开放问题清单 + 优先级 + 状态（唯一事实来源） |
-| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | 所有人 | 历史决策、验收边界、排查经过（按日期倒序） |
-| [`docs/QUERY_SEMANTICS.md`](docs/QUERY_SEMANTICS.md) | 任务二相关 | 五类查询口径 + 待官方确认的歧义 |
-| [`docs/EVALUATION.md`](docs/EVALUATION.md) | 标注/评测相关 | 本地指标怎么算 |
-| [`docs/benchmarks/`](docs/benchmarks/) | 所有人 | 实测数据（**开发验证，不是官方成绩**） |
+## 当前状态
 
-附件依赖、数据集切换和官方数据到达后的操作顺序，见 [数据接入说明](docs/DATA_INTAKE.md)。
+| 能力 | 状态 |
+|---|---|
+| 任务一：七字段、主体、中标结果抽取 | 已实现 rules / hybrid / model 三路线；最终 holdout 指标待独立 Gold |
+| 任务二：五类关系查询与金额汇总 | SQLite 已验收；Neo4j 可选后端已接入并可回退 SQLite |
+| 任务三：导入、检索、分析、图谱投影、标注工作台 | 已实现；局域网第二台设备验收按清单执行 |
+| 附件处理 | HTML、DOC/DOCX、XLS/XLSX、PDF、图片/OCR、RAR/7z 及失败隔离已接入 |
+| 后台任务 | 检查点、暂停、续跑、失败重试、损坏结果恢复和数据集隔离已实现 |
+| 评测状态 | 24 条 tuning Gold 已完成；独立 holdout Gold 尚待队友完成和裁决 |
 
-## 当前实现
+当前验证基线：后端 `291 passed, 1 skipped`，Ruff 通过，前端 `15 passed`，生产构建通过。最终指标必须在代码和提示冻结后使用独立 `gold.reviewed.json` 运行 `stage=final`。
 
-- Python/FastAPI 后端支持单公告导入和多公告 ZIP 批量导入，识别附件归属并报告未匹配文件。
-- 后台批量任务支持按公告处理 HTML + ZIP/RAR/7z、受控落盘、RapidOCR、本地进度检查点、暂停续跑及失败重试；任务结果写入独立数据集。
-- 解析 HTML、DOC/DOCX、XLS/XLSX 和可复制文本 PDF 中的标的物表格，保留来源文件、表格位置和原文证据。DOC 需要 LibreOffice；PDF 表格及渲染库已列为基础依赖。
-- 支持 UTF-8/常见 GBK 中文 ZIP 文件名；批量结果展示解压警告、未匹配附件和逐公告解析提示。
-- 页面可新建、切换独立数据集，正式数据与开发数据分别入库、分别聚合，历史数据保留。
-- SQLite 保存采购单位、项目、采购包、投标主体、中标记录和标的物；支持标的物与主体检索。
-- 已加入结构化投标主体规则抽取：在投标、评审、报价或成交等上下文明确的表格中提取投标主体、采购包、原文明确的结果与中标金额，并保留来源证据；排名本身不用于推断中标。覆盖格式以受支持文档解析器为限，未做 Gold 准确率验收。
-- 已实现赛题要求的五类关系查询，具体统计定义及待官方样例确认的歧义见 `docs/QUERY_SEMANTICS.md`。
-- Vue 页面支持导入、检索和关系分析结果展示。
-- 已加入人工标注工作台：从材料生成空白 gold 与独立的规则/模型/混合预测，对照原文填写七字段及主体，导出独立的 `gold`/`predictions` JSON 并计算本地指标。
-- 已加入合成压测、真实公开开发集采集器、SQLite 图谱投影和可选 Neo4j 导出；这些结果均明确标注为开发验证，不是官方成绩。
-- 模型适配层支持配置合规的 OpenAI-compatible Qwen/DeepSeek 服务；未配置模型时，规则仍可抽取结构清晰的标的表和投标/评审表，非结构化正文和未披露字段不会因此得到完整抽取。
-- 已加入 Windows 演示启动/停止脚本、HTML + XLSX 附件样例包和离线虚构数据集。离线快照含 3 条公告、7 条投标参与记录，可用于演示五类查询；不得用于准确率或比赛评分。评审登录使用单一账号的签名会话 Cookie，配置和操作见 [`docs/REVIEWER_GUIDE.md`](docs/REVIEWER_GUIDE.md)。
-- 官方 1038 条公告已在规则 + 本地 OCR 模式下全量入库；该批次有未核验候选，未提取出主体/中标记录，也没有 gold，因此不是准确率或官方查询基准。全量边界见 [接入报告](docs/OFFICIAL_INTAKE_REVIEW.md)。
-- 后端测试、代码检查和前端构建已通过；当前仍没有人工 gold 或经官方口径核验的查询基准。
+## 文档导航
 
-## 本地运行
+| 文档 | 用途 |
+|---|---|
+| [`docs/ONBOARDING.md`](docs/ONBOARDING.md) | 接手项目、历史决策和操作红线 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | 数据流、组件边界、SQLite/Neo4j 和后台状态机 |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | 环境安装、运行、测试、故障排查和 Git 工作流 |
+| [`docs/MODEL_AND_EXTRACTION.md`](docs/MODEL_AND_EXTRACTION.md) | 三种抽取路线、模型契约、证据和包号限制 |
+| [`docs/MODEL_ENDPOINT_ACCEPTANCE.md`](docs/MODEL_ENDPOINT_ACCEPTANCE.md) | 换 Qwen/DeepSeek 端点、资源合规和故障验收 |
+| [`docs/DATA_QUALITY.md`](docs/DATA_QUALITY.md) | 官方附件统计、warning、OCR 和人工复核边界 |
+| [`docs/DATA_INTAKE.md`](docs/DATA_INTAKE.md) | 官方数据接入、附件解析、后台批处理和数据集切换 |
+| [`docs/QUERY_SEMANTICS.md`](docs/QUERY_SEMANTICS.md) | 五类查询及金额统计口径 |
+| [`docs/EVALUATION.md`](docs/EVALUATION.md) | Gold schema、本地指标与评测约束 |
+| [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) | 比赛提交、评审演示和发布前检查 |
+| [`docs/GAP_ANALYSIS.md`](docs/GAP_ANALYSIS.md) | 当前唯一的缺口和优先级事实来源 |
+| [`docs/REVIEWER_GUIDE.md`](docs/REVIEWER_GUIDE.md) | 评审登录、演示和局域网操作 |
+| [`docs/ANNOTATION_ANNOTATOR.md`](docs/ANNOTATION_ANNOTATOR.md) | 队友标注员操作卡 |
+| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | 历史决策、验收范围和实测数字 |
 
-终端 A 启动后端：
+## 快速启动
+
+### 安装
 
 ```powershell
 cd backend
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev,ocr]"
+python -m pip install -e ".[dev,ocr,graph]"
 Copy-Item .env.example .env
-uvicorn app.main:app --reload
+
+cd ..\frontend
+npm ci
 ```
 
-终端 B 启动前端：
+Python 版本支持 3.11–3.13。旧 DOC 需要 LibreOffice；Neo4j 只在启用图数据库后需要 Docker Desktop。
+
+### 开发运行
 
 ```powershell
+# 终端 A
+cd backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+
+# 终端 B
 cd frontend
-npm ci
 npm run dev
 ```
 
-打开 `http://localhost:5173` 使用界面，或访问 `http://127.0.0.1:8000/docs` 查看 API。数据库默认写入 `backend/.data/bidintel.db`。`examples/demo_notice.html` 是虚构冒烟样例，不能用于比赛评分。
-
-本机演示可用 PowerShell 脚本准备评审账号并启动离线数据（依赖需先联网安装）：
+打开 `http://localhost:5173`，API 文档为 `http://127.0.0.1:8000/docs`。Windows 离线演示可以使用：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\Configure-ReviewerAccount.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\Start-Demo.ps1 -Offline
-# 演示结束后
 powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 ```
 
-账号密码保存在 Git 忽略的 `backend/.data/reviewer-credentials.txt`，脚本不会打印密码；仅通过受控渠道交给评审方。`-Offline` 重建独立的“离线演示样例（纯虚构）”数据集，并强制使用规则模式，不调用模型。导入样例材料时可选择 `examples/demo_notice.html` 和同名 `examples/demo_notice.zip`。认证目前只在本机自动化/单机冒烟流程验证过，未在第二台设备验证登录、Cookie 和局域网/防火墙访问；演示接线见 [`docs/REVIEWER_GUIDE.md`](docs/REVIEWER_GUIDE.md)。
+离线数据集是虚构样例，只用于展示流程，不能用于比赛评分。局域网评审必须完成 [`docs/LAN_ACCEPTANCE.md`](docs/LAN_ACCEPTANCE.md) 的第二台设备验收。
 
-局域网演示时，在后端终端使用 `uvicorn app.main:app --host 0.0.0.0 --port 8000`，前端仍运行 `npm run dev`。另一台电脑访问 `http://<演示机局域网IP>:5173`，默认 API 指向同一 IP 的 8000 端口；需保证两台机器连通且这两个端口可访问。独立部署 API 时，在前端 `.env` 设置 `VITE_API_BASE` 并重启/重新构建，后端 `.env` 的 `CORS_ALLOWED_ORIGINS` 填前端完整来源（含协议和端口，多个用逗号分隔）并重启。示例见 `frontend/.env.example` 和 `backend/.env.example`。
+## 模型配置
 
-配置模型时，可直接在 Web 页面「模型配置」面板填写并保存（写入 `.data/model_config.json`，重启不丢，`backend/.env` 作为兜底默认值），也可在 `backend/.env` 中填写赛事允许的 Qwen/DeepSeek OpenAI-compatible 服务地址、模型名和 API Key。API Key 在页面上只显示打码后的尾号。未配置模型时，规则表格解析仍可提取格式清晰且有明确证据的投标主体；非表格正文和复杂内容覆盖有限。
+模型配置可以在网页“模型配置”面板填写，也可以放在 `backend/.env`：
 
-> ⚠️ **导入接口没有 mode 参数，默认走 `hybrid`**：配好模型后点一次导入，**每份文档**（正文 + 每个附件）都会真实调用一次模型并**串行**执行。一条带 3 个附件的公告会卡 1.5～6 分钟，期间界面只有按钮文字变化。单条实测耗时见 [`docs/benchmarks/stream-compare-3.json`](docs/benchmarks/stream-compare-3.json)。
+```dotenv
+MODEL_BASE_URL=https://your-openai-compatible-endpoint/v1
+MODEL_NAME=deepseek-your-approved-model
+MODEL_API_KEY=只保存在本机
+```
 
-默认 RapidOCR 可通过 `.[ocr]` 安装；图片和扫描 PDF OCR 需启用 `OCR_ENABLED`。本地 1038 条全量处理真实运行了 OCR，但识别文本和表格仍需人工核验。详见 [`docs/DATA_INTAKE.md`](docs/DATA_INTAKE.md)。
+只使用赛事允许的 Qwen/DeepSeek 资源，并记录版本、参数规模和资源来源。单条导入默认使用 `hybrid`；后台任务可选择 `rules`、`hybrid` 或 `model`。规则路线是可复现基线和离线兜底，不能代替模型路线的比赛合规说明。详见 [`docs/MODEL_AND_EXTRACTION.md`](docs/MODEL_AND_EXTRACTION.md)。
 
-## API
+## Neo4j（可选）
 
-- `GET /api/v1/health`
-- `GET /api/v1/model-config`：读取模型配置（API Key 打码）。
-- `PUT /api/v1/model-config`：保存模型配置；API Key 留空时沿用已保存值。
-- `POST /api/v1/model-config/test`：按当前填写的地址、Key、模型名发起一次连接测试。
-- `POST /api/v1/notices/import`：上传一份 HTML 或一个 ZIP（单个公告及其附件），解析并保存候选记录。
-- `POST /api/v1/notices/import-batch`：上传包含多份 HTML 公告及配套附件的 ZIP，按文件名共同前缀分组导入并返回耗时、未匹配附件和逐公告摘要。
-- `GET/POST /api/v1/jobs`：列出或创建本地后台批处理；`GET /api/v1/jobs/{id}` 查询进度，`POST .../pause`、`.../resume` 控制暂停续跑；`GET .../report` 导出逐公告状态。
-- `GET /api/v1/items`：按产品名、品牌、品目和型号检索。
-- `GET /api/v1/organizations`：查看可用于关系查询的主体。
-- `GET /api/v1/evaluation/schema`、`POST /api/v1/evaluation/draft`、`POST /api/v1/evaluation/run`：标注草稿、gold/predictions 评测和报告导出。
-- `GET /api/v1/graph`：读取 SQLite 图谱可视化投影。
-- `GET /api/v1/analytics/buyers/{buyer_id}/awardees`
-- `GET /api/v1/analytics/buyers/{buyer_id}/bidders`
-- `GET /api/v1/analytics/suppliers/{supplier_id}/co-bidders`
-- `POST /api/v1/analytics/common-buyers`、`POST /api/v1/analytics/common-projects`
+```powershell
+cd backend/neo4j_runtime
+docker compose up -d
+```
 
-当前阶段的解析结果是“候选数据”，不能代替官方模型和隐藏集评测。对官方数据仍需人工标注一小批样本，再比较规则、合规 Qwen/DeepSeek 和混合模式。
+在 `backend/.env` 设置 `ANALYTICS_BACKEND=neo4j`、`NEO4J_URI`、`NEO4J_USER`、`NEO4J_PASSWORD` 和 `NEO4J_DATABASE`。五类分析 API 会使用 Neo4j；连接失败时按请求回退 SQLite，并在响应头和前端显示实际后端。`/api/v1/graph` 的可视化投影仍使用 SQLite。完整说明见 [`backend/neo4j_runtime/README.md`](backend/neo4j_runtime/README.md)。
 
-数据模型和五类查询的暂定统计口径见 [docs/QUERY_SEMANTICS.md](docs/QUERY_SEMANTICS.md)。
+## API 概览
 
-## 下一步
+- `GET /api/v1/health`：健康检查。
+- `GET/PUT /api/v1/model-config`、`POST /api/v1/model-config/test`：读取、保存和探测模型配置（Key 只显示打码值）。
+- `POST /api/v1/notices/import`、`POST /api/v1/notices/import-batch`：单公告/批量导入。
+- `GET/POST /api/v1/jobs`：创建、查看、暂停、续跑和报告后台任务。
+- `GET /api/v1/items`、`GET /api/v1/organizations`：检索候选和主体。
+- `GET /api/v1/analytics/buyers/{buyer_id}/awardees`：场景一。
+- `GET /api/v1/analytics/buyers/{buyer_id}/bidders`：场景二。
+- `GET /api/v1/analytics/suppliers/{supplier_id}/co-bidders`：场景三。
+- `POST /api/v1/analytics/common-buyers`、`POST /api/v1/analytics/common-projects`：场景四、五。
+- `GET /api/v1/evaluation/schema`、`POST /api/v1/evaluation/draft`、`POST /api/v1/evaluation/run`：标注和本地评测。
+- `GET /api/v1/graph`：SQLite 图谱可视化投影。
 
-1. 用标注工作台核验独立数据集中的官方公告，并把提示调优集与留出验证集分开。
-2. 根据验证集测量七个标的物字段的准确率、精确率和召回率，再改进抽取与名称归一化。
-3. 根据官方样例确认五类关系查询的计数和金额口径，并逐条对照基准答案。
-4. 核验 OCR 与复杂 PDF 表格候选，并处理 87 个无效下载附件、损坏成员及专有格式边界，再准备演示与提交材料。
+所有业务请求可通过 `X-Dataset-ID` 选择隔离数据集。模型配置、标注 Gold 和评测运行目录分别管理，不会因为业务数据集切换而混用。
 
-按优先级排好的完整清单见 [`docs/GAP_ANALYSIS.md`](docs/GAP_ANALYSIS.md)。
+## 测试
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check app tests
+cd ..\frontend
+npm test
+npm run build
+```
+
+评测流程、tuning/holdout 分离和 final 闸门见 [`docs/EVALUATION.md`](docs/EVALUATION.md) 与 [`docs/benchmarks/route-evaluation-runbook.md`](docs/benchmarks/route-evaluation-runbook.md)。查询实现的团队本地 Gold 对照为 SQLite/Neo4j `6471/6471`，这是口径一致性证据，不是官方答案。
+
+## 已知限制
+
+- 官方没有逐条 ground-truth，因此 1038 条全量入库、候选数量、OCR覆盖率和查询可运行性都不能直接转换成准确率。
+- 24 条 Gold 只用于调优；独立 holdout 完成前不能发布最终路线排名。
+- 87 个无效下载响应、19 个程序解析失败和 7 个不支持格式已隔离并保留来源，缺失源文件不能靠模型恢复。
+- 名称型包号需要明确标签和值的连续证据；证据不足时保留 `default`，可能影响包级对齐和包级统计。
+- `/api/v1/graph` 仍是 SQLite 投影，Neo4j 只控制五类分析 API。
+- 当前仓库尚未声明开源许可证；公开再分发前请先添加明确的 `LICENSE`。
+
+## 贡献与安全
+
+贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)，敏感信息处理见 [`SECURITY.md`](SECURITY.md)。提交前请执行 [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md)，不要提交密钥、原始官方材料或本地 `.data`。
+
+## 许可证
+
+本仓库当前未声明许可证。除非项目负责人补充 `LICENSE`，否则不要把代码宣传为可自由复制、修改或再分发。

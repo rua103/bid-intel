@@ -1,5 +1,18 @@
 # 变更与决策记录
 
+## 2026-10-01 · GAP 4.2 / 4.7：模型端点兼容与合规验收
+
+- 失败 warning 现在区分鉴权 401/403、限流 429、流式超时、非法/截断 JSON、`finish_reason=length` 和 HTTP 参数拒绝；配置探测改发 JSON 模式及生产默认的 `chat_template_kwargs`，不再发送无效的顶层 `thinking` 字段。服务端拒绝参数时不自动降级。
+- 本地 job mock 覆盖上述失败路径并验证失败公告不入库、不留下成功结果检查点，显式重试成功后只提交一次。换端点文档记录当前 `deepseek-v4-flash` 本机配置及尚缺的版本、参数规模、微调状态和资源来源证明；GAP 4.2 保持未关闭，GAP 4.7 标为部分完成，等待获准真实端点和长样本验收。
+- 验证：`python -m pytest tests/test_model_adapter.py tests/test_model_config.py tests/test_jobs.py -q` 为 **52 passed**；Ruff 与 `git diff --check` 通过。全部请求使用本地 mock，真实模型请求 **0**，未调用 1038 条官方数据。没有修改抽取 prompt 或包号逻辑。
+
+## 2026-10-01 · 项目文档入口与发布检查清单
+
+- 新增 [`ARCHITECTURE.md`](ARCHITECTURE.md)、[`DEVELOPMENT.md`](DEVELOPMENT.md)、[`MODEL_AND_EXTRACTION.md`](MODEL_AND_EXTRACTION.md)、[`DATA_QUALITY.md`](DATA_QUALITY.md) 和 [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md)，分别固定数据流、开发环境、模型证据链、官方附件质量边界和比赛提交前检查。
+- 根目录新增 [`CONTRIBUTING.md`](../CONTRIBUTING.md) 与 [`SECURITY.md`](../SECURITY.md)，README 改为 GitHub 首页式入口，并明确当前未声明开源许可证。
+- 更新 ONBOARDING、DATA_INTAKE、EVALUATION、QUERY_SEMANTICS 和 GAP_ANALYSIS 的当前状态，统一后端 `291 passed, 1 skipped`、前端 `15 passed`，区分 24 条 tuning Gold、独立 holdout Gold 和官方原始数据。
+- 本次只修改文档，没有重跑模型、全量数据或生产代码；PPT、视频和正式比赛报告仍待 holdout 评测后制作。
+
 ## 2026-10-01 · GAP 4.9：后台任务恢复与最终评测闸门
 
 - 后台任务现在能从损坏的单条进度或结果检查点恢复；状态与报告接口隔离坏记录，续跑不会重复入库。暂停收尾期间发起续跑会等待任务锁；模型超时、429 和非法 JSON 标记为可重试失败，不写入失败结果或数据库，其他公告继续处理。
@@ -10,7 +23,7 @@
 
 五个关系分析 API 现在可由 `ANALYTICS_BACKEND=neo4j` 切换到现有 Neo4j Cypher 与金额组装；默认仍是 SQLite。API 按逻辑数据集隔离图数据，SQLite 主库/WAL 版本变化后在下一次分析请求同步完整快照。Neo4j 连接、导出或查询失败时该请求回退到 SQLite，并用响应头及 Vue 分析页标记实际后端。`/api/v1/graph` 可视化投影继续读取 SQLite。
 
-验证：Neo4j 相关 API/图集成定向测试 **17 passed**（含 Docker Neo4j 5.26.14 的五场景 API 请求），Ruff 通过；当前工作树后端全量 **274 passed、0 skipped**（其中包含其他未提交改动的测试，未纳入本提交）。前端测试 **15 passed**，生产构建通过（保留既有大 chunk 提示）。reviewed Gold 24 条实测 Neo4j/SQLite 独立校验和完整响应比较均为 **6471/6471，通过 0 mismatched**；该 Gold 脚本直接调用底层查询实现，不经过本次新增 API 选择器，也不能外推为官方 1038 条准确率。
+验证（该提交时点）：Neo4j 相关 API/图集成定向测试 **17 passed**（含 Docker Neo4j 5.26.14 的五场景 API 请求），Ruff 通过；当时工作树后端全量 **274 passed、0 skipped**（其中包含其他未提交改动的测试，未纳入本提交）。前端测试 **15 passed**，生产构建通过（保留既有大 chunk 提示）。reviewed Gold 24 条实测 Neo4j/SQLite 独立校验和完整响应比较均为 **6471/6471，通过 0 mismatched**；该 Gold 脚本直接调用底层查询实现，不经过本次新增 API 选择器，也不能外推为官方 1038 条准确率。当前统一基线见本文件顶部的文档整理条目。
 
 ## 2026-09-30 · 官方附件残余问题隔离与统计
 

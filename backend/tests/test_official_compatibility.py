@@ -13,7 +13,7 @@ from reportlab.pdfgen.canvas import Canvas
 
 from app import ingestion, legacy_documents
 from app.config import Settings
-from app.file_formats import inspect_content
+from app.file_formats import DetectedFile, inspect_content
 from app.ingestion import _deduplicate, extract_notice
 from app.parsers import SourceDocument, expand_uploads, parse_document, parse_item_tables
 from app.schemas import ItemCandidate, NoticeMetadata
@@ -57,6 +57,59 @@ def test_docx_named_zip_stays_one_document_and_legacy_doc_is_detected():
     assert parse_document(rows[0])[0] == 'quotation'
     payload = (Path(__file__).parent / 'fixtures/legacy-quotation.doc').read_bytes()
     assert inspect_content(payload).format == 'doc'
+
+
+def test_wps_ole_streams_are_identified_and_dispatched_as_legacy_word(monkeypatch):
+    class FakeOle:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def listdir(self):
+            return [['WordDocument'], ['WpsCustomData']]
+
+    from app import file_formats, parsers
+
+    monkeypatch.setattr(file_formats.olefile, 'OleFileIO', lambda *_: FakeOle())
+    payload = bytes.fromhex('d0cf11e0a1b11ae1') + b'legacy WPS payload'
+    assert inspect_content(payload).format == 'wps'
+
+    monkeypatch.setattr(parsers, 'inspect_content', lambda content: DetectedFile(content, 'wps'))
+    monkeypatch.setattr(parsers, 'convert_doc', lambda _: docx_bytes())
+    text, _, warnings = parse_document(SourceDocument('报价.wps', payload))
+    assert 'quotation' in text
+    assert not any('解析失败' in warning for warning in warnings)
+
+
+def test_gbq7_vendor_package_is_identified_and_preserved_without_fake_text():
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w') as archive:
+        for name in (
+            'CommentSummary.GSP', 'HistorySpecData.GSP', 'GSPFiles/Bid.GSP',
+            'GSPFiles/BidEditorGBQ.GSP', 'GSPFiles/Config.ini',
+        ):
+            archive.writestr(name, b'\rGSPMode')
+    payload = buffer.getvalue()
+    assert inspect_content(payload).format == 'gbq7'
+
+    expanded, warnings = expand_uploads([SourceDocument('预算.GBQ7', payload)])
+    assert [document.filename for document in expanded] == ['预算.GBQ7']
+    text, items, parse_warnings = parse_document(expanded[0])
+    assert not text and not items
+    assert any('广联达 GBQ7' in warning and '预算.GBQ7' in warning
+               and '暂不支持附件格式' in warning for warning in parse_warnings)
+    assert not warnings
+
+
+def test_dwg_is_detected_as_known_cad_content_with_source_path():
+    payload = b'AC1032' + b'\x00' * 256
+    assert inspect_content(payload).format == 'dwg'
+    text, items, warnings = parse_document(SourceDocument('图纸.dwg', payload))
+    assert not text and not items
+    assert any('AutoCAD DWG' in warning and '图纸.dwg' in warning
+               and '暂不支持附件格式' in warning for warning in warnings)
 
 
 def test_zip_with_pdf_member_signature_is_not_misdetected_as_pdf(tmp_path):

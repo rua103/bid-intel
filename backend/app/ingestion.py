@@ -7,7 +7,12 @@ from pathlib import PurePosixPath
 
 from app.config import Settings, effective_settings
 from app.model_adapter import extract_unstructured_items
-from app.package_codes import normalize_package_code
+from app.package_codes import (
+    DEFAULT_PACKAGE_CODE,
+    has_explicit_named_package_evidence,
+    is_named_package_code,
+    normalize_package_code,
+)
 from app.parsers import (
     SourceDocument,
     expand_uploads,
@@ -46,10 +51,21 @@ def _merge_model_items(
         row.model_copy(update={"package_code": normalize_package_code(row.package_code)})
         for row in rules
     ]
-    modeled = [
-        row.model_copy(update={"package_code": normalize_package_code(row.package_code)})
-        for row in modeled
-    ]
+    normalized_modeled: list[ItemCandidate] = []
+    for row in modeled:
+        package_code = normalize_package_code(row.package_code)
+        if (
+            is_named_package_code(package_code)
+            and (
+                not has_explicit_named_package_evidence(package_code, row.source_evidence)
+                or (row.category and "".join(row.category.split()).casefold()
+                    == "".join(package_code.split()).casefold())
+            )
+        ):
+            warnings.append(f"模型名称型包号缺少标签证据，保留 default：{row.product_name}")
+            package_code = DEFAULT_PACKAGE_CODE
+        normalized_modeled.append(row.model_copy(update={"package_code": package_code}))
+    modeled = normalized_modeled
 
     def key(value: object) -> str:
         return "".join(unicodedata.normalize("NFKC", str(value or "")).split()).casefold()

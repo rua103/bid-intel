@@ -237,6 +237,32 @@ def test_hybrid_normalizes_package_from_unvalidated_model_copy_update():
     assert merged[0].package_code == "2"
 
 
+def test_hybrid_keeps_named_package_default_without_label_evidence():
+    modeled = ItemCandidate(
+        package_code="教学仪器", product_name="精密注塑成型机",
+        source_file="notice.html", source_location="model",
+        source_evidence="精密注塑成型机报价",
+    )
+    warnings: list[str] = []
+
+    merged = _merge_model_items([], [modeled], warnings)
+
+    assert [row.package_code for row in merged] == ["default"]
+    assert any("名称型包号缺少标签证据" in warning for warning in warnings)
+
+
+def test_hybrid_accepts_named_package_with_label_evidence():
+    modeled = ItemCandidate(
+        package_code="教学仪器", product_name="精密注塑成型机",
+        source_file="notice.html", source_location="model",
+        source_evidence="精密注塑成型机报价\n分包名称：教学仪器",
+    )
+
+    merged = _merge_model_items([], [modeled], [])
+
+    assert [row.package_code for row in merged] == ["教学仪器"]
+
+
 def test_hybrid_keeps_same_name_same_package_rows_with_distinct_evidence():
     def item(total, evidence, location):
         return ItemCandidate(package_code="包1", product_name="打印机", quantity=1,

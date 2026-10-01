@@ -1,5 +1,12 @@
 # 变更与决策记录
 
+## 2026-09-30 · 官方附件残余问题隔离与统计
+
+- 完成 1038 条公告附件快照统计：13,136 个附件叶文件中，12,124 个成功或部分解析，986 个按参考材料角色保留但不解析，19 个程序解析失败（17 个 PDF、2 个 DOC），7 个不支持文件（6 个 DWG、1 个 GBQ7）。两份 WPS 按旧 Word 转换路径读取并保留来源。
+- 坏 RAR、超限或深层归档及单成员读取异常按成员隔离；单个坏附件不会阻断公告或全量批处理。87 个无效下载响应保持原始内容，不补造附件。
+- 对 17 个 PDF 流异常做只读回放：9 个由 pdfplumber 备用解析并进入 OCR，8 个仍无法由 pypdf、pdfplumber 和 Poppler 读取。解析器异常只有在独立源完整性证据支持时才归为源文件损坏，否则归为程序解析失败。
+- 新增 warning 分类测试、格式识别和失败隔离回归；后端 `266 passed, 1 skipped`，Ruff 与 `git diff --check` 通过。统计结果见 [`benchmarks/official-attachments-20260930.json`](benchmarks/official-attachments-20260930.json)。
+
 > 按日期倒序。这里记的是**经过**、**边界**和**当时的数字**。
 > 可复用的结论（怎么跑、红线、哪些坑不要再踩）在 [`ONBOARDING.md`](ONBOARDING.md)，本文不重复。
 > 开放问题在 [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md)。

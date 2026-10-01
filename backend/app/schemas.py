@@ -104,6 +104,7 @@ class ModelItemPayload(BaseModel):
     unit_price: Decimal | None = None
     total_price: Decimal | None = None
     source_evidence: str
+    package_source_evidence: str | None = None
 
     @field_validator("package_code", mode="before")
     @classmethod
@@ -118,6 +119,7 @@ class ModelParticipantPayload(BaseModel):
     outcome: Literal["winner", "nonwinner", "unknown"] = "unknown"
     award_amount: Decimal | None = None
     source_evidence: str
+    package_source_evidence: str | None = None
 
     @field_validator("package_code", mode="before")
     @classmethod

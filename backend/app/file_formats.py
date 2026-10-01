@@ -82,8 +82,14 @@ def inspect_content(content: bytes) -> DetectedFile:
     elif content.startswith((b'PK\x03\x04', b'PK\x05\x06')):
         try:
             with zipfile.ZipFile(io.BytesIO(content)) as archive:
-                names = set(archive.namelist())
-            result.format = ('docx' if 'word/document.xml' in names else
+                names = {name.replace('\\', '/').lstrip('./').casefold()
+                         for name in archive.namelist()}
+            gbq7_markers = {
+                'commentsummary.gsp', 'historyspecdata.gsp',
+                'gspfiles/bid.gsp', 'gspfiles/bideditorgbq.gsp',
+            }
+            result.format = ('gbq7' if gbq7_markers <= names else
+                             'docx' if 'word/document.xml' in names else
                              'xlsx' if 'xl/workbook.xml' in names else 'zip')
         except zipfile.BadZipFile:
             result.error = 'ZIP/OOXML 内容损坏，无法读取'
@@ -94,7 +100,7 @@ def inspect_content(content: bytes) -> DetectedFile:
             if 'EncryptedPackage' in streams:
                 result.error = 'Office 文档已加密，需提供可读取的原件'
             elif 'WordDocument' in streams:
-                result.format = 'doc'
+                result.format = 'wps' if 'WpsCustomData' in streams else 'doc'
             elif streams.intersection({'Workbook', 'Book'}):
                 result.format = 'xls'
             else:
@@ -115,6 +121,8 @@ def inspect_content(content: bytes) -> DetectedFile:
         result.format = 'tiff'
     elif content.startswith(b'BM'):
         result.format = 'bmp'
+    elif content.startswith(b'AC10'):
+        result.format = 'dwg'
     elif re.search(br'<(?:!doctype\s+html|html|head|body|div|p|table)\b', leading, re.IGNORECASE):
         result.format = 'html'
     return result

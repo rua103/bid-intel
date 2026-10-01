@@ -1,0 +1,114 @@
+{
+  "date": "2026-09-30",
+  "purpose": "1038-notice attachment format, parse outcome, failure-isolation, and OCR coverage summary",
+  "source": {
+    "dataset_database": "282bf10d09b44260942269fcd4242026.sqlite",
+    "completed_result_files": 1038,
+    "database_notices": 1038,
+    "idempotent_import_receipts": 1038,
+    "raw_materials_modified": false
+  },
+  "scope": {
+    "html_notices": 1038,
+    "expanded_attachment_leaf_documents": 13136,
+    "attachment_suffix_counts": {
+      "(no extension)": 32,
+      ".15": 1,
+      ".bmp": 2,
+      ".doc": 73,
+      ".docx": 8163,
+      ".dwg": 6,
+      ".gbq7": 1,
+      ".jpg": 89,
+      ".pdf": 4588,
+      ".png": 147,
+      ".txt": 6,
+      ".wps": 2,
+      ".xls": 1,
+      ".xlsx": 25
+    },
+    "suffix_count_sum": 13136
+  },
+  "attachment_outcomes": {
+    "parsed_or_partial_text_ocr_or_table": 12124,
+    "intentionally_retained_reference_materials_not_parsed": 986,
+    "parser_failures": 19,
+    "unsupported_formats": 7,
+    "source_corrupt_detected_before_parse": 0,
+    "unavailable_download_response_members_excluded_before_parse": 87,
+    "compressed_member_read_failures_excluded_before_parse": 1,
+    "outcome_sum_including_parser_leaves": 13136,
+    "parser_failure_suffixes": {
+      ".doc": 2,
+      ".pdf": 17
+    }
+  },
+  "warning_records": {
+    "archive_member_failure": 1,
+    "format_mismatch": 2207,
+    "ocr_no_text": 21,
+    "ocr_review": 2261,
+    "other": 8554,
+    "parser_failure": 19,
+    "partial_fallback": 22,
+    "role_skipped": 986,
+    "source_unavailable": 87,
+    "unsupported_format": 7
+  },
+  "notices_with_warning_category": {
+    "archive_member_failure": 1,
+    "format_mismatch": 224,
+    "ocr_no_text": 16,
+    "ocr_review": 359,
+    "parser_failure": 17,
+    "partial_fallback": 19,
+    "role_skipped": 548,
+    "source_unavailable": 61,
+    "unsupported_format": 3
+  },
+  "detected_format_overrides": {
+    "DOC": 2178,
+    "HTML": 4,
+    "PDF": 14,
+    "PNG": 10,
+    "ZIP": 1
+  },
+  "ocr": {
+    "notices_with_ocr_warnings_or_results": 359,
+    "rapidocr_result_warning_records": 2261,
+    "notices_with_no_trusted_ocr_text": 16,
+    "no_trusted_ocr_text_warning_records": 21
+  },
+  "pdf_recovery_probe": {
+    "pypdf_parse_failures": 17,
+    "pdfplumber_fallback_recovered": 9,
+    "pypdf_and_pdfplumber_both_failed": 8,
+    "poppler_pdfinfo_and_pdftotext_both_also_failed": 8,
+    "poppler_pdftotext_succeeded_after_pypdf_failure": 9,
+    "interpretation": "9 of 17 pypdf failures now return through the pdfplumber fallback; 8 remain unreadable by both parser paths and Poppler. This is evidence of source-level damage, not a universal proof that recovery is impossible."
+  },
+  "targeted_pdf_ocr_replay": {
+    "pdfs_replayed_with_current_parser_and_local_rapidocr": 17,
+    "pdfs_recovered_by_pdfplumber_fallback": 9,
+    "pdfs_unreadable_by_pypdf_and_pdfplumber": 8,
+    "rapidocr_result_warning_records": 12,
+    "pdfs_with_ocr_result_warnings": 9,
+    "notices_with_new_ocr_coverage_after_comparing_baseline": 6,
+    "combined_notices_with_ocr_coverage": 365,
+    "combined_rapidocr_result_warning_records": 2273,
+    "new_no_trusted_ocr_text_warnings": 0,
+    "projected_outcomes_if_recovery_replaced_in_full_snapshot": {
+      "parsed_or_partial": 12133,
+      "intentionally_retained_reference_materials_not_parsed": 986,
+      "parser_failures_remaining": 10,
+      "unsupported_formats": 7
+    },
+    "interpretation": "This read-only targeted replay did not update the stored 1038-notice database or its job result files."
+  },
+  "interpretation_limits": [
+    "Counts describe the completed 2026-09-26 rules + RapidOCR job result snapshot; no 1038-notice rerun was performed for this summary.",
+    "PDF Poppler recovery counts come from a read-only probe of the 17 stored pypdf exceptions using pdfinfo and pdftotext; they are not accuracy measures.",
+    "A parser exception is classified as a program/parser failure unless an independent source-integrity check also fails.",
+    "The 87 unavailable download responses remain unmodified source material and contain no recoverable attachment content."
+  ]
+}

@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import py7zr
-import pytest
 from fastapi.testclient import TestClient
 
 from app import jobs
@@ -104,8 +103,40 @@ def test_disk_expansion_enforces_actual_cumulative_budget(tmp_path, monkeypatch)
         archive.writestr('one.txt', b'a' * 700000)
         archive.writestr('two.txt', b'b' * 700000)
     monkeypatch.setattr(settings, 'job_max_expanded_mb', 1)
-    with pytest.raises(ValueError, match='展开大小'):
-        expand_paths([DiskDocument('large.zip', path)], tmp_path / 'expanded')
+    documents, warnings = expand_paths([DiskDocument('large.zip', path)], tmp_path / 'expanded')
+    assert [document.filename for document in documents] == ['large.zip!/one.txt']
+    assert any('two.txt' in warning and '读取失败' in warning for warning in warnings)
+
+
+def test_corrupt_rar_isolated_from_valid_attachment_sibling(tmp_path):
+    bad_rar = tmp_path / 'broken.rar'
+    bad_rar.write_bytes(b'Rar!\x1a\x07\x00not a valid RAR archive')
+    good_text = tmp_path / 'valid.txt'
+    good_text.write_text('valid content', encoding='utf-8')
+
+    documents, warnings = expand_paths([
+        DiskDocument('broken.rar', bad_rar), DiskDocument('valid.txt', good_text),
+    ], tmp_path / 'expanded')
+
+    assert [document.filename for document in documents] == ['valid.txt']
+    assert any('broken.rar' in warning for warning in warnings)
+
+
+def test_corrupt_rar_does_not_fail_notice_job(tmp_path):
+    source = tmp_path / 'source'
+    source.mkdir()
+    (source / 'notice.html').write_text(HTML, encoding='utf-8')
+    (source / 'notice.rar').write_bytes(b'Rar!\x1a\x07\x00not a valid RAR archive')
+    dataset = create_dataset(DatasetCreate(name='bad attachment isolation'))
+    database = resolve_database(dataset['id'])
+    job = jobs.create_job(source, database, dataset['id'], ocr=False, mode='rules')
+    root = jobs.job_path(job['id'])
+
+    result = jobs.process_notice(str(root), jobs.read_json(root / 'manifest.json')[0])
+
+    assert result['status'] == 'done'
+    assert count_notices(database) == 1
+    assert any('notice.rar' in warning for warning in result['warnings'])
 
 
 def test_stale_job_is_reported_as_interrupted(tmp_path):

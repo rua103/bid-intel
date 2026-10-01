@@ -21,6 +21,10 @@ _NAMED_VALUE_RE = re.compile(
     r"^(?:分包名称|标段名称|采购包名称|包名称|包名)\s*[:：]\s*(.+)$",
     re.IGNORECASE,
 )
+_NAMED_LABEL_RE = re.compile(
+    r"(?:分包名称|标段名称|采购包名称|包名称|包名)\s*[:：]\s*",
+    re.IGNORECASE,
+)
 _ORDINAL_SECTION_RE = re.compile(rf"^第\s*({_PACKAGE_ID})\s*标段$", re.IGNORECASE)
 _TENDER_SUFFIX_RE = re.compile(
     rf"^.+[（(]\s*{_PACKAGE_ID}\s*[）)][^\s()（）]*[-_/]({_PACKAGE_ID})$",
@@ -80,6 +84,10 @@ def _clean(value: str) -> str:
     )
 
 
+def _compact(value: str) -> str:
+    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", value))
+
+
 def normalize_package_code(value: str | None) -> str:
     """Return one stable id for a package label.
 
@@ -122,3 +130,46 @@ def normalize_package_code(value: str | None) -> str:
     if re.fullmatch(_PACKAGE_ID, text, re.IGNORECASE):
         return _chinese_number(text)
     return text
+
+
+def is_named_package_code(value: str | None) -> bool:
+    """Return whether a package id is a free-form name rather than an id.
+
+    Numeric and compact alphanumeric identifiers retain their existing evidence
+    rules.  A name needs an explicit package-name label in the same quoted model
+    evidence before it can replace ``default``.
+    """
+    code = normalize_package_code(value)
+    if code == DEFAULT_PACKAGE_CODE:
+        return False
+    return re.fullmatch(r"[A-Za-z0-9]+(?:[-_/][A-Za-z0-9]+)*", code) is None
+
+
+def has_explicit_named_package_evidence(
+    package_code: str | None, source_evidence: str | None,
+) -> bool:
+    """Check that a named package is quoted with its explicit label and value.
+
+    The check deliberately operates on the evidence excerpt, not the full notice.
+    This prevents a project title, item category, or nearby paragraph from being
+    promoted to a package merely because the same text occurs elsewhere.
+    """
+    code = normalize_package_code(package_code)
+    if code == DEFAULT_PACKAGE_CODE or not is_named_package_code(code):
+        return True
+    evidence = _clean(source_evidence or "")
+    if not evidence:
+        return False
+    compact_code = _compact(code)
+    for match in _NAMED_LABEL_RE.finditer(evidence):
+        tail = evidence[match.end():].lstrip()
+        compact_tail = _compact(tail)
+        if not compact_tail.startswith(compact_code):
+            continue
+        consumed = 0
+        while consumed < len(tail) and _compact(tail[:consumed]) != compact_code:
+            consumed += 1
+        raw_remainder = tail[consumed:]
+        if not raw_remainder or raw_remainder[0].isspace() or raw_remainder[0] in "，,。；;:：()（）[]【】":
+            return True
+    return False

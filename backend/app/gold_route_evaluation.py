@@ -86,6 +86,7 @@ def _load_sources(
     *,
     pilot_only: bool,
     limit: int | None,
+    notice_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     source_root = source_root.resolve(strict=True)
     with manifest_path.open("r", encoding="utf-8-sig", newline="") as stream:
@@ -99,8 +100,14 @@ def _load_sources(
     gold_ids = {notice.notice_id for notice in gold.notices}
     if not gold_ids <= by_id.keys():
         raise ValueError(f"source manifest 缺少 Gold ID：{sorted(gold_ids - by_id.keys())}")
+    if notice_ids is not None:
+        unknown_ids = notice_ids - gold_ids
+        if unknown_ids:
+            raise ValueError(f"--notice-id 不在 Gold 内：{sorted(unknown_ids)}")
     selected = []
     for notice in gold.notices:
+        if notice_ids is not None and notice.notice_id not in notice_ids:
+            continue
         row = by_id[notice.notice_id]
         if pilot_only and not row.get("assignment", "").startswith("pilot:"):
             continue
@@ -128,7 +135,7 @@ def _load_sources(
             raise ValueError("--limit 必须大于 0")
         selected = selected[:limit]
     if not selected:
-        raise ValueError("筛选后没有可评测公告")
+        raise ValueError("筛选后没有可评测公告；请检查 --notice-id/--pilot-only")
     return selected
 
 
@@ -459,7 +466,7 @@ def _score_mode(gold_data: dict, rows: list[dict], output_dir: Path, mode: str) 
 def run_evaluation(
     *, gold_path: Path, manifest_path: Path, source_root: Path, output_dir: Path,
     scope: str = "html", pilot_only: bool = False, limit: int | None = None,
-    max_calls_per_notice: int = 50,
+    max_calls_per_notice: int = 50, notice_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     gold_path, manifest_path = gold_path.resolve(strict=True), manifest_path.resolve(strict=True)
     gold_data = json.loads(gold_path.read_text(encoding="utf-8-sig"))
@@ -468,7 +475,10 @@ def run_evaluation(
         raise ValueError("只允许使用 reviewed Gold 评测")
     if scope not in {"html", "attachments"}:
         raise ValueError("scope must be html or attachments")
-    records = _load_sources(gold, manifest_path, source_root, pilot_only=pilot_only, limit=limit)
+    records = _load_sources(
+        gold, manifest_path, source_root, pilot_only=pilot_only, limit=limit,
+        notice_ids=notice_ids,
+    )
     model_settings = effective_settings().model_copy(update={"ocr_enabled": scope == "attachments"})
     if any(mode != "rules" for mode in MODES) and not (
         model_settings.model_base_url and model_settings.model_api_key and model_settings.model_name
@@ -748,6 +758,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scope", choices=("html", "attachments"), default="html")
     parser.add_argument("--pilot-only", action="store_true")
     parser.add_argument("--limit", type=int)
+    parser.add_argument(
+        "--notice-id", action="append", dest="notice_ids",
+        help="只评测指定公告；可重复传入，适合 Agent 1 改动后的定向复评",
+    )
     parser.add_argument("--max-calls-per-notice", type=int, default=50)
     args = parser.parse_args(argv)
     try:
@@ -755,6 +769,9 @@ def main(argv: list[str] | None = None) -> int:
             gold_path=args.gold, manifest_path=args.manifest, source_root=args.source_root,
             output_dir=args.output_dir, scope=args.scope, pilot_only=args.pilot_only,
             limit=args.limit, max_calls_per_notice=args.max_calls_per_notice,
+            notice_ids={value.strip() for value in args.notice_ids if value.strip()}
+            if args.notice_ids
+            else None,
         )
     except (OSError, ValueError, ValidationError) as exc:
         print(f"Gold route evaluation failed: {exc}")

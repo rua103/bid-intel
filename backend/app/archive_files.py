@@ -109,8 +109,19 @@ def expand_paths(files: list[DiskDocument], directory: Path) -> tuple[list[DiskD
     leaves, warnings = [], []
 
     def visit(document: DiskDocument, depth: int):
+        # Treat each input/container/member as an isolation boundary. A damaged
+        # nested archive must not discard good siblings from the notice.
+        try:
+            _visit(document, depth)
+        except Exception as exc:  # noqa: BLE001 - one bad attachment is isolated
+            warnings.append(
+                f'{document.filename}: 附件容器展开失败（{type(exc).__name__}）'
+            )
+
+    def _visit(document: DiskDocument, depth: int):
         if document.path.stat().st_size > settings.job_max_member_mb * 1024**2:
-            raise ValueError(f'单文件超过后台任务限制：{document.filename}')
+            warnings.append(f'{document.filename}: 单文件超过后台任务限制，已跳过')
+            return
         detected = inspect_content(document.content)
         warnings.extend(f'{document.filename}: {w}' for w in detected.warnings)
         if detected.error:
@@ -122,50 +133,87 @@ def expand_paths(files: list[DiskDocument], directory: Path) -> tuple[list[DiskD
             document = DiskDocument(document.filename, target)
         kind = detected.format
         del detected
-        if kind not in {'zip', 'rar', '7z'} or document.filename.lower().endswith('.gbq7'):
+        if kind not in {'zip', 'rar', '7z'}:
             leaves.append(document)
             return
         if depth >= settings.job_max_archive_depth:
-            raise ValueError(f'压缩嵌套超过后台任务层数限制：{document.filename}')
+            warnings.append(f'压缩嵌套超过后台任务层数限制，已跳过：{document.filename}')
+            return
         if kind == '7z':
-            factory = _Factory(budget)
             try:
                 with py7zr.SevenZipFile(document.path) as archive:
                     if archive.needs_password():
                         warnings.append(f'{document.filename}: 7z 已加密，无法展开')
                         return
-                    archive.extractall(factory=factory)
-            finally:
-                for _, _, writer in factory.entries:
-                    writer.stream.close()
-            for name, path, _ in factory.entries:
-                visit(DiskDocument(f'{document.filename}!/{name}', path), depth + 1)
+                    members = [item for item in archive.list() if item.is_file]
+            except Exception as exc:  # noqa: BLE001 - isolate an invalid 7z container
+                warnings.append(
+                    f'{document.filename}: 附件容器展开失败（{type(exc).__name__}）'
+                )
+                return
+            for member in members:
+                full = f'{document.filename}!/{member.filename}'
+                if member.uncompressed > settings.job_max_member_mb * 1024**2:
+                    warnings.append(f'{full}: 单附件超过后台任务展开限制，已跳过')
+                    continue
+                factory = _Factory(budget)
+                try:
+                    with py7zr.SevenZipFile(document.path) as archive:
+                        archive.extract(targets=[member.filename], factory=factory)
+                except Exception as exc:  # noqa: BLE001 - isolate one 7z member
+                    warnings.append(
+                        f'{full}: 压缩成员读取失败（{type(exc).__name__}）'
+                    )
+                    continue
+                finally:
+                    for _, _, writer in factory.entries:
+                        writer.stream.close()
+                for name, path, _ in factory.entries:
+                    visit(DiskDocument(f'{document.filename}!/{name}', path), depth + 1)
             return
         if kind == 'rar' and not configure_rar():
-            raise ValueError('RAR 需要 bsdtar、unrar 或 7z 解码程序')
+            warnings.append(f'{document.filename}: RAR 解码工具不可用，已保留来源并跳过')
+            return
         opener = zipfile.ZipFile if kind == 'zip' else rarfile.RarFile
-        with opener(document.path) as archive:
-            seen = set()
-            for member in archive.infolist():
-                if member.is_dir():
-                    continue
-                name = (_zip_member_name(member, warnings) if kind == 'zip' else member.filename)
-                name = name.replace(chr(92), '/')
-                full = f'{document.filename}!/{name}'
-                if name in seen:
-                    warnings.append(f'{full}: 重名成员已跳过')
-                    continue
-                seen.add(name)
-                if member.file_size > settings.job_max_member_mb * 1024**2:
-                    raise ValueError(f'单附件过大：{full}')
-                target = budget.target()
-                try:
-                    with archive.open(member) as stream:
-                        budget.copy(stream, target)
-                except (RuntimeError, zipfile.BadZipFile, rarfile.Error) as exc:
-                    warnings.append(f'{full}: 压缩成员读取失败（{type(exc).__name__}）')
-                    continue
-                visit(DiskDocument(full, target), depth + 1)
+        try:
+            with opener(document.path) as archive:
+                members = archive.infolist()
+                if not members:
+                    warnings.append(
+                        f'{document.filename}: 压缩包没有可读取成员（容器为空或损坏）'
+                    )
+                    return
+                seen = set()
+                for member in members:
+                    try:
+                        if member.is_dir():
+                            continue
+                        name = (_zip_member_name(member, warnings) if kind == 'zip'
+                                else member.filename)
+                        name = name.replace(chr(92), '/')
+                        full = f'{document.filename}!/{name}'
+                        if name in seen:
+                            warnings.append(f'{full}: 重名成员已跳过')
+                            continue
+                        seen.add(name)
+                        if member.file_size > settings.job_max_member_mb * 1024**2:
+                            warnings.append(f'{full}: 单附件超过后台任务展开限制，已跳过')
+                            continue
+                        target = budget.target()
+                        with archive.open(member) as stream:
+                            budget.copy(stream, target)
+                    except Exception as exc:  # noqa: BLE001 - isolate one archive member
+                        name = getattr(member, 'filename', '<unknown>')
+                        warnings.append(
+                            f'{document.filename}!/{name}: 压缩成员读取失败（{type(exc).__name__}）'
+                        )
+                        continue
+                    visit(DiskDocument(full, target), depth + 1)
+        except Exception as exc:  # noqa: BLE001 - isolate an invalid archive container
+            warnings.append(
+                f'{document.filename}: 附件容器展开失败（{type(exc).__name__}）'
+            )
+            return
 
     for file in files:
         visit(file, 0)

@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from app.config import Settings
 from app.model_adapter import extract_unstructured_items, model_call_budget
 
@@ -173,3 +175,150 @@ def test_model_package_labels_are_canonicalized_before_hybrid_alignment(stub_mod
     assert not warnings
     assert [row.package_code for row in items] == ["1"]
     assert [row.package_code for row in participants] == ["1"]
+
+
+def test_named_model_package_requires_explicit_label_evidence(stub_model_stream):
+    source = "项目名称：教学仪器采购项目 分包名称：教学仪器 主要中标标的信息：精密注塑成型机"
+    payload = {
+        "items": [{
+            "package_code": "教学仪器",
+            "product_name": "精密注塑成型机",
+            "source_evidence": "主要中标标的信息：精密注塑成型机",
+        }],
+        "participants": [],
+    }
+    stub_model_stream(json.dumps(payload, ensure_ascii=False))
+
+    _, items, _, warnings = extract_unstructured_items(
+        filename="notice.html", text=source, settings=model_settings(),
+    )
+
+    assert [row.package_code for row in items] == ["default"]
+    assert any("名称型包号" in warning for warning in warnings)
+
+
+def test_named_model_package_accepts_only_label_and_value_quote(stub_model_stream):
+    source = "项目名称：教学仪器采购项目 分包名称：教学仪器 主要中标标的信息：精密注塑成型机"
+    payload = {
+        "items": [{
+            "package_code": "教学仪器",
+            "product_name": "精密注塑成型机",
+            "source_evidence": "主要中标标的信息：精密注塑成型机",
+            "package_source_evidence": "分包名称：教学仪器",
+        }],
+        "participants": [],
+    }
+    stub_model_stream(json.dumps(payload, ensure_ascii=False))
+
+    _, items, _, warnings = extract_unstructured_items(
+        filename="notice.html", text=source, settings=model_settings(),
+    )
+
+    assert [row.package_code for row in items] == ["教学仪器"]
+    assert "分包名称：教学仪器" in (items[0].source_evidence or "")
+    assert warnings == []
+
+
+def test_named_model_package_does_not_use_project_or_category_text(stub_model_stream):
+    source = (
+        "项目名称：城市安全风险综合监测预警平台试点建设项目综合运维服务 "
+        "分包名称：城市安全风险综合监测预警平台试点建设项目综合运维服务 "
+        "品目：物理治疗 分包名称：物理治疗"
+    )
+    payload = {
+        "metadata": {
+            "project_name": "城市安全风险综合监测预警平台试点建设项目综合运维服务",
+        },
+        "items": [{
+            "package_code": "城市安全风险综合监测预警平台试点建设项目综合运维服务",
+            "product_name": "城市安全风险综合监测预警平台试点建设项目综合运维服务",
+            "source_evidence": "项目名称：城市安全风险综合监测预警平台试点建设项目综合运维服务",
+            "package_source_evidence": "项目名称：城市安全风险综合监测预警平台试点建设项目综合运维服务",
+            "category": None,
+        }, {
+            "package_code": "物理治疗",
+            "product_name": "脊柱定位周期减压牵引系统",
+            "category": "物理治疗",
+            "source_evidence": "品目：物理治疗",
+            "package_source_evidence": "分包名称：物理治疗",
+        }],
+        "participants": [],
+    }
+    stub_model_stream(json.dumps(payload, ensure_ascii=False))
+
+    _, items, _, warnings = extract_unstructured_items(
+        filename="notice.html", text=source, settings=model_settings(),
+    )
+
+    assert [row.package_code for row in items] == ["default", "default"]
+    assert sum("名称型包号" in warning for warning in warnings) == 2
+
+
+def test_named_participant_package_does_not_use_item_category(stub_model_stream):
+    source = "分包名称：物理治疗 采购标的：脊柱定位周期减压牵引系统 品目：物理治疗 供应商：甲公司"
+    payload = {
+        "items": [{
+            "package_code": "default",
+            "product_name": "脊柱定位周期减压牵引系统",
+            "category": "物理治疗",
+            "source_evidence": "采购标的：脊柱定位周期减压牵引系统 品目：物理治疗",
+        }],
+        "participants": [{
+            "package_code": "物理治疗",
+            "organization_name": "甲公司",
+            "outcome": "winner",
+            "source_evidence": "供应商：甲公司",
+            "package_source_evidence": "分包名称：物理治疗",
+        }],
+    }
+    stub_model_stream(json.dumps(payload, ensure_ascii=False))
+
+    _, _, participants, warnings = extract_unstructured_items(
+        filename="notice.html", text=source, settings=model_settings(),
+        include_participants=True,
+    )
+
+    assert [row.package_code for row in participants] == ["default"]
+    assert any("名称型包号" in warning for warning in warnings)
+
+
+@pytest.mark.parametrize(
+    ("notice_id", "source", "package_code", "package_evidence"),
+    [
+        (
+            "932b26e5",
+            (
+                "项目名称：青岛工程职业学院智能制造学院技能大赛设备采购项目 "
+                "分包名称：教学仪器 精密注塑成型机"
+            ),
+            "教学仪器",
+            "分包名称：教学仪器",
+        ),
+        (
+            "228ad7fc",
+            "标段名称：公共阅读数字资源订购 标的：公共阅读数字资源订购",
+            "公共阅读数字资源订购",
+            "标段名称：公共阅读数字资源订购",
+        ),
+    ],
+)
+def test_gold_named_package_samples_are_accepted(
+    stub_model_stream, notice_id, source, package_code, package_evidence,
+):
+    payload = {
+        "items": [{
+            "package_code": package_code,
+            "product_name": "公共阅读数字资源订购",
+            "source_evidence": source,
+            "package_source_evidence": package_evidence,
+        }],
+        "participants": [],
+    }
+    stub_model_stream(json.dumps(payload, ensure_ascii=False))
+
+    _, items, _, warnings = extract_unstructured_items(
+        filename=f"{notice_id}.html", text=source, settings=model_settings(),
+    )
+
+    assert [row.package_code for row in items] == [package_code]
+    assert warnings == []

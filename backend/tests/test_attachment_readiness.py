@@ -91,6 +91,43 @@ def test_real_pdf_scan_page_is_rendered_before_ocr():
     assert not any('未安装' in warning or '缺少' in warning for warning in warnings)
 
 
+def test_pdfplumber_fallback_recovers_pypdf_failure_and_keeps_scan_ocr(monkeypatch):
+    from app import parsers
+    from app.warning_categories import WarningCategory, classify_warning
+
+    def broken_pypdf(_):
+        raise ValueError('simulated pypdf stream failure')
+
+    monkeypatch.setattr(parsers, 'PdfReader', broken_pypdf)
+    text_buffer = io.BytesIO()
+    canvas = Canvas(text_buffer)
+    canvas.drawString(20, 700, 'fallback readable text')
+    canvas.save()
+    text, _, warnings = parse_document(SourceDocument('fallback.pdf', text_buffer.getvalue()))
+    assert 'fallback readable text' in text
+    assert any(classify_warning(row) == WarningCategory.PARTIAL_FALLBACK for row in warnings)
+
+    scan_buffer = io.BytesIO()
+    canvas = Canvas(scan_buffer)
+    canvas.rect(20, 20, 100, 100)
+    canvas.showPage()
+    canvas.save()
+    calls = []
+
+    def fake_ocr(content, filename):
+        assert content.startswith(b'\x89PNG\r\n\x1a\n')
+        calls.append(filename)
+        return 'OCR fallback page'
+
+    text, _, warnings = parse_document(
+        SourceDocument('scan-fallback.pdf', scan_buffer.getvalue()),
+        ocr_enabled=True, ocr_engine=fake_ocr,
+    )
+    assert 'OCR fallback page' in text
+    assert calls == ['scan-fallback.pdf.page1.png']
+    assert any(classify_warning(row) == WarningCategory.PARTIAL_FALLBACK for row in warnings)
+
+
 def test_real_binary_doc_fixture(monkeypatch):
     if not legacy_documents.libreoffice_executable():
         pytest.skip('真实 DOC 转换需要 LibreOffice')

@@ -876,56 +876,117 @@ def _pdf_text(
     ocr_language: str = "chi_sim+eng", ocr_timeout_seconds: int = 30,
     ocr_engine: Callable[[bytes, str], str] | None = None,
 ) -> tuple[str, list[ItemCandidate], list[ParticipantCandidate], list[str]]:
-    reader = PdfReader(io.BytesIO(content))
     page_text: list[str] = []
     items: list[ItemCandidate] = []
     participants: list[ParticipantCandidate] = []
     warnings: list[str] = []
-    scan_pages = []
+    scan_pages: list[int] = []
     page_limit = max(1, settings.pdf_max_pages)
     ocr_limit = max(1, settings.pdf_max_ocr_pages)
-    for page_number, page in enumerate(reader.pages[:page_limit], start=1):
-        text = page.extract_text() or ""
-        if text.strip():
-            page_text.append(f"[page:{page_number}] {text}")
-        else:
-            scan_pages.append(page_number)
-    if len(reader.pages) > page_limit:
+
+    reader = None
+    page_count = 0
+    pypdf_error: Exception | None = None
+    try:
+        reader = PdfReader(io.BytesIO(content))
+        page_count = len(reader.pages)
+    except Exception as exc:  # noqa: BLE001 - try the independent pdfminer path below
+        pypdf_error = exc
+
+    if reader is not None:
+        for page_number, page in enumerate(reader.pages[:page_limit], start=1):
+            try:
+                text = page.extract_text() or ""
+            except Exception as exc:  # noqa: BLE001 - recover this page with pdfplumber/OCR
+                warnings.append(
+                    f'{filename}: PDF 第 {page_number} 页 pypdf 文本读取失败（{type(exc).__name__}），'
+                    '尝试备用解析或 OCR'
+                )
+                text = ""
+            if text.strip():
+                page_text.append(f"[page:{page_number}] {text}")
+            else:
+                scan_pages.append(page_number)
+    if page_count > page_limit:
         warnings.append(f'{filename}: PDF 超过 {page_limit} 页，只解析前 {page_limit} 页')
+
+    def add_page_tables(page, page_number: int, page_context: str) -> None:
+        for table_index, table in enumerate(page.extract_tables() or [], start=1):
+            parsed_items = parse_item_tables(
+                table, source_file=filename, table_index=table_index,
+                context=page_context,
+            )
+            for item in parsed_items:
+                item.source_location = f"page:{page_number}/{item.source_location}"
+                item.extraction_method = "pdfplumber_table_header_mapping"
+            items.extend(parsed_items)
+            parsed_participants = parse_participant_tables(
+                table, source_file=filename, table_index=table_index,
+                context=page_context,
+            )
+            for participant in parsed_participants:
+                participant.source_location = f"page:{page_number}/{participant.source_location}"
+                participant.extraction_method = "pdfplumber_participant_table"
+            participants.extend(parsed_participants)
+
+    pdfplumber_ok = False
     if importlib.util.find_spec("pdfplumber"):
         try:
             with importlib.import_module("pdfplumber").open(io.BytesIO(content)) as pdf:
+                if not page_count:
+                    page_count = len(pdf.pages)
+                if pypdf_error:
+                    warnings.append(
+                        f'{filename}: pypdf 读取失败（{type(pypdf_error).__name__}），'
+                        'pdfplumber 备用解析成功；页面文字或扫描内容仍需核验'
+                    )
                 for page_number, page in enumerate(pdf.pages[:page_limit], start=1):
-                    if page_number in scan_pages:
+                    try:
+                        page_context = page.extract_text() or ""
+                        if pypdf_error:
+                            if page_context.strip():
+                                page_text.append(f"[page:{page_number}/pdfplumber] {page_context}")
+                            else:
+                                scan_pages.append(page_number)
+                        elif page_number in scan_pages and page_context.strip():
+                            scan_pages.remove(page_number)
+                            page_text.append(f"[page:{page_number}/pdfplumber] {page_context}")
+                        try:
+                            add_page_tables(page, page_number, page_context)
+                        except Exception as exc:  # noqa: BLE001 - keep other pages and text
+                            warnings.append(
+                                f'{filename}: PDF 第 {page_number} 页表格解析失败 '
+                                f'（{type(exc).__name__}），保留文本结果'
+                            )
+                    finally:
                         page.close()
-                        continue
-                    page_context = page.extract_text() or ""
-                    for table_index, table in enumerate(page.extract_tables() or [], start=1):
-                        parsed = parse_item_tables(
-                            table, source_file=filename, table_index=table_index,
-                            context=page_context,
-                        )
-                        for item in parsed:
-                            item.source_location = f"page:{page_number}/{item.source_location}"
-                            item.extraction_method = "pdfplumber_table_header_mapping"
-                        items.extend(parsed)
-                        participants.extend(parse_participant_tables(
-                            table, source_file=filename, table_index=table_index,
-                            context=page_context,
-                        ))
-                        for participant in participants:
-                            if participant.source_file == filename and participant.source_location.startswith(
-                                f"table:{table_index}/"
-                            ):
-                                participant.source_location = (
-                                    f"page:{page_number}/{participant.source_location}"
-                                )
-                                participant.extraction_method = "pdfplumber_participant_table"
-                    page.close()
+            pdfplumber_ok = True
         except Exception as exc:  # noqa: BLE001
-            warnings.append(f"{filename}: PDF 表格解析失败（{type(exc).__name__}），保留文本结果")
+            if pypdf_error:
+                warnings.append(
+                    f'{filename}: PDF pypdf 流解析失败（{type(pypdf_error).__name__}），'
+                    f'pdfplumber 备用解析也失败（{type(exc).__name__}）；'
+                    '当前解析器无法读取，请核验原始文件'
+                )
+            else:
+                warnings.append(
+                    f"{filename}: PDF 表格解析失败（{type(exc).__name__}），保留文本结果"
+                )
     else:
         warnings.append(f"{filename}: 缺少 pdfplumber，请重装后端依赖；本次 PDF 仅提取文本")
+        if pypdf_error:
+            warnings.append(
+                f'{filename}: PDF pypdf 流解析失败（{type(pypdf_error).__name__}），'
+                '备用组件缺失，当前无法解析'
+            )
+
+    if pypdf_error and not pdfplumber_ok and not any(
+        'PDF pypdf 流解析失败' in warning for warning in warnings
+    ):
+        warnings.append(
+            f'{filename}: PDF pypdf 流解析失败（{type(pypdf_error).__name__}），'
+            'pdfplumber 备用解析失败，当前无法读取'
+        )
     if scan_pages:
         if not ocr_enabled:
             warnings.append(f"{filename}: 第 {','.join(map(str, scan_pages))} 页无可提取文本，OCR 未启用")
@@ -983,20 +1044,25 @@ def parse_document_with_participants(
             suffix = "." + detected.format
             aliases = {".htm": ".html", ".jpeg": ".jpg", ".tif": ".tiff"}
             if aliases.get(original_suffix, original_suffix) != suffix:
-                label = {"html": "HTML", "docx": "OOXML DOCX", "xlsx": "OOXML XLSX"}.get(
-                    detected.format, detected.format.upper())
+                label = {
+                    "html": "HTML", "docx": "OOXML DOCX", "xlsx": "OOXML XLSX",
+                    "wps": "WPS", "dwg": "AutoCAD DWG", "gbq7": "广联达 GBQ7",
+                }.get(detected.format, detected.format.upper())
                 warnings.append(f"{document.filename}: 实际为 {label}，已按内容解析（原扩展名 {original_suffix or '无'}）")
         content = detected.content
         if suffix in {".html", ".htm"}:
             text, items, participants = _html_tables(content, document.filename, warnings)
         elif suffix == ".xls":
             text, items, participants = _xls_tables(content, document.filename)
-        elif suffix in {".doc", ".rtf"}:
+        elif suffix in {".doc", ".rtf", ".wps"}:
             text, items, participants = _docx_tables(convert_doc(content), document.filename)
             for item in items:
                 item.extraction_method = 'doc_converted_table_header_mapping'
             if text and not items:
-                warnings.append(f"{document.filename}: DOC 文本已读取，未映射出标的表格，请核验布局或使用模型")
+                warnings.append(
+                    f"{document.filename}: 旧版 Word/WPS 文本已读取，未映射出标的表格；"
+                    "请核验布局或使用模型"
+                )
         elif suffix == ".docx":
             text, items, participants = _docx_tables(content, document.filename)
         elif suffix == ".xlsx":
@@ -1037,6 +1103,20 @@ def parse_document_with_participants(
             )
             for item in items:
                 item.extraction_method = 'local_ocr_table'
+        elif suffix == ".gbq7":
+            return "", [], [], warnings + [
+                (
+                    f"{document.filename}: 已识别为广联达 GBQ7 工程计价文件；"
+                    "核心 GSP 数据为专有格式，当前暂不支持附件格式解析，请由原软件导出明细表"
+                )
+            ]
+        elif suffix == ".dwg":
+            return "", [], [], warnings + [
+                (
+                    f"{document.filename}: 已识别为 AutoCAD DWG 工程图，当前暂不支持附件格式解析；"
+                    "请由 CAD 软件导出 PDF 或明细表"
+                )
+            ]
         else:
             return "", [], [], warnings + [f"暂不支持附件格式：{document.filename}"]
     except DocumentConversionError as exc:

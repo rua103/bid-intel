@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from pathlib import Path
+
+import pytest
 
 from app import gold_route_evaluation
 from app.evaluation import GoldDataset, PredictionDataset, evaluate_dataset
@@ -72,7 +75,7 @@ def _prediction(*, duplicate: bool = True, package_id: str = "p1") -> dict[str, 
 
 
 def _write_run(tmp_path: Path) -> tuple[Path, Path, Path]:
-    gold_path = tmp_path / "gold.json"
+    gold_path = tmp_path / "gold.reviewed.json"
     manifest_path = tmp_path / "manifest.csv"
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -156,6 +159,32 @@ def _write_run(tmp_path: Path) -> tuple[Path, Path, Path]:
     return gold_path, manifest_path, run_dir
 
 
+def _write_tuning_gold(tmp_path: Path, *, notice_id: str, status: str = "reviewed") -> Path:
+    tuning_path = tmp_path / "tuning.json"
+    tuning_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "status": status,
+                "notices": [{"notice_id": notice_id, "packages": []}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return tuning_path
+
+
+def _build_final_report(gold_path: Path, manifest_path: Path, run_dir: Path, tuning_path: Path):
+    return build_report(
+        gold_path=gold_path,
+        manifest_path=manifest_path,
+        run_dir=run_dir,
+        dataset_role="holdout",
+        stage="final",
+        tuning_gold_path=tuning_path,
+    )
+
+
 def test_duplicate_candidates_and_package_alignment_are_explicit(tmp_path):
     assert duplicate_candidates(_prediction())["items"]["extra_rows"] == 1
     gold_path, manifest_path, run_dir = _write_run(tmp_path)
@@ -179,30 +208,87 @@ def test_duplicate_candidates_and_package_alignment_are_explicit(tmp_path):
 
 def test_final_stage_requires_disjoint_reviewed_tuning_gold_and_recommends(tmp_path):
     gold_path, manifest_path, run_dir = _write_run(tmp_path)
-    tuning_path = tmp_path / "tuning.json"
-    tuning_path.write_text(
-        json.dumps(
-            {
-                "schema_version": "1.0",
-                "status": "reviewed",
-                "notices": [{"notice_id": "tuning-notice", "packages": []}],
-            }
-        ),
-        encoding="utf-8",
-    )
-    report = build_report(
-        gold_path=gold_path,
-        manifest_path=manifest_path,
-        run_dir=run_dir,
-        dataset_role="holdout",
-        stage="final",
-        tuning_gold_path=tuning_path,
-    )
+    tuning_path = _write_tuning_gold(tmp_path, notice_id="tuning-notice")
+    report = _build_final_report(gold_path, manifest_path, run_dir, tuning_path)
     assert report["recommendation"]["status"] == "determined"
     assert report["recommendation"]["route"] in {"model", "hybrid"}
     markdown = render_markdown(report)
     assert "团队本地 Gold 验证" in markdown
     assert "68.56" not in markdown
+
+
+def test_final_stage_requires_gold_reviewed_artifact_name(tmp_path):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    tuning_path = _write_tuning_gold(tmp_path, notice_id="tuning-notice")
+    incorrectly_named = tmp_path / "gold.json"
+    incorrectly_named.write_bytes(gold_path.read_bytes())
+
+    with pytest.raises(ValueError, match="gold.reviewed.json"):
+        _build_final_report(incorrectly_named, manifest_path, run_dir, tuning_path)
+
+
+def test_final_stage_rejects_draft_gold(tmp_path):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    holdout = json.loads(gold_path.read_text(encoding="utf-8"))
+    holdout["status"] = "draft"
+    gold_path.write_text(json.dumps(holdout), encoding="utf-8")
+    tuning_path = _write_tuning_gold(tmp_path, notice_id="tuning-notice")
+
+    with pytest.raises(ValueError, match="reviewed"):
+        _build_final_report(gold_path, manifest_path, run_dir, tuning_path)
+
+
+def test_final_stage_rejects_overlapping_holdout_and_tuning_ids(tmp_path):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    tuning_path = _write_tuning_gold(tmp_path, notice_id="n1")
+
+    with pytest.raises(ValueError, match="notice_id 重叠"):
+        _build_final_report(gold_path, manifest_path, run_dir, tuning_path)
+
+
+def test_final_stage_rejects_incomplete_route_even_if_run_says_completed(tmp_path):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    tuning_path = _write_tuning_gold(tmp_path, notice_id="tuning-notice")
+    progress_path = run_dir / "progress.json"
+    progress = json.loads(progress_path.read_text(encoding="utf-8"))
+    progress["completed"]["rules"]["n1"]["status"] = "failed"
+    progress_path.write_text(json.dumps(progress), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="rules"):
+        _build_final_report(gold_path, manifest_path, run_dir, tuning_path)
+
+
+def test_final_stage_rejects_missing_route_artifacts(tmp_path):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    tuning_path = _write_tuning_gold(tmp_path, notice_id="tuning-notice")
+    (run_dir / "predictions-rules.json").unlink()
+
+    with pytest.raises(ValueError, match="rules"):
+        _build_final_report(gold_path, manifest_path, run_dir, tuning_path)
+
+
+def test_final_stage_rejects_partial_holdout_but_targeted_remains_valid(tmp_path):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    tuning_path = _write_tuning_gold(tmp_path, notice_id="tuning-notice")
+    with manifest_path.open("a", encoding="utf-8", newline="") as stream:
+        csv.writer(stream).writerow(["n2", "n2", "annotator-a", "", "n2.html"])
+    gold_data = json.loads(gold_path.read_text(encoding="utf-8"))
+    gold_data["notices"].extend(_gold("n2")["notices"])
+    gold_path.write_text(json.dumps(gold_data, ensure_ascii=False), encoding="utf-8")
+    progress_path = run_dir / "progress.json"
+    progress = json.loads(progress_path.read_text(encoding="utf-8"))
+    progress["identity"]["gold_sha256"] = hashlib.sha256(gold_path.read_bytes()).hexdigest()
+    progress["identity"]["manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    progress_path.write_text(json.dumps(progress), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="reviewed holdout"):
+        _build_final_report(gold_path, manifest_path, run_dir, tuning_path)
+    report = build_report(
+        gold_path=gold_path, manifest_path=manifest_path, run_dir=run_dir,
+        dataset_role="targeted", stage="targeted",
+    )
+    assert report["notice_ids"] == ["n1"]
+    assert report["recommendation"]["status"] == "pending_freeze_and_independent_holdout"
 
 
 def test_route_runner_can_select_notice_ids_for_targeted_replay(tmp_path, monkeypatch):

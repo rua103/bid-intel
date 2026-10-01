@@ -80,6 +80,66 @@ class JobStopped(Exception):
     pass
 
 
+class RetryableModelError(RuntimeError):
+    """A model request failed before the notice could be committed."""
+
+    def __init__(self, warnings: list[str]):
+        self.warnings = warnings
+        super().__init__('；'.join(warnings))
+
+
+def _cached_result(path: Path) -> ImportResult | None:
+    if not path.exists():
+        return None
+    try:
+        return ImportResult.model_validate(read_json(path))
+    except (OSError, ValueError, TypeError):
+        # Result files are an optimization/checkpoint, not the source of truth.
+        # Rebuild a damaged result; save_import's receipt prevents duplicate rows
+        # if the prior worker committed just before the file was damaged.
+        return None
+
+
+def _retryable_model_warnings(result: ImportResult) -> list[str]:
+    return [warning for warning in result.warnings
+            if '模型抽取失败' in warning or '模型返回空内容' in warning]
+
+
+def _read_progress_entry(path: Path) -> dict | None:
+    try:
+        value = read_json(path)
+    except (OSError, ValueError, TypeError):
+        return None
+    if (not isinstance(value, dict)
+            or not isinstance(value.get('status'), str)
+            or value.get('status') not in {'pending', 'running', 'done', 'failed'}
+            or not isinstance(value.get('name'), str)):
+        return None
+    if 'items' in value and (
+        isinstance(value['items'], bool)
+        or not isinstance(value['items'], int)
+        or value['items'] < 0
+    ):
+        return None
+    return value
+
+
+def read_notice_progress(root: Path) -> list[dict]:
+    entries = []
+    for path in sorted((root / 'notices').glob('*.json')):
+        if path.name.endswith('.result.json'):
+            continue
+        entry = _read_progress_entry(path)
+        if entry is None:
+            # Surface the damaged checkpoint without letting it break list/report
+            # requests. run_job treats it as pending and replaces it on recovery.
+            entries.append({'index': path.stem, 'name': path.stem, 'status': 'failed',
+                            'error': '公告进度文件损坏；续跑时将重新处理'})
+        else:
+            entries.append(entry)
+    return entries
+
+
 def process_notice(root_string: str, entry: dict) -> dict:
     from app import ingestion
     from app.archive_files import DiskDocument, expand_paths
@@ -142,18 +202,22 @@ def process_notice(root_string: str, entry: dict) -> dict:
         return stored['text'], items, participants, warnings
 
     try:
-        if result_file.exists() and not entry.get('replace_existing'):
-            result = ImportResult.model_validate(read_json(result_file))
-        else:
+        result = (_cached_result(result_file)
+                  if result_file.exists() and not entry.get('replace_existing') else None)
+        if result is None:
             (root / 'notices').mkdir(exist_ok=True)
             with FileLock(str(checkpoint.with_suffix('.lock')), timeout=1200):
-                if result_file.exists() and not entry.get('replace_existing'):
-                    result = ImportResult.model_validate(read_json(result_file))
-                else:
-                    result = None
+                result = (_cached_result(result_file)
+                          if result_file.exists() and not entry.get('replace_existing') else None)
+                if result is None and result_file.exists():
+                    result_file.unlink(missing_ok=True)
             if result is None:
                 result = _build_result(root, entry, job, checkpoint, result_file, status, cached_parse,
                                        ingestion, expand_paths, DiskDocument)
+        retryable_warnings = _retryable_model_warnings(result)
+        if retryable_warnings:
+            result_file.unlink(missing_ok=True)
+            raise RetryableModelError(retryable_warnings)
         source_key = job['id'] + ':' + str(entry['index'])
         saved = save_import(Path(job['database']), result, source_key=source_key,
                             replace_existing=bool(entry.get('replace_existing')))
@@ -162,6 +226,8 @@ def process_notice(root_string: str, entry: dict) -> dict:
                       source_files=len(result.source_files))
     except JobStopped:
         status.update(status='pending', error='用户请求暂停，续跑将复用解析缓存')
+    except RetryableModelError as exc:
+        status.update(status='failed', error=f'模型抽取可重试失败：{exc}', warnings=exc.warnings)
     except Exception as exc:  # noqa: BLE001 - per-notice isolation
         status.update(status='failed', error=f'{type(exc).__name__}: {exc}')
     finally:
@@ -179,7 +245,10 @@ def _build_result(root, entry, job, checkpoint, result_file, status, cached_pars
             raise ValueError('源文件与任务创建时不一致，请创建新任务')
     with FileLock(str(checkpoint.with_suffix('.lock')), timeout=1200):
         if result_file.exists() and not entry.get('replace_existing'):
-            return ImportResult.model_validate(read_json(result_file))
+            result = _cached_result(result_file)
+            if result is not None:
+                return result
+            result_file.unlink(missing_ok=True)
         with tempfile.TemporaryDirectory(prefix='expand-', dir=root) as temporary:
             expanded, warnings = expand_paths([DiskDocument(f['name'], Path(f['path']))
                                                for f in entry['files']], Path(temporary))
@@ -192,12 +261,13 @@ def _build_result(root, entry, job, checkpoint, result_file, status, cached_pars
                     'model_base_url': '', 'model_api_key': '', 'model_name': ''})
             result = ingestion._ingest_expanded(expanded, warnings,
                 extraction_mode=job['mode'], model_settings=model_settings)
+            if _retryable_model_warnings(result):
+                raise RetryableModelError(_retryable_model_warnings(result))
             write_json(result_file, result.model_dump(mode='json'))
             return result
 def snapshot(root: Path) -> dict:
     job = read_json(root / 'job.json')
-    entries = [read_json(p) for p in sorted((root / 'notices').glob('*.json'))
-               if not p.name.endswith('.result.json')]
+    entries = read_notice_progress(root)
     job.update(done=sum(e['status'] == 'done' for e in entries),
                failed=sum(e['status'] == 'failed' for e in entries),
                items=sum(e.get('items', 0) for e in entries),
@@ -208,15 +278,18 @@ def snapshot(root: Path) -> dict:
     return job
 
 
-def run_job(root: Path, *, retry_failed=False):
-    with FileLock(str(root / 'run.lock'), timeout=0):
+def run_job(root: Path, *, retry_failed=False, wait_for_lock=False):
+    lock = FileLock(str(root / 'run.lock'), timeout=-1 if wait_for_lock else 0)
+    with lock:
         job = read_json(root / 'job.json')
         if (root / 'stop').exists():
             (root / 'stop').unlink()
         pending = []
         for entry in read_json(root / 'manifest.json'):
             path = root / 'notices' / f"{entry['index']:05d}.json"
-            prior = read_json(path) if path.exists() else {}
+            prior = _read_progress_entry(path) if path.exists() else {}
+            if prior is None:
+                prior = {}
             if prior.get('status') == 'done' or prior.get('status') == 'failed' and not retry_failed:
                 continue
             pending.append(entry)
@@ -251,6 +324,9 @@ def launch(root: Path, *, retry_failed=False):
     command = [sys.executable, '-m', 'app.jobs', 'run', str(root)]
     if retry_failed:
         command.append('--retry-failed')
+    # A resume submitted while the previous runner is finishing a pause must wait
+    # for its lock. Otherwise it exits immediately and loses the resume request.
+    command.append('--wait-for-lock')
     with (root / 'worker.log').open('ab') as log:
         subprocess.Popen(command, cwd=Path(__file__).resolve().parents[1],
                          stdout=log, stderr=log, stdin=subprocess.DEVNULL,
@@ -270,6 +346,7 @@ def main():
     run = sub.add_parser('run')
     run.add_argument('root', type=Path)
     run.add_argument('--retry-failed', action='store_true')
+    run.add_argument('--wait-for-lock', action='store_true')
     status = sub.add_parser('status')
     status.add_argument('id')
     args = parser.parse_args()
@@ -283,7 +360,8 @@ def main():
         print(json.dumps(job, ensure_ascii=False))
     elif args.action == 'run':
         try:
-            run_job(args.root, retry_failed=args.retry_failed)
+            run_job(args.root, retry_failed=args.retry_failed,
+                    wait_for_lock=args.wait_for_lock)
         except Timeout:
             print('任务已在运行')
     else:

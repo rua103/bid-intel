@@ -5,7 +5,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.datasets import DatabasePath
-from app.jobs import create_job, job_path, jobs_root, launch, read_json, snapshot
+from app.jobs import (
+    create_job,
+    job_path,
+    jobs_root,
+    launch,
+    read_json,
+    read_notice_progress,
+    snapshot,
+)
 
 router = APIRouter(prefix='/api/v1/jobs', tags=['batch jobs'])
 
@@ -58,8 +66,7 @@ def get_job(job_id: str, database: DatabasePath):
 @router.get('/{job_id}/report')
 def get_report(job_id: str, database: DatabasePath):
     root = checked_job(job_id, database)
-    return {'job': snapshot(root), 'notices': [read_json(path) for path in
-            sorted((root / 'notices').glob('*.json')) if not path.name.endswith('.result.json')]}
+    return {'job': snapshot(root), 'notices': read_notice_progress(root)}
 
 
 @router.post('/{job_id}/pause', status_code=202)

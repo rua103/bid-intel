@@ -549,6 +549,8 @@ def build_report(
     if stage == "targeted" and dataset_role not in {"tuning", "targeted"}:
         raise ValueError("stage=targeted 只能用于调优集或定向复评")
     if stage == "final":
+        if gold_path.name != "gold.reviewed.json":
+            raise ValueError("stage=final 必须使用 gold.reviewed.json")
         if tuning_gold_path is None:
             raise ValueError("stage=final 必须传入 --tuning-gold 以检查留出集独立性")
         _check_tuning_disjoint(gold_path, Path(tuning_gold_path).resolve(strict=True))
@@ -571,7 +573,29 @@ def build_report(
             raise ValueError("stage=final 缺少 route runner 的 code_sha256 冻结记录")
     if not notice_ids:
         notice_ids = [notice["notice_id"] for notice in gold_data.get("notices", [])]
+    if stage == "final":
+        completed = progress.get("completed") or {}
+        incomplete_modes = [
+            mode
+            for mode in MODES
+            if any(
+                (completed.get(mode) or {}).get(notice_id, {}).get("status") != "done"
+                for notice_id in notice_ids
+            )
+        ]
+        if incomplete_modes:
+            raise ValueError(
+                "stage=final 要求三条路线的每条公告都 completed；未完成路线："
+                + ", ".join(incomplete_modes)
+            )
     gold_ids = {notice.notice_id for notice in gold.notices}
+    if stage == "final" and set(notice_ids) != gold_ids:
+        missing = sorted(gold_ids - set(notice_ids))
+        extra = sorted(set(notice_ids) - gold_ids)
+        raise ValueError(
+            "stage=final 要求 route run 覆盖 reviewed holdout 全部公告；"
+            f"缺少={missing}，多出={extra}"
+        )
     if not set(notice_ids) <= gold_ids:
         raise ValueError("run 中存在不在 Gold 内的 notice_id")
     if not set(notice_ids) <= set(manifest):
@@ -579,6 +603,16 @@ def build_report(
 
     evaluation_reports = _load_evaluation_reports(run_dir)
     prediction_files = _load_predictions(run_dir)
+    if stage == "final":
+        missing_modes = [
+            mode
+            for mode in MODES
+            if mode not in evaluation_reports or mode not in prediction_files
+        ]
+        if missing_modes:
+            raise ValueError(
+                "stage=final 缺少三条路线的评测或预测产物：" + ", ".join(missing_modes)
+            )
     summary = _read_json(run_dir / "summary.json") if (run_dir / "summary.json").is_file() else {}
     summary_modes = summary.get("modes") or {}
     progress_modes = progress.get("completed") or {}

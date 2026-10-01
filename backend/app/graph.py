@@ -209,11 +209,13 @@ def create_driver(uri: str, user: str, password: str):
         from neo4j import GraphDatabase
     except ImportError as exc:
         raise RuntimeError('请安装可选依赖：pip install -e ".[graph]"') from exc
-    driver = GraphDatabase.driver(uri, auth=(user, password))
+    driver = None
     try:
+        driver = GraphDatabase.driver(uri, auth=(user, password))
         driver.verify_connectivity()
     except Exception as exc:
-        driver.close()
+        if driver is not None:
+            driver.close()
         raise RuntimeError(f"Neo4j unavailable at {uri}: {exc}") from exc
     return driver
 

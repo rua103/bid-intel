@@ -17,6 +17,9 @@ export function createDatasetClient(getDataset, getVersion, fetchImpl = fetch) {
     checkCurrent()
     return {
       ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
       async json() {
         let payload
         try {

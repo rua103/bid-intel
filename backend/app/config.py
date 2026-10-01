@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,11 @@ class Settings(BaseSettings):
     max_upload_mb: int = 50
     max_batch_upload_mb: int = 500
     cors_allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    analytics_backend: Literal["sqlite", "neo4j"] = "sqlite"
+    neo4j_uri: str = "bolt://127.0.0.1:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = ""
+    neo4j_database: str = "neo4j"
     model_base_url: str = ""
     model_api_key: str = ""
     model_name: str = ""

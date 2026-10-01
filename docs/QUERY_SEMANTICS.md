@@ -34,7 +34,7 @@
 
 SQLite 场景二/三现按 `COUNT(DISTINCT project.id)` 计频；场景五仍按共同投标包返回明细，
 同时用去重后的项目数汇总。多包项目里的同一主体或主体组合只计一个项目。
-查询侧的 Neo4j Cypher 模板也已改为项目粒度；真实 Neo4j 尚未在本次 gold 验证中执行。
+查询侧的 Neo4j Cypher 模板也已改为项目粒度；Neo4j 在线 API 通过 `ANALYTICS_BACKEND=neo4j` 选择，连接或同步失败时按请求回退 SQLite。真实 Neo4j 与 SQLite 的 reviewed Gold 对照为 **6471/6471**，0 差异。
 
 该口径在 24 条 reviewed gold 上经 GAP 6a 独立校验：修复前场景二 9/48、场景三 6/74
 查询结果不一致；修复后五场景共 **6471/6471** 项比较通过。详见

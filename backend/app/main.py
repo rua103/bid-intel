@@ -3,13 +3,13 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 
-from app import analytics
+from app import analytics, analytics_backend
 from app.auth import auth_is_configured, request_username
 from app.auth_api import router as auth_router
 from app.config import (
@@ -40,7 +40,10 @@ from app.storage import count_notices, initialize, search_items
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize(settings.resolved_database_path)
-    yield
+    try:
+        yield
+    finally:
+        analytics_backend.close_neo4j_drivers()
 
 
 app = FastAPI(
@@ -66,6 +69,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Analytics-Backend", "X-Analytics-Fallback"],
 )
 
 
@@ -219,49 +223,81 @@ def get_organizations(
 
 
 @app.get("/api/v1/analytics/buyers/{buyer_id}/awardees")
-def get_buyer_awardees(database_path: DatabasePath, buyer_id: int):
-    return analytics.buyer_awardees(database_path, buyer_id)
+def get_buyer_awardees(response: Response, database_path: DatabasePath, buyer_id: int):
+    return _analytics_response(response, database_path, "buyer_awardees", buyer_id=buyer_id)
 
 
 @app.get("/api/v1/analytics/buyers/{buyer_id}/bidders")
 def get_buyer_bidders(
+    response: Response,
     database_path: DatabasePath,
     buyer_id: int,
     include_winners: bool = False,
     top: int = Query(default=5, ge=1, le=100),
 ):
-    return analytics.buyer_bidders(
-        database_path, buyer_id, include_winners=include_winners, top=top
+    return _analytics_response(
+        response,
+        database_path,
+        "buyer_bidders",
+        buyer_id=buyer_id,
+        include_winners=include_winners,
+        top=top,
     )
 
 
 @app.get("/api/v1/analytics/suppliers/{supplier_id}/co-bidders")
 def get_supplier_co_bidders(
+    response: Response,
     database_path: DatabasePath,
     supplier_id: int,
     include_winners: bool = False,
     top: int = Query(default=5, ge=1, le=100),
 ):
-    return analytics.supplier_co_bidders(
-        database_path, supplier_id, include_winners=include_winners, top=top
+    return _analytics_response(
+        response,
+        database_path,
+        "supplier_co_bidders",
+        supplier_id=supplier_id,
+        include_winners=include_winners,
+        top=top,
     )
 
 
 @app.post("/api/v1/analytics/common-buyers")
-def get_common_award_buyers(database_path: DatabasePath, selection: OrganizationSelection):
+def get_common_award_buyers(
+    response: Response, database_path: DatabasePath, selection: OrganizationSelection
+):
     try:
-        return analytics.common_award_buyers(
-            database_path, selection.organization_ids
+        return _analytics_response(
+            response,
+            database_path,
+            "common_buyers",
+            supplier_ids=selection.organization_ids,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/analytics/common-projects")
-def get_common_bid_projects(database_path: DatabasePath, selection: OrganizationSelection):
+def get_common_bid_projects(
+    response: Response, database_path: DatabasePath, selection: OrganizationSelection
+):
     try:
-        return analytics.common_bid_packages(
-            database_path, selection.organization_ids
+        return _analytics_response(
+            response,
+            database_path,
+            "common_projects",
+            supplier_ids=selection.organization_ids,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _analytics_response(
+    response: Response, database_path, scene: str, **parameters
+):
+    result = analytics_backend.query_analytics(database_path, scene, **parameters)
+    response.headers["X-Analytics-Backend"] = result.backend
+    if result.fell_back:
+        response.headers["X-Analytics-Fallback"] = "sqlite"
+    return result.payload

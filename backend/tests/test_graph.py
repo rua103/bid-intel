@@ -4,8 +4,10 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
-from app import analytics
+from app import analytics, analytics_backend
+from app.config import settings
 from app.graph import (
     CYPHER_SCENES,
     _sum_amounts,
@@ -15,6 +17,7 @@ from app.graph import (
     sqlite_graph,
     sync_to_neo4j,
 )
+from app.main import app
 from app.storage import connect, initialize
 
 
@@ -198,16 +201,40 @@ def test_sync_uses_one_transaction_and_scopes_every_mutation(tmp_path):
 
 
 @pytest.mark.integration
-def test_live_neo4j_all_five_scenes_match_sqlite_and_isolate_datasets(tmp_path):
-    """Opt-in integration test: real Cypher, idempotency, and scope isolation."""
+def test_live_neo4j_all_five_scenes_match_sqlite_and_isolate_datasets(tmp_path, monkeypatch):
+    """Exercise real Cypher, API selection, idempotency, and dataset isolation."""
     path = tmp_path / "live.db"
     buyer, a, b, _ = _fixture(path)
     dataset = f"pytest-{uuid.uuid4()}"
     other = dataset + "-other"
+    named_id = uuid.uuid4().hex
+    named_path = tmp_path / "datasets" / f"{named_id}.sqlite"
+    named_buyer, _, _, _ = _fixture(named_path)
+    api_namespace = f"pytest-api-{uuid.uuid4()}"
     uri = os.getenv("BIDINTEL_TEST_NEO4J_URI")
     password = os.getenv("BIDINTEL_TEST_NEO4J_PASSWORD")
     if not uri or not password:
         pytest.skip("Neo4j integration requires BIDINTEL_TEST_NEO4J_URI and BIDINTEL_TEST_NEO4J_PASSWORD")
+    monkeypatch.setattr(settings, "database_path", str(path))
+    monkeypatch.setattr(settings, "analytics_backend", "neo4j")
+    monkeypatch.setattr(settings, "neo4j_uri", uri)
+    monkeypatch.setattr(settings, "neo4j_user", os.getenv("BIDINTEL_TEST_NEO4J_USER", "neo4j"))
+    monkeypatch.setattr(settings, "neo4j_password", password)
+    monkeypatch.setattr(settings, "neo4j_database", "neo4j")
+    monkeypatch.setattr(
+        analytics_backend,
+        "_dataset_scope",
+        lambda value: (
+            f"{api_namespace}:named"
+            if value.resolve() == named_path.resolve()
+            else f"{api_namespace}:default"
+        ),
+    )
+    with connect(named_path) as db:
+        db.execute(
+            "UPDATE organizations SET canonical_name='命名数据集采购中心', normalized_name='命名数据集采购中心' WHERE id=?",
+            (named_buyer,),
+        )
     driver = create_driver(uri, os.getenv("BIDINTEL_TEST_NEO4J_USER", "neo4j"), password)
     try:
         sync_to_neo4j(path, driver, dataset=other)
@@ -224,8 +251,45 @@ def test_live_neo4j_all_five_scenes_match_sqlite_and_isolate_datasets(tmp_path):
         for scene, params, expected in comparisons:
             assert query_neo4j(driver, scene, dataset=dataset, **params) == expected, scene
             assert query_neo4j(driver, scene, dataset=other, **params) == expected, scene
+
+        with TestClient(app) as client:
+            responses = [
+                client.get(f"/api/v1/analytics/buyers/{buyer}/awardees"),
+                client.get(f"/api/v1/analytics/buyers/{buyer}/bidders"),
+                client.get(f"/api/v1/analytics/suppliers/{a}/co-bidders"),
+                client.post(
+                    "/api/v1/analytics/common-buyers", json={"organization_ids": [a, b]}
+                ),
+                client.post(
+                    "/api/v1/analytics/common-projects", json={"organization_ids": [a, b]}
+                ),
+            ]
+        api_expected = [
+            analytics.buyer_awardees(path, buyer),
+            analytics.buyer_bidders(path, buyer),
+            analytics.supplier_co_bidders(path, a),
+            analytics.common_award_buyers(path, [a, b]),
+            analytics.common_bid_packages(path, [a, b]),
+        ]
+        assert [response.status_code for response in responses] == [200] * 5
+        assert [response.headers["X-Analytics-Backend"] for response in responses] == ["neo4j"] * 5
+        assert [response.json() for response in responses] == api_expected
+        with TestClient(app) as client:
+            named_response = client.get(
+                f"/api/v1/analytics/buyers/{named_buyer}/awardees",
+                headers={"X-Dataset-ID": named_id},
+            )
+        assert named_response.status_code == 200
+        assert named_response.headers["X-Analytics-Backend"] == "neo4j"
+        assert named_response.json()["buyer"]["canonical_name"] == "命名数据集采购中心"
     finally:
         with driver.session() as session:
-            session.run("MATCH (n:BidIntelNode) WHERE n.dataset IN $datasets DETACH DELETE n", datasets=[dataset, other]).consume()
-            session.run("MATCH (n:BidIntelDataset) WHERE n.name IN $datasets DELETE n", datasets=[dataset, other]).consume()
+            datasets = [
+                dataset,
+                other,
+                f"{api_namespace}:default",
+                f"{api_namespace}:named",
+            ]
+            session.run("MATCH (n:BidIntelNode) WHERE n.dataset IN $datasets DETACH DELETE n", datasets=datasets).consume()
+            session.run("MATCH (n:BidIntelDataset) WHERE n.name IN $datasets DELETE n", datasets=datasets).consume()
         driver.close()

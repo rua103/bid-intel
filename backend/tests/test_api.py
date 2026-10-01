@@ -3,8 +3,12 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from app import analytics_backend
+from app.analytics_backend import AnalyticsResult
 from app.config import settings
 from app.main import app
+from app.schemas import ImportResult, NoticeMetadata, ParticipantCandidate
+from app.storage import save_import
 
 
 def test_cors_allows_private_lan_frontend_and_rejects_unlisted_public_origins():
@@ -19,6 +23,10 @@ def test_cors_allows_private_lan_frontend_and_rejects_unlisted_public_origins():
         assert response.status_code == 200
         assert response.headers["access-control-allow-origin"] == "http://192.168.1.45:5173"
         assert response.headers["access-control-allow-credentials"] == "true"
+        actual = client.get(
+            "/api/v1/health", headers={"Origin": "http://192.168.1.45:5173"}
+        )
+        assert "X-Analytics-Backend" in actual.headers["access-control-expose-headers"]
 
         external = client.options(
             "/api/v1/health",
@@ -126,3 +134,85 @@ def test_configured_model_import_populates_relationship_queries(
             "供应商甲",
             "供应商乙",
         }
+
+
+def test_analytics_api_routes_report_backend_for_all_five_scenes(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / "api-backend.db"))
+    monkeypatch.setattr(settings, "analytics_backend", "neo4j")
+    calls = []
+
+    def query(_path, scene, **parameters):
+        calls.append((scene, parameters))
+        return AnalyticsResult({"scene": scene}, "neo4j")
+
+    monkeypatch.setattr(analytics_backend, "query_analytics", query)
+    with TestClient(app) as client:
+        responses = [
+            client.get("/api/v1/analytics/buyers/1/awardees"),
+            client.get("/api/v1/analytics/buyers/1/bidders"),
+            client.get("/api/v1/analytics/suppliers/2/co-bidders"),
+            client.post("/api/v1/analytics/common-buyers", json={"organization_ids": [2, 3]}),
+            client.post("/api/v1/analytics/common-projects", json={"organization_ids": [2, 3]}),
+        ]
+
+    assert [response.status_code for response in responses] == [200] * 5
+    assert [response.headers["X-Analytics-Backend"] for response in responses] == ["neo4j"] * 5
+    assert [response.json()["scene"] for response in responses] == [
+        "buyer_awardees", "buyer_bidders", "supplier_co_bidders", "common_buyers", "common_projects"
+    ]
+    assert [scene for scene, _ in calls] == [
+        "buyer_awardees", "buyer_bidders", "supplier_co_bidders", "common_buyers", "common_projects"
+    ]
+
+
+def test_analytics_api_falls_back_to_sqlite_when_neo4j_connection_fails(tmp_path, monkeypatch):
+    database = tmp_path / "api-fallback.db"
+    monkeypatch.setattr(settings, "database_path", str(database))
+    monkeypatch.setattr(settings, "analytics_backend", "neo4j")
+
+    def fail_to_connect(*_args):
+        raise RuntimeError("Neo4j offline")
+
+    monkeypatch.setattr(analytics_backend, "create_driver", fail_to_connect)
+    save_import(
+        database,
+        ImportResult(
+            notice_id=0,
+            source_files=["seed.html"],
+            items_found=0,
+            items=[],
+            metadata=NoticeMetadata(
+                project_name="回退测试项目",
+                project_number="FALLBACK-1",
+                procurement_unit="回退测试采购中心",
+                announced_total_award="120",
+            ),
+            participants=[
+                ParticipantCandidate(
+                    organization_name="中标供应商",
+                    outcome="winner",
+                    award_amount="120",
+                    source_file="seed.html",
+                    source_location="row:1",
+                ),
+                ParticipantCandidate(
+                    organization_name="未中标供应商",
+                    outcome="nonwinner",
+                    source_file="seed.html",
+                    source_location="row:2",
+                ),
+            ],
+            warnings=[],
+        ),
+    )
+
+    with TestClient(app) as client:
+        buyer = client.get(
+            "/api/v1/organizations", params={"query": "回退测试采购中心"}
+        ).json()[0]
+        response = client.get(f"/api/v1/analytics/buyers/{buyer['id']}/bidders")
+
+    assert response.status_code == 200
+    assert response.headers["X-Analytics-Backend"] == "sqlite"
+    assert response.headers["X-Analytics-Fallback"] == "sqlite"
+    assert [row["canonical_name"] for row in response.json()["top_bidders"]] == ["未中标供应商"]

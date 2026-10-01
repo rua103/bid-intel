@@ -8,11 +8,20 @@ test('dataset header preserves JSON headers and pins the request at dispatch', a
   const request = createDatasetClient(() => dataset, () => 0, async (url, options) => {
     captured = options
     dataset = 'second'
-    return { ok: true, json: async () => ({ count: 1 }) }
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'X-Analytics-Backend': 'neo4j' }),
+      json: async () => ({ count: 1 }),
+    }
   })
   const response = await request('/items', { headers: { 'Content-Type': 'application/json' } })
   assert.equal(captured.headers.get('X-Dataset-ID'), 'first')
   assert.equal(captured.headers.get('Content-Type'), 'application/json')
+  assert.equal(response.headers.get('X-Analytics-Backend'), 'neo4j')
+  assert.equal(response.status, 200)
+  assert.equal(response.statusText, 'OK')
   assert.deepEqual(await response.json(), { count: 1 })
 })
 

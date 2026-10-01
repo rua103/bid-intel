@@ -37,6 +37,8 @@ const selectedSupplierIds = ref([])
 const analyticsResults = ref({})
 const analyticsLoading = ref('')
 const analyticsError = ref('')
+const analyticsBackend = ref('')
+const analyticsFallback = ref(false)
 const modelConfig = ref({ model_base_url: '', model_name: '', model_api_key_masked: '', api_key_configured: false, configured: false })
 const modelKeyInput = ref('')
 const modelSaving = ref(false)
@@ -247,6 +249,8 @@ async function runScene(scene) {
     const response = await datasetFetch(url, options)
     const payload = await response.json()
     if (!response.ok) throw new Error(payload.detail || '查询失败')
+    analyticsBackend.value = response.headers.get('X-Analytics-Backend') || 'sqlite'
+    analyticsFallback.value = response.headers.get('X-Analytics-Fallback') === 'sqlite'
     analyticsResults.value = { ...analyticsResults.value, [scene]: payload }
   } catch (cause) {
     if (cause.name === 'AbortError') return
@@ -302,6 +306,8 @@ watch(datasetId, () => {
   analyticsResults.value = {}
   analyticsLoading.value = ''
   analyticsError.value = ''
+  analyticsBackend.value = ''
+  analyticsFallback.value = false
   error.value = ''
   try { localStorage.setItem('bidintel.dataset', datasetId.value) } catch { /* session only */ }
   if (datasetReady.value) Promise.all([refreshHealth(), searchItems(), refreshOrganizations()])
@@ -525,8 +531,11 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
     <section v-if="activeSection === 'analytics'" class="panel analytics-panel view-panel">
       <div class="panel-heading">
         <div><span class="step">04</span><h3>主体关系分析</h3></div>
-        <span class="hint">查询频次按采购包计；金额只累加已确认的中标记录</span>
+        <span class="hint">查询频次按项目计；金额只累加已确认的中标记录</span>
       </div>
+      <p v-if="analyticsBackend" class="analytics-backend-note">
+        当前分析查询使用 {{ analyticsBackend === 'neo4j' ? 'Neo4j' : 'SQLite' }}{{ analyticsFallback ? '（Neo4j 不可用，已回退）' : '' }}
+      </p>
       <div class="query-grid">
         <article class="query-card">
           <div class="query-number">01</div><h4>采购单位合作方</h4>

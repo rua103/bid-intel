@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from decimal import Decimal
@@ -24,6 +25,14 @@ CREATE TABLE IF NOT EXISTS notices (
 CREATE TABLE IF NOT EXISTS import_receipts (
     source_key TEXT PRIMARY KEY,
     notice_id INTEGER NOT NULL REFERENCES notices(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS notice_sources (
+    id INTEGER PRIMARY KEY,
+    notice_id INTEGER NOT NULL REFERENCES notices(id) ON DELETE CASCADE,
+    source_file TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    byte_size INTEGER NOT NULL,
+    UNIQUE(notice_id, source_file, sha256)
 );
 CREATE TABLE IF NOT EXISTS organizations (
     id INTEGER PRIMARY KEY,
@@ -177,6 +186,8 @@ def _upsert_organization(connection: sqlite3.Connection, raw_name: str, notice_i
 def save_import(
     path: Path, result: ImportResult, source_text: str = "", *, source_key: str | None = None,
     replace_existing: bool = False,
+    source_documents: list[tuple[str, bytes]] | None = None,
+    source_hashes: list[tuple[str, str, int]] | None = None,
 ) -> ImportResult:
     initialize(path)
     with connect(path) as connection:
@@ -207,6 +218,18 @@ def save_import(
             ),
         )
         notice_id = int(cursor.lastrowid)
+        source_records = {
+            (source_file, hashlib.sha256(content).hexdigest(), len(content))
+            for source_file, content in source_documents or []
+        }
+        source_records.update(source_hashes or [])
+        for source_file, digest, byte_size in sorted(source_records):
+            connection.execute(
+                """INSERT OR IGNORE INTO notice_sources (
+                       notice_id, source_file, sha256, byte_size
+                   ) VALUES (?, ?, ?, ?)""",
+                (notice_id, source_file, digest, byte_size),
+            )
         buyer_id = None
         if result.metadata.procurement_unit:
             buyer_id = _upsert_organization(connection, result.metadata.procurement_unit, notice_id)
@@ -333,12 +356,140 @@ def search_items(
             clauses.append(f"{column} LIKE ?")
             values.append(f"%{value}%")
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-    sql = f"""SELECT i.*, n.project_name, n.project_number, n.procurement_unit
+    sql = f"""SELECT i.*, n.project_name, n.project_number, n.procurement_unit,
+                     p.package_code, p.package_name
               FROM procurement_items i JOIN notices n ON n.id = i.notice_id
+              LEFT JOIN packages p ON p.id = i.package_id
               {where} ORDER BY i.id DESC LIMIT ?"""
     values.append(max(1, min(limit, 500)))
     with connect(path) as connection:
         return [dict(row) for row in connection.execute(sql, values).fetchall()]
+
+
+def _json_list(value: str | None) -> list:
+    if not value:
+        return []
+    try:
+        decoded = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    return decoded if isinstance(decoded, list) else []
+
+
+def get_notice_detail(path: Path, notice_id: int) -> dict[str, Any] | None:
+    """Return only the provenance already stored for one notice."""
+    initialize(path)
+    with connect(path) as connection:
+        notice = connection.execute(
+            """SELECT n.*, p.id AS project_id
+               FROM notices n LEFT JOIN projects p ON p.notice_id = n.id
+               WHERE n.id = ?""",
+            (notice_id,),
+        ).fetchone()
+        if notice is None:
+            return None
+
+        packages = [dict(row) for row in connection.execute(
+            "SELECT id, package_code, package_name FROM packages WHERE project_id = ? ORDER BY id",
+            (notice["project_id"],),
+        )] if notice["project_id"] is not None else []
+        items = [dict(row) for row in connection.execute(
+            """SELECT i.*, p.package_code, p.package_name
+               FROM procurement_items i LEFT JOIN packages p ON p.id = i.package_id
+               WHERE i.notice_id = ? ORDER BY i.id""",
+            (notice_id,),
+        )]
+        bidders = [dict(row) for row in connection.execute(
+            """SELECT b.id, b.package_id, p.package_code, p.package_name,
+                      b.raw_name AS organization_name, b.outcome,
+                      b.consortium_members_json, b.source_file, b.source_location,
+                      b.source_evidence
+               FROM bid_participations b
+               JOIN packages p ON p.id = b.package_id
+               JOIN projects pr ON pr.id = p.project_id
+               WHERE pr.notice_id = ? ORDER BY b.id""",
+            (notice_id,),
+        )]
+        awards = [dict(row) for row in connection.execute(
+            """SELECT a.id, a.package_id, p.package_code, p.package_name,
+                      a.raw_name AS organization_name, a.award_amount,
+                      a.source_file, a.source_location, a.source_evidence
+               FROM awards a
+               JOIN packages p ON p.id = a.package_id
+               JOIN projects pr ON pr.id = p.project_id
+               WHERE pr.notice_id = ? ORDER BY a.id""",
+            (notice_id,),
+        )]
+        saved_sources = [dict(row) for row in connection.execute(
+            "SELECT source_file, sha256, byte_size FROM notice_sources WHERE notice_id = ? ORDER BY id",
+            (notice_id,),
+        )]
+
+    sources_by_name: dict[str, dict[str, dict[str, Any]]] = {}
+    for source in saved_sources:
+        source_by_name = sources_by_name.setdefault(source["source_file"], {})
+        source_by_name[source["sha256"]] = {
+            "source_file": source["source_file"], "sha256": source["sha256"],
+            "byte_size": source["byte_size"], "hash_status": "available",
+            "file_available": False,
+        }
+    file_names = _json_list(notice["source_files_json"])
+    for row in [*items, *bidders, *awards]:
+        name = row.get("source_file")
+        if name and name not in sources_by_name:
+            sources_by_name[name] = {"not_saved": {
+                "source_file": name, "sha256": None, "byte_size": None,
+                "hash_status": "not_saved", "file_available": False,
+            }}
+    for name in file_names:
+        if isinstance(name, str) and name and name not in sources_by_name:
+            sources_by_name[name] = {"not_saved": {
+                "source_file": name, "sha256": None, "byte_size": None,
+                "hash_status": "not_saved", "file_available": False,
+            }}
+
+    for row in [*items, *bidders, *awards]:
+        row["evidence_status"] = "available" if (row.get("source_evidence") or "").strip() else "missing"
+        matching_sources = list(sources_by_name.get(row.get("source_file") or "", {}).values())
+        matching_hashes = {source["sha256"] for source in matching_sources if source["sha256"]}
+        if len(matching_hashes) == 1:
+            row["source_sha256"] = next(iter(matching_hashes))
+            row["source_hash_status"] = "available"
+        elif len(matching_hashes) > 1:
+            row["source_sha256"] = None
+            row["source_hash_status"] = "ambiguous"
+        else:
+            row["source_sha256"] = None
+            row["source_hash_status"] = "not_saved"
+        if "consortium_members_json" in row:
+            row["consortium_members"] = _json_list(row.pop("consortium_members_json"))
+
+    return {
+        "notice_id": notice_id,
+        "metadata": {
+            "project_name": notice["project_name"],
+            "project_number": notice["project_number"],
+            "procurement_unit": notice["procurement_unit"],
+            "project_budget": notice["project_budget"],
+            "announced_total_award": notice["announced_total_award"],
+        },
+        "metadata_evidence_status": "missing",
+        "source_files": [
+            source for same_name_sources in sources_by_name.values()
+            for source in same_name_sources.values()
+        ],
+        "warnings": _json_list(notice["warnings_json"]),
+        "packages": packages,
+        "items": items,
+        "bidders": bidders,
+        "awards": awards,
+        "capabilities": {
+            "evidence_granularity": "record_level",
+            "metadata_evidence": "not_saved",
+            "explicit_empty_status": "not_saved",
+            "source_files_retained": False,
+        },
+    }
 
 
 def count_notices(path: Path) -> int:

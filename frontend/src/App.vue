@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import RelationshipGraph from './components/RelationshipGraph.vue'
 import BatchJobs from './components/BatchJobs.vue'
 import AuthGate from './components/AuthGate.vue'
+import NoticeEvidenceDialog from './components/NoticeEvidenceDialog.vue'
 import { resolveApiBase } from './utils/browser.js'
 import { createDatasetClient } from './utils/datasets.js'
 import { navigationGroups, resolveSection, sectionHash, sectionTransition } from './utils/navigation.js'
@@ -31,6 +32,10 @@ const searchBrand = ref('')
 const searchCategory = ref('')
 const items = ref([])
 const searched = ref(false)
+const noticeDetail = ref(null)
+const noticeDetailItemId = ref(null)
+const noticeDetailLoading = ref(false)
+const noticeDetailError = ref('')
 const organizations = ref([])
 const selectedBuyerId = ref('')
 const selectedSupplierId = ref('')
@@ -153,6 +158,24 @@ async function searchItems() {
   } catch (cause) {
     if (cause.name === 'AbortError') return
     error.value = cause.message
+  }
+}
+
+async function openNoticeDetail(noticeId, itemId = null) {
+  noticeDetail.value = null
+  noticeDetailItemId.value = itemId
+  noticeDetailError.value = ''
+  noticeDetailLoading.value = true
+  try {
+    const response = await datasetFetch(`${apiBase}/api/v1/notices/${noticeId}`)
+    const payload = await response.json()
+    if (!response.ok) throw new Error(payload.detail || '公告详情读取失败')
+    noticeDetail.value = payload
+  } catch (cause) {
+    if (cause.name === 'AbortError') return
+    noticeDetailError.value = cause.message || '公告详情读取失败'
+  } finally {
+    noticeDetailLoading.value = false
   }
 }
 
@@ -299,6 +322,9 @@ watch(datasetId, () => {
   items.value = []
   organizations.value = []
   notice.value = null
+  noticeDetail.value = null
+  noticeDetailItemId.value = null
+  noticeDetailError.value = ''
   batchResult.value = null
   selectedFiles.value = []
   selectedBuyerId.value = ''
@@ -484,6 +510,9 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
       <div v-if="notice.warnings.length" class="warning-list">
         <p v-for="warning in notice.warnings" :key="warning">{{ warning }}</p>
       </div>
+      <div class="button-row evidence-entry">
+        <button type="button" class="secondary" @click="openNoticeDetail(notice.notice_id)">查看公告与来源证据 <span>→</span></button>
+      </div>
     </section>
 
     <section v-if="batchResult && activeSection === 'import'" class="panel result-panel">
@@ -504,6 +533,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
       </div>
       <details v-for="row in batchResult.notices" :key="row.notice_id" class="batch-note">
         <summary>{{ row.source_files[0] }} · {{ row.items_found }} 条标的 · {{ row.warnings.length }} 条提示</summary>
+        <button type="button" class="source-open" @click="openNoticeDetail(row.notice_id)">查看公告与来源证据</button>
         <p v-for="warning in row.warnings" :key="warning">{{ warning }}</p>
       </details>
     </section>
@@ -528,13 +558,24 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
               <td>{{ item.category || '—' }}</td><td>{{ item.brand || '—' }}</td><td>{{ item.model || '—' }}</td>
               <td>{{ item.quantity ?? '—' }} {{ item.quantity_unit || '' }}</td>
               <td>{{ prettyAmount(item.unit_price) }}</td><td>{{ prettyAmount(item.total_price) }}</td>
-              <td><span class="source-tag">{{ item.source_file }} · {{ item.source_location }}</span></td>
+              <td>
+                <span class="source-tag">{{ item.source_file }} · {{ item.source_location }}</span>
+                <button type="button" class="source-open" @click="openNoticeDetail(item.notice_id, item.id)">公告证据</button>
+              </td>
             </tr>
             <tr v-if="!items.length"><td colspan="8" class="empty">{{ searched ? '暂无匹配记录，导入公告后候选数据会显示在这里。' : '正在读取记录…' }}</td></tr>
           </tbody>
         </table>
       </div>
     </section>
+
+    <NoticeEvidenceDialog
+      :notice="noticeDetail"
+      :initial-item-id="noticeDetailItemId"
+      :loading="noticeDetailLoading"
+      :error="noticeDetailError"
+      @close="noticeDetail = null; noticeDetailItemId = null; noticeDetailError = ''"
+    />
 
     <section v-if="activeSection === 'analytics'" class="panel analytics-panel view-panel">
       <div class="panel-heading">

@@ -51,6 +51,33 @@ def file_hash(path: Path) -> str:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def _source_hashes_path(result_file: Path) -> Path:
+    # Job progress scans *.json; keep this JSON sidecar out of that namespace.
+    return result_file.with_suffix('.sources')
+
+
+def _cached_source_hashes(result_file: Path) -> list[tuple[str, str, int]]:
+    path = _source_hashes_path(result_file)
+    if not path.is_file():
+        return []
+    try:
+        values = read_json(path)
+    except (OSError, ValueError, TypeError):
+        return []
+    if not isinstance(values, list):
+        return []
+    rows = []
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        name, digest, size = value.get('source_file'), value.get('sha256'), value.get('byte_size')
+        if (isinstance(name, str) and name and isinstance(digest, str)
+                and len(digest) == 64 and all(c in '0123456789abcdef' for c in digest)
+                and isinstance(size, int) and not isinstance(size, bool) and size >= 0):
+            rows.append((name, digest, size))
+    return rows
+
+
 def create_job(source: Path, database: Path, dataset_id: str, *, mode='hybrid', ocr=True) -> dict:
     source = source.resolve(strict=True)
     html = sorted([*source.glob('*.html'), *source.glob('*.htm')])
@@ -220,7 +247,8 @@ def process_notice(root_string: str, entry: dict) -> dict:
             raise RetryableModelError(retryable_warnings)
         source_key = job['id'] + ':' + str(entry['index'])
         saved = save_import(Path(job['database']), result, source_key=source_key,
-                            replace_existing=bool(entry.get('replace_existing')))
+                            replace_existing=bool(entry.get('replace_existing')),
+                            source_hashes=_cached_source_hashes(result_file))
         status.update(status='done', notice_id=saved.notice_id, items=result.items_found,
                       participants=len(result.participants), warnings=result.warnings,
                       source_files=len(result.source_files))
@@ -263,7 +291,15 @@ def _build_result(root, entry, job, checkpoint, result_file, status, cached_pars
                 extraction_mode=job['mode'], model_settings=model_settings)
             if _retryable_model_warnings(result):
                 raise RetryableModelError(_retryable_model_warnings(result))
+            source_hashes = [
+                {'source_file': document.filename,
+                 'sha256': document.source_sha256 or file_hash(document.path),
+                 'byte_size': document.source_size
+                 if document.source_size is not None else document.path.stat().st_size}
+                for document in expanded
+            ]
             write_json(result_file, result.model_dump(mode='json'))
+            write_json(_source_hashes_path(result_file), source_hashes)
             return result
 def snapshot(root: Path) -> dict:
     job = read_json(root / 'job.json')

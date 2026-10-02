@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.util
 import io
@@ -102,6 +103,8 @@ PARTICIPANT_CONTEXT_SIGNALS = (
 class SourceDocument:
     filename: str
     content: bytes
+    source_sha256: str | None = None
+    source_size: int | None = None
 
 
 def _clean(value: object) -> str:
@@ -1177,6 +1180,8 @@ def expand_uploads(files: list[SourceDocument]) -> tuple[list[SourceDocument], l
 
     def visit(document: SourceDocument, depth: int) -> None:
         nonlocal total_bytes
+        source_sha256 = document.source_sha256 or hashlib.sha256(document.content).hexdigest()
+        source_size = document.source_size if document.source_size is not None else len(document.content)
         suffix = PurePosixPath(document.filename.replace("\\", "/")).suffix.lower()
         detected = inspect_content(document.content)
         warnings.extend(f"{document.filename}: {message}" for message in detected.warnings)
@@ -1184,7 +1189,9 @@ def expand_uploads(files: list[SourceDocument]) -> tuple[list[SourceDocument], l
             warnings.append(f"{document.filename}: {detected.error}")
             return
         if detected.content is not document.content:
-            document = SourceDocument(document.filename, detected.content)
+            document = SourceDocument(document.filename, detected.content, source_sha256, source_size)
+        elif document.source_sha256 is None or document.source_size is None:
+            document = SourceDocument(document.filename, document.content, source_sha256, source_size)
         is_zip = (detected.format == 'zip' and suffix not in {'.gbq7'}
                   or suffix == '.zip' and detected.format is None)
         if is_zip and suffix != '.zip':

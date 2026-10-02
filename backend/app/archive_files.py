@@ -1,6 +1,7 @@
 """Bounded disk-backed expansion. Original member names are provenance, never paths."""
 from __future__ import annotations
 
+import hashlib
 import io
 import shutil
 import zipfile
@@ -16,10 +17,17 @@ from app.file_formats import inspect_content
 from app.parsers import _zip_member_name
 
 
+def _file_hash(path: Path) -> str:
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
 @dataclass(frozen=True)
 class DiskDocument:
     filename: str
     path: Path
+    source_sha256: str | None = None
+    source_size: int | None = None
 
     @property
     def content(self) -> bytes:
@@ -122,6 +130,8 @@ def expand_paths(files: list[DiskDocument], directory: Path) -> tuple[list[DiskD
         if document.path.stat().st_size > settings.job_max_member_mb * 1024**2:
             warnings.append(f'{document.filename}: 单文件超过后台任务限制，已跳过')
             return
+        source_sha256 = document.source_sha256 or _file_hash(document.path)
+        source_size = document.source_size if document.source_size is not None else document.path.stat().st_size
         detected = inspect_content(document.content)
         warnings.extend(f'{document.filename}: {w}' for w in detected.warnings)
         if detected.error:
@@ -130,7 +140,9 @@ def expand_paths(files: list[DiskDocument], directory: Path) -> tuple[list[DiskD
         if detected.warnings:  # gzip decoded payload
             target = budget.target()
             budget.copy(io.BytesIO(detected.content), target)
-            document = DiskDocument(document.filename, target)
+            document = DiskDocument(document.filename, target, source_sha256, source_size)
+        elif document.source_sha256 is None or document.source_size is None:
+            document = DiskDocument(document.filename, document.path, source_sha256, source_size)
         kind = detected.format
         del detected
         if kind not in {'zip', 'rar', '7z'}:

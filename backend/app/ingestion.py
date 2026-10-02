@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 import time
 import unicodedata
@@ -667,7 +668,16 @@ def _ingest_expanded(
         participants=deduplicated_participants,
         warnings=list(dict.fromkeys(warnings)),
     )
-    return save_import(database_path, result) if database_path is not None else result
+    return save_import(
+        database_path,
+        result,
+        source_hashes=[
+            (document.filename,
+             document.source_sha256 or hashlib.sha256(document.content).hexdigest(),
+             document.source_size if document.source_size is not None else len(document.content))
+            for document in expanded
+        ],
+    ) if database_path is not None else result
 
 
 def extract_notice(
@@ -690,8 +700,17 @@ def extract_notice(
 def import_notice(
     files: list[SourceDocument], database_path, *, extraction_mode: str | None = None,
 ) -> ImportResult:
-    result = extract_notice(files, extraction_mode=extraction_mode)
-    return save_import(database_path, result)
+    if not files:
+        raise ValueError("至少上传一个公告或附件文件")
+    expanded, warnings = expand_uploads(files)
+    html_count = sum(
+        document.filename.lower().endswith((".html", ".htm")) for document in expanded
+    )
+    if html_count > 1:
+        raise ValueError("每次导入请对应一条公告；当前 ZIP 中检测到多份 HTML，请使用批量导入接口")
+    return _ingest_expanded(
+        expanded, warnings, database_path, extraction_mode=extraction_mode,
+    )
 
 
 def import_batch(

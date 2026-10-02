@@ -1,9 +1,10 @@
+import hashlib
 import io
 import zipfile
 
 from app.ingestion import import_batch
 from app.parsers import SourceDocument
-from app.storage import count_notices, search_items
+from app.storage import count_notices, get_notice_detail, search_items
 
 
 def _notice(title: str, product: str) -> str:
@@ -34,3 +35,9 @@ def test_batch_import_groups_notice_and_matching_attachment_zips(tmp_path):
     assert len(search_items(database, query="打印机")) == 1
     assert len(search_items(database, query="扫描仪")) == 1
     assert any("notice-1附件.zip!" in " ".join(row.source_files) for row in result.notices)
+    first = next(row for row in result.notices if row.source_files[0].startswith("dataset.zip!/notice-1"))
+    detail = get_notice_detail(database, first.notice_id)
+    html_source = next(row for row in detail["source_files"] if row["source_file"].endswith("notice-1.html"))
+    attachment_source = next(row for row in detail["source_files"] if row["source_file"].endswith("details.txt"))
+    assert html_source["sha256"] == hashlib.sha256(_notice("项目甲", "打印机").encode()).hexdigest()
+    assert attachment_source["sha256"] == hashlib.sha256("附件补充文本".encode()).hexdigest()

@@ -17,7 +17,7 @@ from app.archive_files import DiskDocument, expand_paths
 from app.config import Settings, settings
 from app.datasets import DatasetCreate, create_dataset, resolve_database
 from app.main import app
-from app.storage import connect, count_notices
+from app.storage import connect, count_notices, get_notice_detail
 
 HTML = '<meta charset="utf-8"><table><tr><th>名称</th><th>数量</th><th>单价</th></tr><tr><td>电脑</td><td>2</td><td>100</td></tr></table>'
 
@@ -79,6 +79,10 @@ def test_pause_and_resume_use_document_checkpoint(tmp_path):
     (root / 'stop').unlink()
     assert jobs.process_notice(str(root), entry)['status'] == 'done'
     assert count_notices(database) == 1
+    notice_id = jobs.read_json(root / 'notices' / '00000.json')['notice_id']
+    detail = get_notice_detail(database, notice_id)
+    source = next(row for row in detail['source_files'] if row['source_file'] == 'notice.html')
+    assert source['sha256'] == jobs.file_hash(tmp_path / 'source' / 'notice.html')
 
 
 def test_changed_source_fails_without_inserting(tmp_path):

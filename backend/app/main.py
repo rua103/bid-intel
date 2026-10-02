@@ -34,7 +34,7 @@ from app.schemas import (
     ModelTestResponse,
     OrganizationSelection,
 )
-from app.storage import count_notices, initialize, search_items
+from app.storage import count_notices, get_notice_detail, initialize, search_items
 
 
 @asynccontextmanager
@@ -195,6 +195,14 @@ async def import_uploaded_batch(
         return await run_in_threadpool(import_batch, source_documents, database_path)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/notices/{notice_id}")
+def get_notice(notice_id: int, database_path: DatabasePath) -> dict:
+    detail = get_notice_detail(database_path, notice_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="公告不存在")
+    return detail
 
 
 @app.get("/api/v1/items")

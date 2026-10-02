@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 import pytest
@@ -71,9 +72,29 @@ def test_upload_html_extracts_items_and_searches(tmp_path, monkeypatch):
         assert payload["items_found"] == 1
         assert payload["items"][0]["total_price"] == "3600"
 
+        detail = client.get(f"/api/v1/notices/{payload['notice_id']}")
+        assert detail.status_code == 200
+        detail_payload = detail.json()
+        assert detail_payload["items"][0]["source_evidence"]
+        assert detail_payload["items"][0]["source_location"].startswith("table:")
+        assert detail_payload["items"][0]["evidence_status"] == "available"
+        source = detail_payload["source_files"][0]
+        assert source["sha256"] == hashlib.sha256(html.encode()).hexdigest()
+        assert source["file_available"] is False
+        assert detail_payload["metadata_evidence_status"] == "missing"
+        assert detail_payload["capabilities"]["explicit_empty_status"] == "not_saved"
+
         search = client.get("/api/v1/items", params={"brand": "Canon"})
         assert search.status_code == 200
         assert search.json()[0]["product_name"] == "激光打印机"
+        assert search.json()[0]["package_code"] == "default"
+
+
+def test_notice_detail_returns_404_for_unknown_notice(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / "missing-notice.db"))
+    with TestClient(app) as client:
+        response = client.get("/api/v1/notices/999")
+    assert response.status_code == 404
 
 
 def test_configured_model_import_populates_relationship_queries(

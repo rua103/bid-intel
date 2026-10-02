@@ -15,7 +15,7 @@
 | 后台任务 | 检查点、暂停、续跑、失败重试、损坏结果恢复和数据集隔离已实现 |
 | 评测状态 | 24 条 tuning Gold 已完成；独立 holdout Gold 尚待队友完成和裁决 |
 
-当前验证基线：后端 `296 passed, 1 skipped`（2 条 warning），Ruff 通过，前端 `15 passed`，生产构建通过但有大 chunk 警告。最终指标必须在代码和提示冻结后使用独立 `gold.reviewed.json` 运行 `stage=final`。
+当前验证基线：后端 `298 passed, 1 skipped`（2 条 warning），Ruff 通过，前端 `15 passed`，生产构建通过但有大 chunk 警告。最终指标必须在代码和提示冻结后使用独立 `gold.reviewed.json` 运行 `stage=final`。
 
 ## 文档导航
 
@@ -34,6 +34,7 @@
 | [`docs/GAP_ANALYSIS.md`](docs/GAP_ANALYSIS.md) | 当前唯一的缺口和优先级事实来源 |
 | [`docs/REVIEWER_GUIDE.md`](docs/REVIEWER_GUIDE.md) | 评审登录、演示和局域网操作 |
 | [`docs/ANNOTATION_ANNOTATOR.md`](docs/ANNOTATION_ANNOTATOR.md) | 队友标注员操作卡 |
+| [`docs/INNOVATION_ROADMAP.md`](docs/INNOVATION_ROADMAP.md) | 面向采购甲方的创新功能顺序、依赖和验收标准 |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | 历史决策、验收范围和实测数字 |
 
 ## 快速启动
@@ -103,6 +104,7 @@ docker compose up -d
 - `GET /api/v1/health`：健康检查。
 - `GET/PUT /api/v1/model-config`、`POST /api/v1/model-config/test`：读取、保存和探测模型配置（Key 只显示打码值）。
 - `POST /api/v1/notices/import`、`POST /api/v1/notices/import-batch`：单公告/批量导入。
+- `GET /api/v1/notices/{notice_id}`：只读公告详情，返回已保存的候选、关系、来源位置、证据片段、文件哈希和解析警告；没有保存的证据标为缺失。
 - `GET/POST /api/v1/jobs`：创建、查看、暂停、续跑和报告后台任务。
 - `GET /api/v1/items`、`GET /api/v1/organizations`：检索候选和主体。
 - `GET /api/v1/analytics/buyers/{buyer_id}/awardees`：场景一。

@@ -4,8 +4,11 @@ import RelationshipGraph from './components/RelationshipGraph.vue'
 import BatchJobs from './components/BatchJobs.vue'
 import AuthGate from './components/AuthGate.vue'
 import NoticeEvidenceDialog from './components/NoticeEvidenceDialog.vue'
+import RelationshipClues from './components/RelationshipClues.vue'
+import ControlledQuery from './components/ControlledQuery.vue'
 import { resolveApiBase } from './utils/browser.js'
 import { createDatasetClient } from './utils/datasets.js'
+import { formatAmount } from './utils/amountPolicy.js'
 import { navigationGroups, resolveSection, sectionHash, sectionTransition } from './utils/navigation.js'
 
 const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location, import.meta.env.VITE_API_PORT || '8000')
@@ -52,7 +55,7 @@ const modelTesting = ref(false)
 const modelMessage = ref('')
 const modelMessageIsError = ref(false)
 const apiKeyPlaceholder = computed(() => modelConfig.value.api_key_configured ? `已配置（${modelConfig.value.model_api_key_masked}）留空保持不变` : 'sk-...')
-const prettyAmount = (value) => value == null ? '—' : Number(value).toLocaleString('zh-CN')
+const prettyAmount = (value) => formatAmount(value)
 const activeSectionLabel = computed(() => navigationGroups
   .flatMap((group) => group.items)
   .find((item) => item.id === activeSection.value)?.label || '首页概览')
@@ -577,7 +580,17 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
       @close="noticeDetail = null; noticeDetailItemId = null; noticeDetailError = ''"
     />
 
+    <RelationshipClues
+      v-if="datasetReady && activeSection === 'analytics'"
+      :api-base="apiBase"
+      :dataset-id="datasetId"
+      :refresh-key="health?.notices_imported || 0"
+      :fetch-impl="apiFetch"
+      @open-notice="openNoticeDetail($event.noticeId, $event.itemId || null)"
+    />
+
     <section v-if="activeSection === 'analytics'" class="panel analytics-panel view-panel">
+      <ControlledQuery :api-base="apiBase" :dataset-id="datasetId" :fetch-impl="apiFetch" />
       <div class="panel-heading">
         <div><span class="step">04</span><h3>主体关系分析</h3></div>
         <span class="hint">查询频次按项目计；金额只累加已确认的中标记录</span>

@@ -26,7 +26,7 @@ from app.schemas import (
 
 PROMPT = """你是政府采购公告结构化抽取器。只能从输入文本中抽取明确出现的信息，不做常识补全，不推测品牌、金额、投标资格或中标结果。
 每条标的物和参与主体都填写 package_code（原文明确的采购包/标段编号或名称；没有明确包标签填 default，不凭项目标题、品目名、邻近文本或顺序猜测）。如果 package_code 是名称型包号（例如“教学仪器”或“公共阅读数字资源订购”），同一条记录必须额外填写 package_source_evidence：一段原文连续片段，其中同时出现明确标签“分包名称/标段名称/采购包名称/包名称/包名”和紧随其后的名称值；只有名称值、项目标题、品目名或邻近文本时，package_code 必须填 default。数字或字母包号沿用原文明确编号规则。参与主体另有 consortium_members，只有明确联合体才逐项填写原文成员名称，否则为空数组；联合体保留为一条中标记录，不向各成员重复分配整个中标金额。
-标的物字段：product_name（产品/服务名称，通常对应“采购标的”）、category（品目）、brand（品牌）、model（规格型号）、quantity（数值）、quantity_unit（单位）、unit_price（单价数值）、total_price（总价数值）。
+标的物字段：product_name（产品/服务名称，通常对应“采购标的”）、category（品目）、brand（原文明确的产品品牌，例如“品牌”“品牌名称”“制造商品牌”列）、model（规格型号）、quantity（数值）、quantity_unit（单位）、unit_price（单价数值）、total_price（总价数值）。“产品供应商”“品牌产品供应商”“供应商”“中标方/中标供应商”等表示公司主体，不是品牌；即使同一行同时出现，也不得把公司名填入 brand。若只有产品供应商而没有明确品牌，brand 必须为 null，并保留该行 source_evidence。
 参与主体只填写公告明确列出的实际投标主体；outcome 只能是 winner（明确中标）、nonwinner（明确未中标）、unknown（身份明确但结果不明）。不要把采购人、联系人、代理机构、评审专家当成投标人。award_amount 只填公告明确给出的该主体成交金额。
 金额和数量用 JSON 数值，不带千分位或货币符号；原文缺失字段设为 null。每条主体和标的物都必须附 source_evidence，复制能直接证明该条记录的原文连续片段。无法从原文证明的记录不要输出。
 仅返回 JSON 对象，顶层字段为 metadata、participants、items。metadata 的键为 project_name、project_number、procurement_unit、project_budget、announced_total_award。participants 的键为 organization_name、outcome、award_amount、package_code、consortium_members、source_evidence、package_source_evidence。items 的键为 product_name、category、brand、model、quantity、quantity_unit、unit_price、total_price、package_code、source_evidence、package_source_evidence。"""
@@ -60,6 +60,24 @@ def model_call_budget(max_calls: int = 6):
 
 def _compact(text: str) -> str:
     return re.sub(r"\s+", "", text)
+
+
+def _brand_is_supplier_labelled(evidence: str, brand: str | None) -> bool:
+    """Reject a model brand that is explicitly supplied as a company column."""
+    if not brand:
+        return False
+    compact_evidence = _compact(evidence)
+    value = re.escape(_compact(brand))
+    boundary = r"(?=$|[|；;，,。]|规格型号|型号|品牌|数量|单价|总价|采购标的|产品名称)"
+    # A brand can also be a prefix of a company name (联想 / 联想（北京）有限公司).
+    # Only reject an entire, immediately labelled supplier value, and retain
+    # an independently labelled brand even when its name matches a supplier.
+    if re.search(r"(?:制造商品牌|货物品牌|品牌名称|品牌)[:：|]*" + value + boundary, compact_evidence):
+        return False
+    return bool(re.search(
+        r"(?:品牌产品供应商|产品供应商|供应商名称|供应商)[:：|]*" + value + boundary,
+        compact_evidence,
+    ))
 
 
 def _named_package_context_is_valid(
@@ -268,6 +286,9 @@ def extract_unstructured_items(
         if not evidence or _compact(evidence) not in verified_text:
             warnings.append(f"{filename}: 忽略无法在原文中定位证据的模型结果")
             continue
+        if _brand_is_supplier_labelled(evidence, candidate.brand):
+            warnings.append(f"{filename}: 忽略将产品供应商公司名填入 brand 的模型结果")
+            candidate = candidate.model_copy(update={"brand": None})
         package_evidence = (
             candidate.package_source_evidence or candidate.source_evidence or ""
         ).strip()

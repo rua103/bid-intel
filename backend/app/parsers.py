@@ -54,7 +54,9 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
         "标的物",
     ),
     "category": ("品目名称", "品目", "采购品目", "品目分类", "类别"),
-    "brand": ("品牌", "品牌如有", "货物品牌", "品牌名称", "产品供应商", "品牌产品供应商"),
+    # Organization columns are deliberately excluded.  A product supplier is
+    # a company主体, not a product brand; it is retained only in row evidence.
+    "brand": ("品牌", "品牌如有", "货物品牌", "品牌名称", "制造商品牌"),
     "model": ("规格型号", "规格型号如有", "货物型号", "规格说明", "规格", "型号"),
     "quantity": ("数量", "数量单位", "货物数量", "采购数量", "采购数量单位"),
     "unit_price": ("单价", "货物单价", "单价元"),
@@ -192,6 +194,7 @@ def parse_item_tables(
     package the notice names is lost.
     """
     candidates: list[ItemCandidate] = []
+    supplier_headers = {"产品供应商", "品牌产品供应商", "供应商", "供应商名称"}
     header_index: int | None = None
     columns: dict[str, int] = {}
     for index, row in enumerate(rows[:10]):
@@ -204,6 +207,10 @@ def parse_item_tables(
     if header_index is None:
         return candidates
     header = rows[header_index]
+    supplier_column_present = any(
+        _header_key(cell) in {_header_key(label) for label in supplier_headers}
+        for cell in header
+    )
     requirement = _requirement_header(header, columns)
     quotation = any('供应商报价成交明细' in _clean(''.join(row))
                     for row in rows[:header_index])
@@ -277,6 +284,8 @@ def parse_item_tables(
             **extra,
         )
         if _is_item_data_row(values, columns, candidate):
+            if supplier_column_present and not candidate.brand:
+                candidate.extraction_method = "table_header_mapping_supplier_column_unmapped"
             candidates.append(candidate)
     return candidates
 

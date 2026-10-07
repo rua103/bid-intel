@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-10-07",
+  "scope": "aggregate_counts_of_uncommitted_historical_attachment_ledger",
+  "ledger_sha256": "2d4b62a5ab5c09878398bbc94476e48a46e762152eadf6dc88d30ffc9fc92386",
+  "ledger_bytes": 14882192,
+  "records": 14262,
+  "notices": 1038,
+  "status_counts": {
+    "archive_member_read_failure": 1,
+    "download_error_response": 87,
+    "naming_mismatch": 2206,
+    "parsed_or_partial": 10956,
+    "program_parse_failure": 19,
+    "reference_material": 986,
+    "unsupported_format": 7
+  },
+  "manual_disposition_counts": {
+    "not_required": 1438,
+    "pending": 12824
+  },
+  "boundaries": [
+    "The detailed ledger stays local and is excluded from this commit because it contains full source-member paths and original warnings without a completed public-release review.",
+    "This summary contains no source paths, source text, original warnings, Gold annotations or model responses.",
+    "Counts describe the historical ledger; the corrected audit script has not regenerated it.",
+    "Historical archive-leaf hashes may represent the parent archive; historical HTML-reference flags may conflate member existence with HTML references.",
+    "Counts are not extraction accuracy, proof of complete source files, or official evaluation results."
+  ]
+}

@@ -19,6 +19,7 @@ from app.config import (
     save_model_config,
     settings,
 )
+from app.controlled_query import router_for as controlled_query_router_for
 from app.datasets import DatabasePath
 from app.datasets import router as datasets_router
 from app.evaluation_api import router as evaluation_router
@@ -27,6 +28,7 @@ from app.ingestion import import_batch, import_notice
 from app.jobs_api import router as jobs_router
 from app.model_adapter import test_model_connection
 from app.parsers import SourceDocument, parser_capabilities
+from app.relation_api import router as relation_clues_router
 from app.schemas import (
     BatchImportResult,
     ModelConfigPayload,
@@ -99,6 +101,8 @@ app.include_router(auth_router)
 app.include_router(evaluation_router)
 app.include_router(datasets_router)
 app.include_router(jobs_router)
+app.include_router(relation_clues_router)
+app.include_router(controlled_query_router_for())
 
 
 @app.get("/api/v1/parser-capabilities")

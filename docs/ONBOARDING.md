@@ -35,12 +35,12 @@
 
 ## 二、现在到哪了
 
-- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `298 passed / 1 skipped`（2 条 warning）、Ruff clean；前端 `15 passed` 并可构建，生产构建通过但有大 chunk 警告。
+- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `339 passed / 1 skipped`（2 条 warning）、Ruff clean；前端 `26 passed` 并可构建，生产构建通过但有大 chunk 警告。
 - ✅ **模型抽取已修好**并用真实公告验证（原本 0 条 → 19 条）。**P0 七项已完成本地回归**，验收边界见 [`CHANGELOG.md`](CHANGELOG.md)。
 - ✅ **P1-1 结构化投标主体抽取已实现**：从带有投标/评审/报价/成交上下文的结构化表格提取主体、包号和明示结果，保留来源证据；仅凭排名不会推断中标。1038 条全量规则/OCR回灌已有主体和中标候选，但仍需独立 Gold 验证，不能把入库数量当准确率。
 - ✅ **P1-4 演示三件套已加入**：Windows 启动/停止脚本、包含 XLSX 附件的虚构 HTML/ZIP 样例、无需模型的离线合成数据集。离线数据有 3 条公告和 7 条投标参与记录，可走五类查询；不能用于比赛评分。
 - ✅ **P1-5 评审登录已实现**：单评审账号 + HMAC 签名 HttpOnly Cookie，账号配置脚本和操作指南已加入。自动化覆盖本机登录/API 保护/退出流程；第二台物理设备的局域网登录、Cookie 与防火墙访问尚未验收。
-- ✅ **24 条调优 Gold 已合并**，用于本地路线调试；❌ **独立 holdout Gold 尚未完成**，因此仍没有可以对外宣称的官方准确率。
+- ✅ **24 条调优 Gold 与 24 条独立 holdout Gold 已建立**，均为团队本地原文核验，不是官方 ground-truth；当前 hybrid/model 留出集仍有不完整公告，尚未形成最终路线结论。
 - ⚠️ **官方全量处理已完成，结果仍待核验**：1038 条公告已进入独立数据集，后台任务最终 1038/1038 完成、0 失败。使用 `rules + 本地 RapidOCR`，没有真实模型调用；修复后全量回灌为 5009 条投标参与候选、1315 条中标记录，另有标的候选和 warning 仍需对照原文人工核验。附件统计显示 12,124 个成功或部分解析、986 个按参考材料保留、19 个程序解析失败和 7 个不支持文件；87 个无效下载响应保持原样，未伪造附件内容。**这不是准确率结果**，必须对照原文人工标注；细节见 [官方接入检查](OFFICIAL_INTAKE_REVIEW.md) 和 [附件统计](benchmarks/official-attachments-20260930.json)。
 - ⚠️ **速度基线有范围**：本次规则 + OCR 使用 3 个进程，逐条检查点估算活动处理时间约 66 分 45 秒，中位每条 1.127 秒、P95 41.249 秒。它不代表 hybrid/model 模式速度；优化模型调用前先读第七节。
 
@@ -288,7 +288,7 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q             # 当前基线 298 passed, 1 skipped（2 条 warning；需 LibreOffice 才能跑 DOC 集成用例）
+./.venv/Scripts/python.exe -m pytest -q             # 当前基线 339 passed, 1 skipped（2 条 warning；需 LibreOffice 才能跑 DOC 集成用例）
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 

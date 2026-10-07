@@ -24,6 +24,7 @@ import tempfile
 import unicodedata
 from collections import Counter
 from collections.abc import Iterable
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -149,14 +150,12 @@ def _normal_number(value: Any) -> str | None:
     if isinstance(value, bool):
         return str(value).casefold()
     try:
-        number = float(value)
-    except (TypeError, ValueError):
+        number = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
         return _normal_text(value)
-    if not math.isfinite(number):
+    if not number.is_finite():
         return _normal_text(value)
-    # ``.15`` and ``0.150`` should be the same fingerprint while preserving large
-    # integers well enough for duplicate diagnostics.
-    return format(number, ".15g")
+    return format(number.normalize(), "f")
 
 
 def _fingerprint(values: Iterable[Any], numeric_indexes: set[int] | None = None) -> str:

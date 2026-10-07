@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { formatAmount } from '../utils/amountPolicy.js'
 
 const props = defineProps({
   notice: { type: Object, default: null },
@@ -54,6 +55,10 @@ function showValue(value) {
   return String(value)
 }
 
+function showAmount(value) {
+  return formatAmount(value)
+}
+
 function packageLabel(value) {
   if (!value) return '无证据'
   return value === 'default' ? 'default（系统默认，非原文包号）' : value
@@ -94,7 +99,7 @@ function valueEvidenceLabel(value, evidence) {
           <div class="evidence-metadata-grid">
             <article v-for="field in metadataFields" :key="field.key">
               <small>{{ field.label }}</small>
-              <strong>{{ showValue(notice.metadata[field.key]) }}</strong>
+              <strong>{{ ['project_budget', 'announced_total_award'].includes(field.key) ? showAmount(notice.metadata[field.key]) : showValue(notice.metadata[field.key]) }}</strong>
               <span class="evidence-missing">无证据 · 字段来源未保存</span>
             </article>
           </div>
@@ -135,7 +140,7 @@ function valueEvidenceLabel(value, evidence) {
             <div class="evidence-field-grid">
               <div v-for="field in itemFields" :key="field.key">
                 <small>{{ field.label }}</small>
-                <strong>{{ showValue(item[field.key]) }}</strong>
+                <strong>{{ ['unit_price', 'total_price'].includes(field.key) ? showAmount(item[field.key]) : showValue(item[field.key]) }}</strong>
                 <span :class="item.source_evidence ? 'evidence-present' : 'evidence-missing'">
                   {{ valueEvidenceLabel(item[field.key], item.source_evidence) }}
                 </span>
@@ -171,7 +176,7 @@ function valueEvidenceLabel(value, evidence) {
           <article v-for="award in notice.awards" :key="`award-${award.id}`" class="evidence-relation">
             <div>
               <strong>{{ award.organization_name }}</strong>
-              <span>中标金额：{{ showValue(award.award_amount) }} · 包号 {{ packageLabel(award.package_code) }}</span>
+              <span>中标金额：{{ showAmount(award.award_amount) }} · 包号 {{ packageLabel(award.package_code) }}</span>
               <small>来源：{{ award.source_file || '未保存' }} · {{ award.source_location || '无定位' }}</small>
             </div>
             <button v-if="award.source_evidence" type="button" class="source-open" @click="openEvidence(award, '中标记录')">查看证据片段</button>

@@ -8,14 +8,14 @@
 
 | 能力 | 状态 |
 |---|---|
-| 任务一：七字段、主体、中标结果抽取 | 已实现 rules / hybrid / model 三路线；最终 holdout 指标待独立 Gold |
+| 任务一：七字段、主体、中标结果抽取 | 已实现 rules / hybrid / model 三路线；本地 holdout Gold 已建立，最终三路线指标待代码冻结后验证 |
 | 任务二：五类关系查询与金额汇总 | SQLite 已验收；Neo4j 可选后端已接入并可回退 SQLite |
 | 任务三：导入、检索、分析、图谱投影、标注工作台 | 已实现；局域网第二台设备验收按清单执行 |
 | 附件处理 | HTML、DOC/DOCX、XLS/XLSX、PDF、图片/OCR、RAR/7z 及失败隔离已接入 |
 | 后台任务 | 检查点、暂停、续跑、失败重试、损坏结果恢复和数据集隔离已实现 |
-| 评测状态 | 24 条 tuning Gold 已完成；独立 holdout Gold 尚待队友完成和裁决 |
+| 评测状态 | 24 条 tuning Gold 与 24 条本地 holdout Gold 已建立；当前 hybrid/model 留出集仍有不完整公告，不能生成最终路线结论 |
 
-当前验证基线：后端 `298 passed, 1 skipped`（2 条 warning），Ruff 通过，前端 `15 passed`，生产构建通过但有大 chunk 警告。最终指标必须在代码和提示冻结后使用独立 `gold.reviewed.json` 运行 `stage=final`。
+当前验证基线：后端 `339 passed, 1 skipped`（2 条 warning），Ruff 通过，前端 `26 passed`，生产构建通过但有大 chunk 警告。最终指标必须在代码和提示冻结后，使用独立 `gold.reviewed.json` 运行 `stage=final`；当前留出集运行仍有不完整公告。
 
 ## 文档导航
 
@@ -111,6 +111,8 @@ docker compose up -d
 - `GET /api/v1/analytics/buyers/{buyer_id}/bidders`：场景二。
 - `GET /api/v1/analytics/suppliers/{supplier_id}/co-bidders`：场景三。
 - `POST /api/v1/analytics/common-buyers`、`POST /api/v1/analytics/common-projects`：场景四、五。
+- `POST /api/v1/controlled-query/parse`、`POST /api/v1/controlled-query/execute`：五场景白名单内的自然语言意图解析与只读执行；真实模型端点尚待验收。
+- `GET /api/v1/analytics/relation-clues`：按数据集返回带来源证据的待核查关系线索，当前使用 SQLite。
 - `GET /api/v1/evaluation/schema`、`POST /api/v1/evaluation/draft`、`POST /api/v1/evaluation/run`：标注和本地评测。
 - `GET /api/v1/graph`：SQLite 图谱可视化投影。
 
@@ -132,7 +134,7 @@ npm run build
 ## 已知限制
 
 - 官方没有逐条 ground-truth，因此 1038 条全量入库、候选数量、OCR覆盖率和查询可运行性都不能直接转换成准确率。
-- 24 条 Gold 只用于调优；独立 holdout 完成前不能发布最终路线排名。
+- 24 条 tuning Gold 与 24 条本地 holdout Gold 已建立；当前 hybrid/model 留出运行仍有不完整公告，完成代码冻结后的三路线复跑前不能发布最终路线排名。
 - 87 个无效下载响应、19 个程序解析失败和 7 个不支持格式已隔离并保留来源，缺失源文件不能靠模型恢复。
 - 名称型包号需要明确标签和值的连续证据；证据不足时保留 `default`，可能影响包级对齐和包级统计。
 - `/api/v1/graph` 仍是 SQLite 投影，Neo4j 只控制五类分析 API。

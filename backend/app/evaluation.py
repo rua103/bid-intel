@@ -12,6 +12,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.evaluation_policy import (
+    LOCAL_PROXY_POLICY,
+    EvaluationPolicy,
+    IntegerPartMatching,
+    MissingValuePolicy,
+)
+
 ITEM_FIELDS = (
     "product_name",
     "category",
@@ -187,9 +194,28 @@ class PredictionDataset(DatasetBase):
 
 
 class EvaluationConfig(StrictModel):
-    monetary_absolute_tolerance: float = Field(default=0.01, ge=0)
+    monetary_absolute_tolerance: Decimal = Field(default=Decimal("0.01"), ge=0)
     quantity_absolute_tolerance: float = Field(default=0.000001, ge=0)
     relative_tolerance: float = Field(default=1e-9, ge=0)
+    policy_profile: str = "local_proxy"
+    integer_part_matching: IntegerPartMatching = IntegerPartMatching.EXACT
+    missing_value_policy: MissingValuePolicy = MissingValuePolicy.STRICT
+
+    @field_validator("monetary_absolute_tolerance", mode="before")
+    @classmethod
+    def coerce_decimal_tolerance(cls, value: Any) -> Decimal:
+        return Decimal(str(value))
+
+    def policy(self) -> EvaluationPolicy:
+        if self.policy_profile == "local_proxy":
+            return LOCAL_PROXY_POLICY.model_copy(
+                update={
+                    "amount_tolerance": self.monetary_absolute_tolerance,
+                    "integer_part_matching": self.integer_part_matching,
+                    "missing_value_policy": self.missing_value_policy,
+                }
+            )
+        raise ValueError(f"unknown evaluation policy profile: {self.policy_profile}")
 
 
 class Metrics(StrictModel):
@@ -244,6 +270,9 @@ def values_equal(field: str, gold: Any, predicted: Any, config: EvaluationConfig
         return left is right
     if field not in NUMERIC_FIELDS:
         return left == right
+    policy = config.policy()
+    if field != "quantity" and policy.integer_part_matching == IntegerPartMatching.IGNORE_DECIMAL:
+        return int(left) == int(right)
     absolute = (
         config.quantity_absolute_tolerance
         if field == "quantity"
@@ -253,6 +282,32 @@ def values_equal(field: str, gold: Any, predicted: Any, config: EvaluationConfig
         Decimal(str(absolute)), Decimal(str(config.relative_tolerance)) * max(abs(left), abs(right))
     )
     return abs(left - right) <= tolerance
+
+
+def evaluate_with_policy_profile(
+    gold: GoldDataset | dict[str, Any],
+    predicted: PredictionDataset | dict[str, Any],
+    profile: str,
+    *,
+    allow_draft: bool = False,
+) -> EvaluationReport:
+    """Evaluate with an explicitly named policy profile.
+
+    The built-in local profile preserves the historical evaluator defaults; callers
+    must name a profile instead of silently assuming official rules.
+    """
+    policy = LOCAL_PROXY_POLICY if profile == "local_proxy" else None
+    if policy is None:
+        raise ValueError(f"unknown evaluation policy profile: {profile}")
+    return evaluate_dataset(
+        gold,
+        predicted,
+        EvaluationConfig(
+            monetary_absolute_tolerance=policy.amount_tolerance,
+            policy_profile=profile,
+        ),
+        allow_draft=allow_draft,
+    )
 
 
 def maximum_weight_alignment(weights: Sequence[Sequence[int]]) -> list[tuple[int, int]]:
@@ -338,6 +393,11 @@ def _field_status(field: str, gold: Any, predicted: Any, config: EvaluationConfi
     left, right = normalized_field(field, gold), normalized_field(field, predicted)
     if left is None and right is None:
         return "empty"
+    if (
+        config.policy().missing_value_policy == MissingValuePolicy.MISSING_IS_UNKNOWN
+        and (left is None or right is None)
+    ):
+        return "empty"
     if left is None:
         return "extra"
     if right is None:
@@ -384,6 +444,7 @@ def evaluate_dataset(
     gold = GoldDataset.model_validate(gold)
     predicted = PredictionDataset.model_validate(predicted)
     config = config or EvaluationConfig()
+    config.policy()
     if gold.status != "reviewed" and not allow_draft:
         raise ValueError("gold status is draft; review first or explicitly set allow_draft=True")
     fields = {field: [0, 0, 0] for field in ITEM_FIELDS}
@@ -579,7 +640,7 @@ def render_markdown(report: EvaluationReport) -> str:
         "## 本次参数",
         "",
         "```json",
-        json.dumps(report.config.model_dump(), ensure_ascii=False, indent=2),
+        json.dumps(report.config.model_dump(mode="json"), ensure_ascii=False, indent=2),
         "```",
         "",
         "逐条匹配与错误字段请查看配套 JSON 的 alignments。",

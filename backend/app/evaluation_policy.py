@@ -1,8 +1,9 @@
-"""Configurable monetary evaluation and display policy.
+"""Configurable monetary and metric evaluation policies.
 
-The local proxy defaults intentionally mirror the historical evaluator.  Official
-policies must be selected explicitly by profile name after the organiser confirms
-their rules.
+``local_proxy`` preserves the historical open-extraction metric.  ``official_qa``
+records the organiser's P/N confusion-matrix interpretation from the QA answers;
+it is still a team-local implementation and must not be presented as an official
+score.
 """
 
 from __future__ import annotations
@@ -54,7 +55,14 @@ class EvaluationPolicy(BaseModel):
 
 
 LOCAL_PROXY_POLICY = EvaluationPolicy()
-PROFILES = {"local_proxy": LOCAL_PROXY_POLICY}
+# The monetary matching settings are currently the same for both profiles.  The
+# metric semantics live in evaluation.py, while keeping a named policy here makes
+# the selected profile explicit in serialized reports and CLI runs.
+OFFICIAL_QA_POLICY = EvaluationPolicy()
+PROFILES = {
+    "local_proxy": LOCAL_PROXY_POLICY,
+    "official_qa": OFFICIAL_QA_POLICY,
+}
 
 
 def policy_for_profile(profile: str) -> EvaluationPolicy:

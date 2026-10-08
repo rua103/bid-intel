@@ -56,6 +56,8 @@ Web 工作台的 `/evaluation/draft` 生成空白 gold 结构和独立 predictio
 
 ## 指标定义
 
+### 历史 `local_proxy`（默认，保持旧报告可比）
+
 每个字段和汇总 micro，以及完整记录、各类实体分别输出 TP/FP/FN、Precision、Recall、F1、Accuracy 和 Weighted：
 
 | 指标 | 本地定义 |
@@ -67,6 +69,12 @@ Web 工作台的 `/evaluation/draft` 生成空白 gold 结构和独立 predictio
 | Weighted | 0.4 × Accuracy + 0.3 × Precision + 0.3 × Recall；只是套用权重的本地代理 |
 
 开放抽取没有可枚举真阴性 TN，双空也不能添加 TN 来提高得分。分母为 0 输出 JSON null/Markdown N/A，而不是把空数据集算作满分；Weighted 任一组成项未定义时也为 null。完整记录 TP 要求一对匹配记录的全部七字段都相等（包括空值位置一致），并且记录至少含一个非空字段。部分正确的记录在 records 中仍同时计 FP/FN，但正确字段在字段指标中保留 TP。报告保留逐条 alignment 和每字段状态，便于追溯统计。
+
+### `official_qa`（赛题答疑的本地可复现解释）
+
+答疑表中的准确率/精确率/召回率说明将有字段/无字段解释为二分类 P/N 样本，并要求使用 TP、FP、TN、FN。仓库新增 `official_qa` profile，采用互斥分类：正确非空为 TP，非空但值错误或 Gold 缺失而预测有值为 FP，Gold 有值而预测缺失为 FN，双方缺失为 TN。其 Accuracy 为 `(TP + TN) / (TP + FP + TN + FN)`；Precision、Recall、F1 和加权公式保持不变。双方非空但值错误只计 FP，这是为避免一个二分类样本同时占用正类和负类计数而固定的本地约定。
+
+该 profile 不是主办方正式评分器。答疑没有明确重复记录、实体角色、完整记录和不可枚举负样本的详细边界，所以这些范围中的 TN 只表示当前可观察空槽，不代表公告全集。运行示例、限制和口径表见 [`EVALUATION_QA_POLICY.md`](EVALUATION_QA_POLICY.md)。旧 `local_proxy` 报告不回写、不改数字，也不能与 `official_qa` 结果直接比较。
 
 ## 命令行与 Python
 

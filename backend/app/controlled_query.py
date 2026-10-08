@@ -45,7 +45,7 @@ class QueryFilters(BaseModel):
     end_date: date | None = None
     min_amount: Decimal | None = Field(default=None, ge=0)
     max_amount: Decimal | None = Field(default=None, ge=0)
-    include_winners: bool = False
+    include_winners: bool = True
     top: int = Field(default=5, ge=1, le=100)
 
     @model_validator(mode="after")
@@ -95,7 +95,7 @@ class ExecuteRequest(BaseModel):
 CONTROLLED_QUERY_PROMPT = """你是政府采购关系分析的受控意图解析器。只能把用户问题映射到下面五个只读场景之一，不能生成 SQL、Cypher 或任何写操作。
 场景：buyer_awardees（采购单位的中标供应商）、buyer_bidders（采购单位的投标主体）、supplier_co_bidders（供应商的共同竞标方）、common_buyers（多家供应商共同合作采购单位）、common_projects（多家供应商共同投标项目）。
 只从主体目录中选择 buyer_id、supplier_id 或 supplier_ids；无法唯一确定主体时必须 needs_clarification=true，并给出 clarification_options。只返回 JSON 对象，不要 Markdown，不要解释文字。
-JSON 结构：{"scene":"...","filters":{"buyer_id":1,"supplier_id":2,"supplier_ids":[2,3],"start_date":null,"end_date":null,"min_amount":null,"max_amount":null,"include_winners":false,"top":5},"confidence":0.0,"needs_clarification":false,"clarification_options":[]}
+JSON 结构：{"scene":"...","filters":{"buyer_id":1,"supplier_id":2,"supplier_ids":[2,3],"start_date":null,"end_date":null,"min_amount":null,"max_amount":null,"include_winners":true,"top":5},"confidence":0.0,"needs_clarification":false,"clarification_options":[]}
 """
 
 

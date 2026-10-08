@@ -144,8 +144,8 @@ def test_configured_model_import_populates_relationship_queries(
         awardees = client.get(f"/api/v1/analytics/buyers/{buyer['id']}/awardees").json()
         assert awardees["awardees"][0]["name"] == "供应商甲"
         bidders = client.get(f"/api/v1/analytics/buyers/{buyer['id']}/bidders").json()
-        assert bidders["include_winners"] is False
-        assert {row["canonical_name"] for row in bidders["top_bidders"]} == {"供应商乙"}
+        assert bidders["include_winners"] is True
+        assert {row["canonical_name"] for row in bidders["top_bidders"]} == {"供应商甲", "供应商乙"}
         all_bidders = client.get(
             f"/api/v1/analytics/buyers/{buyer['id']}/bidders",
             params={"include_winners": "true"},
@@ -236,4 +236,4 @@ def test_analytics_api_falls_back_to_sqlite_when_neo4j_connection_fails(tmp_path
     assert response.status_code == 200
     assert response.headers["X-Analytics-Backend"] == "sqlite"
     assert response.headers["X-Analytics-Fallback"] == "sqlite"
-    assert [row["canonical_name"] for row in response.json()["top_bidders"]] == ["未中标供应商"]
+    assert [row["canonical_name"] for row in response.json()["top_bidders"]] == ["中标供应商", "未中标供应商"]

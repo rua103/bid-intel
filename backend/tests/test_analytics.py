@@ -100,12 +100,13 @@ def test_five_relationship_queries_return_expected_relationships_and_amounts(tmp
     assert by_name["供应商甲"]["award_package_count"] == 2
     assert by_name["供应商甲"]["award_amount_total"] == "100"
     assert by_name["供应商甲"]["product_brands"] == ["Brand-X", "Brand-Y"]
+    assert {row["name"] for row in awardees["product_suppliers"]} == {"Brand-X", "Brand-Y"}
 
     bidders = buyer_bidders(database, buyer)
     counts = {row["canonical_name"]: row["project_count"] for row in bidders["top_bidders"]}
-    assert bidders["include_winners"] is False
-    assert counts == {"供应商乙": 1, "供应商丙": 1, "供应商甲": 1}
-    assert bidders["co_bidder_pairs"][0]["project_count"] == 1
+    assert bidders["include_winners"] is True
+    assert counts == {"供应商甲": 2, "供应商乙": 2, "供应商丙": 1}
+    assert bidders["co_bidder_pairs"][0]["project_count"] == 2
 
     all_bidders = buyer_bidders(database, buyer, include_winners=True)
     all_counts = {
@@ -118,12 +119,12 @@ def test_five_relationship_queries_return_expected_relationships_and_amounts(tmp
 
     co_bidders = supplier_co_bidders(database, supplier_a)
     co_count = {row["canonical_name"]: row["project_count"] for row in co_bidders["top_co_bidders"]}
-    assert co_bidders["include_winners"] is False
-    assert co_count == {"供应商丙": 1, "供应商乙": 1}
+    assert co_bidders["include_winners"] is True
+    assert co_count == {"供应商乙": 2, "供应商丙": 1}
     co_by_name = {row["canonical_name"]: row for row in co_bidders["top_co_bidders"]}
-    assert co_by_name["供应商乙"]["award_package_count"] == 2
-    assert co_by_name["供应商乙"]["selected_supplier_award_amount_total"] == "100"
-    assert co_by_name["供应商丙"]["selected_supplier_award_amount_total"] == "80"
+    assert co_by_name["供应商乙"]["award_package_count"] == 3
+    assert co_by_name["供应商乙"]["selected_supplier_award_amount_total"] == "160"
+    assert co_by_name["供应商丙"]["selected_supplier_award_amount_total"] == "100"
 
     all_co_bidders = supplier_co_bidders(database, supplier_a, include_winners=True)
     all_co_count = {
@@ -199,12 +200,13 @@ def test_scenario_2_and_3_count_projects_and_exclude_unknown_outcomes(tmp_path: 
 
     default = buyer_bidders(database, buyer, top=100)
     default_counts = {row["canonical_name"]: row["project_count"] for row in default["top_bidders"]}
-    assert default_counts == {"明确落标公司": 2, "结果未知公司": 1}
+    assert default_counts == {"中标公司": 2, "明确落标公司": 2, "结果未知公司": 2}
     default_pairs = {
         frozenset((row["name1"], row["name2"])): row["project_count"]
         for row in default["co_bidder_pairs"]
     }
-    assert default_pairs == {frozenset(("明确落标公司", "结果未知公司")): 1}
+    assert len(default_pairs) == 3
+    assert set(default_pairs.values()) == {2}
 
     all_participants = buyer_bidders(database, buyer, include_winners=True, top=100)
     all_counts = {
@@ -220,12 +222,12 @@ def test_scenario_2_and_3_count_projects_and_exclude_unknown_outcomes(tmp_path: 
 
     co_bidders = supplier_co_bidders(database, winner, top=100)
     co_counts = {row["canonical_name"]: row["project_count"] for row in co_bidders["top_co_bidders"]}
-    assert co_counts == {"明确落标公司": 2, "结果未知公司": 1}
+    assert co_counts == {"明确落标公司": 2, "结果未知公司": 2}
     co_amounts = {
         row["canonical_name"]: row["selected_supplier_award_amount_total"]
         for row in co_bidders["top_co_bidders"]
     }
-    assert co_amounts == {"明确落标公司": "30", "结果未知公司": "10"}
+    assert co_amounts == {"明确落标公司": "30", "结果未知公司": "30"}
     co_all = supplier_co_bidders(database, winner, include_winners=True, top=100)
     co_all_counts = {
         row["canonical_name"]: row["project_count"] for row in co_all["top_co_bidders"]

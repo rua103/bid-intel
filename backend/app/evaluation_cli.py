@@ -30,6 +30,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--money-tolerance", type=float, default=0.01)
     parser.add_argument("--quantity-tolerance", type=float, default=0.000001)
     parser.add_argument("--relative-tolerance", type=float, default=1e-9)
+    parser.add_argument(
+        "--metric-profile",
+        choices=("local_proxy", "official_qa"),
+        default="local_proxy",
+        help="指标口径；official_qa 按赛题答疑 P/N 四格解释计算",
+    )
     args = parser.parse_args(argv)
     try:
         inputs = {args.gold.resolve(), args.predictions.resolve()}
@@ -45,6 +51,7 @@ def main(argv: list[str] | None = None) -> int:
                 monetary_absolute_tolerance=args.money_tolerance,
                 quantity_absolute_tolerance=args.quantity_tolerance,
                 relative_tolerance=args.relative_tolerance,
+                policy_profile=args.metric_profile,
             ),
             allow_draft=args.allow_draft,
         )
@@ -56,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(f"Local evaluation JSON: {args.json_output}")
     print(f"Local evaluation Markdown: {args.markdown_output}")
-    print("Local proxy only; not an official competition score.")
+    print(f"Metric profile: {args.metric_profile}; not an official competition score.")
     return 0
 
 

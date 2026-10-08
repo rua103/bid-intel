@@ -80,7 +80,7 @@ def test_relation_clues_cover_pairs_repeat_distribution_network_and_evidence(tmp
         "buyer_network",
     }
     repeat = payload["definitions"]["repeat_cooperation"]
-    assert "unknown" not in repeat["scope"]["participation_outcomes"]
+    assert "unknown" in repeat["scope"]["participation_outcomes"]
     pair = next(row for row in payload["clues"] if row["type"] == "repeat_cooperation")
     assert pair["metrics"]["project_count"] == 2
     assert pair["notices"] and pair["projects"] and pair["packages"]
@@ -103,7 +103,7 @@ def test_relation_clues_api_preserves_dataset_isolation_and_empty_result(tmp_pat
     with TestClient(app) as client:
         response = client.get("/api/v1/analytics/relation-clues", params={"kind": "repeat-cooperation"})
         assert response.status_code == 200
-        assert response.json()["counts"]["repeat_cooperation"] == 1
+        assert response.json()["counts"]["repeat_cooperation"] == 2
         empty = client.get("/api/v1/analytics/relation-clues", params={"kind": "common-bidding", "supplier_id": 99999})
         assert empty.status_code == 200
         assert empty.json()["clues"] == []
@@ -119,7 +119,7 @@ def test_supplier_filter_keeps_other_endpoint_and_repeat_counts(tmp_path):
     _, _, a, b, _ = _fixture(path)
     for kind in ("common_bidding", "repeat_cooperation"):
         filtered = query_relation_clues(path, kind=kind, supplier_id=a)
-        assert len(filtered["clues"]) == 1
+        assert len(filtered["clues"]) == 2
         clue = filtered["clues"][0]
         assert {entity["organization_id"] for entity in clue["entities"]} == {a, b}
         assert clue["metrics"]["project_count"] == 2

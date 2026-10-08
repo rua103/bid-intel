@@ -73,7 +73,7 @@ class NeoBackend:
             params["supplier_ids"] = args[0]
         if name in {"buyer_bidders", "supplier_co_bidders"}:
             params["top"] = kwargs.get("top", gold_queries.TOP)
-            params["include_winners"] = kwargs.get("include_winners", False)
+            params["include_winners"] = kwargs.get("include_winners", True)
         return query_neo4j(self.driver, scene, **params)
 
 

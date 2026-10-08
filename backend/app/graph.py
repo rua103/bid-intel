@@ -45,6 +45,9 @@ def graph_snapshot(path: Path, *, project_limit: int | None = None) -> dict[str,
         bids = [dict(row) for row in db.execute("SELECT * FROM bid_participations ORDER BY id") if row["package_id"] in package_ids]
         awards = [dict(row) for row in db.execute("SELECT * FROM awards ORDER BY id") if row["package_id"] in package_ids]
         items = [dict(row) for row in db.execute("SELECT * FROM procurement_items ORDER BY id") if row["package_id"] in package_ids]
+        package_projects = {row["id"]: row["project_id"] for row in packages}
+        for item in items:
+            item["project_id"] = package_projects.get(item["package_id"])
         org_ids = {row["buyer_organization_id"] for row in projects if row["buyer_organization_id"] is not None}
         org_ids.update(row["organization_id"] for row in bids + awards)
         organizations = [dict(row) for row in db.execute("SELECT * FROM organizations ORDER BY id") if row["id"] in org_ids]
@@ -112,8 +115,22 @@ CALL (packages) {
   WITH DISTINCT i.brand AS brand WHERE brand IS NOT NULL AND trim(brand) <> ''
   RETURN collect(brand) AS product_brands
 }
+CALL {
+  MATCH (:Organization {dataset:$dataset,id:$buyer_id})-[:PURCHASES]->(p:Project)-[:HAS_PACKAGE]->(k:Package)-[:HAS_ITEM]->(i:Item)
+  WHERE i.brand IS NOT NULL AND trim(i.brand) <> ''
+  WITH i.brand AS brand, collect(DISTINCT p.id) AS project_ids,
+       collect(DISTINCT k.id) AS package_ids, collect(i) AS items
+  RETURN collect({name:brand, project_count:size(project_ids), package_count:size(package_ids),
+                  amount_values:[item IN items | item.total_price],
+                  evidence:[item IN items | {item_id:item.id, project_id:item.project_id,
+                    package_id:item.package_id, product_name:item.product_name,
+                    total_price:item.total_price, source_file:item.source_file,
+                    source_location:item.source_location, source_evidence:item.source_evidence,
+                    amount_source:CASE WHEN item.total_price IS NOT NULL AND item.total_price <> ''
+                      THEN 'item.total_price' ELSE NULL END}]}) AS product_suppliers
+}
 RETURN s.id AS organization_id, s.name AS name, size(packages) AS award_package_count,
-       [a IN awards | a.award_amount] AS amount_values, product_brands
+       [a IN awards | a.award_amount] AS amount_values, product_brands, product_suppliers
 ORDER BY award_package_count DESC, name
 """,
     "buyer_bidders": """
@@ -303,10 +320,23 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
             selected.append(org)
     rows = [record.data() for record in tx.run(CYPHER_SCENES[scene], **params)]
     if scene == "buyer_awardees":
+        product_supplier_payload = rows[0].get("product_suppliers", []) if rows else []
         for row in rows:
             row["award_amount_total"] = _sum_amounts(row.pop("amount_values"))
             row["product_brands"] = sorted(row["product_brands"])
-        return {"buyer": primary, "awardees": rows}
+            row.pop("product_suppliers", None)
+        product_rows = []
+        for supplier in product_supplier_payload:
+            product_rows.append(
+                {
+                    "name": supplier["name"],
+                    "project_count": supplier["project_count"],
+                    "package_count": supplier["package_count"],
+                    "amount_total": _sum_amounts(supplier.get("amount_values", [])),
+                    "evidence": supplier.get("evidence", []),
+                }
+            )
+        return {"buyer": primary, "awardees": rows, "product_suppliers": sorted(product_rows, key=lambda item: item["name"])}
     if scene == "buyer_bidders":
         return {"buyer": primary, "include_winners": params["include_winners"],
                 **(rows[0] if rows else {"top_bidders": [], "co_bidder_pairs": []})}
@@ -363,7 +393,7 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
 def query_neo4j(driver: Any, scene: str, *, dataset: str, database: str = "neo4j",
                 buyer_id: int | None = None, supplier_id: int | None = None,
                 supplier_ids: list[int] | None = None, top: int = 5,
-                include_winners: bool = False) -> dict[str, Any]:
+                include_winners: bool = True) -> dict[str, Any]:
     if scene not in CYPHER_SCENES:
         raise ValueError(f"未知场景：{scene}")
     params = {"dataset": _validate_dataset(dataset), "buyer_id": buyer_id,

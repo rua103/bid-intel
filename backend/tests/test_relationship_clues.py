@@ -136,6 +136,6 @@ def test_relationship_clues_default_excludes_winners_and_empty_result(clue_fixtu
     path, ids = clue_fixture
     default = query_relation_clues(path, kind="common_bidding")
     inclusive = query_relation_clues(path, kind="common_bidding", include_winners=True)
-    assert default["definitions"]["common_bidding"]["scope"]["include_winners"] is False
+    assert default["definitions"]["common_bidding"]["scope"]["include_winners"] is True
     assert inclusive["definitions"]["common_bidding"]["scope"]["include_winners"] is True
-    assert query_relation_clues(path, kind="repeat_cooperation", supplier_id=ids["supplier_c"])["clues"] == []
+    assert query_relation_clues(path, kind="repeat_cooperation", supplier_id=ids["supplier_c"])["clues"]

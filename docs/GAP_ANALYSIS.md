@@ -72,7 +72,7 @@
 - 金额政策已独立配置：Decimal 存储与比较、单位换算、两位小数显示、容差、整数部分匹配和缺失策略均可显式选择；默认 `local_proxy` 保持历史行为，未宣称官方评分规则。
 - 附件审计脚本和 2 vCPU/4 GB 资源受限近似验证已建立；逐来源明细台账仅在本地保留，本次只提交不含来源路径或原始告警的历史聚合摘要。近似验证仍有容器环境失败，不能替代 Ubuntu 24.04 实机验收和缺失源文件恢复。
 - 受控自然语言查询和关系线索已接入；五类场景严格白名单，模型输出经过 schema 校验，SQL/Cypher 和写请求拒绝，模型不可用时可手动按主体 ID 查询。当前真实 NLP 准确率尚未验收。
-- 统一验收：后端 **339 passed、1 skipped**（2 条 warning），Ruff 通过；前端 **26 passed**，生产构建通过并保留大 chunk 警告。Holdout 评测目录未被代码验收改写。
+- 统一验收：后端 **342 passed、1 skipped**（2 条 warning），Ruff 通过；前端 **27 passed**，生产构建通过并保留大 chunk 警告。Holdout 评测目录未被代码验收改写。
 
 ### P0 全部完成（七项）
 
@@ -107,7 +107,7 @@
 | GAP 6a | 五类查询 Gold 验证 | ✅ 自建 reviewed gold 对照 **6471/6471 passed**；官方不提供 Gold，不能外推为官方成绩 |
 | GAP 6b | 1038 条全量五场景可运行性 | ✅ 全量数据集五个场景均可返回；仅代表可运行，不代表字段正确 |
 | GAP 2.7/2.11 | 参与方默认口径与项目粒度 | ✅ 默认只计明确 `nonwinner`，频次按项目去重；SQLite/Neo4j/GAP 6a 一致 |
-| GAP 4.9 | 后台任务故障、并发与恢复边界 | ✅ 合成测试覆盖多数据集并发、暂停续跑、损坏进度/结果恢复、重复回执、损坏/超限附件、模型超时/429/非法 JSON 隔离；当前后端全套 **339 passed、1 skipped**（2 条 warning），另补结构损坏进度回归 |
+| GAP 4.9 | 后台任务故障、并发与恢复边界 | ✅ 合成测试覆盖多数据集并发、暂停续跑、损坏进度/结果恢复、重复回执、损坏/超限附件、模型超时/429/非法 JSON 隔离；当前后端全套 **342 passed、1 skipped**（2 条 warning），另补结构损坏进度回归 |
 
 ### 已完成事项的边界
 
@@ -491,7 +491,7 @@ _NAMED_VALUE_RE = re.compile(r"^(?:分包名称|标段名称|采购包名称|包
 
 **当前状态（2026-10-01）：已完成在线接入。** `ANALYTICS_BACKEND=neo4j` 时五个分析 API 复用已验收的五类 Cypher 与金额组装；默认仍为 SQLite。前端继续调用原 API，并显示本次分析响应的实际后端。Neo4j 连接、同步或查询失败会在该请求回退到 SQLite，响应带 `X-Analytics-Backend: sqlite` 和 `X-Analytics-Fallback: sqlite`。API 按逻辑数据集名隔离 Neo4j 图，并按 SQLite 主库/WAL 文件版本在每个进程内懒同步；SQLite 仍是写入源和回退结果源。场景二/三保持不同项目计频并默认仅统计明确 `nonwinner`；场景三/五保持既有金额口径。
 
-**验收证据**：底层五场景和 API 五路由已增加真实 Neo4j 集成测试，覆盖数据集隔离、API 返回后端标记及 SQLite 结果一致性；API 离线回退有独立测试。Docker Neo4j **5.26.14** 集成测试通过，Ruff 通过；当前后端全量为 **339 passed、1 skipped**（2 条 warning）。reviewed Gold 24 条实测独立复核记录 SQLite 和 Neo4j 各 **6471/6471 passed**、完整响应 **6471/6471 相同**，导出规模 **442 节点、464 条关系**；该 Gold 脚本验证底层场景查询，不经过新增 FastAPI 选择器。
+**验收证据**：底层五场景和 API 五路由已增加真实 Neo4j 集成测试，覆盖数据集隔离、API 返回后端标记及 SQLite 结果一致性；API 离线回退有独立测试。Docker Neo4j **5.26.14** 集成测试通过，Ruff 通过；当前后端全量为 **342 passed、1 skipped**（2 条 warning）。reviewed Gold 24 条实测独立复核记录 SQLite 和 Neo4j 各 **6471/6471 passed**、完整响应 **6471/6471 相同**，导出规模 **442 节点、464 条关系**；该 Gold 脚本验证底层场景查询，不经过新增 FastAPI 选择器。
 
 **边界**：Neo4j 镜像通过首次查询或数据库文件版本变化后的下一次查询做整数据集快照替换，不是增量复制；大数据集重导出的耗时随项目和关系数量增长。每个 API 进程缓存同步版本，检查 SQLite 主库和 WAL 文件，后台导入完成后新版本会触发再同步。`/api/v1/graph` 的可视化投影仍读取 SQLite；五类分析 API 才由 `ANALYTICS_BACKEND` 决定。Gold 只覆盖团队自建的 24 条 reviewed 数据，不代表官方 1038 条字段准确率。
 
@@ -697,7 +697,7 @@ _NAMED_VALUE_RE = re.compile(r"^(?:分包名称|标段名称|采购包名称|包
 
 ### 4.8 自测「准确率」是本地自创定义，与官方口径的关系没有说明 · 已修（评测口径文档）
 
-**当前状态**：[`EVALUATION.md`](EVALUATION.md) 已明确字段/记录/实体匹配、Hungarian 一对一对齐、金额和数量容差、空值、`Accuracy = TP/(TP+FP+FN)` 的本地开放抽取代理，以及与官方未公开定义的边界。`route_evaluation_report.py` 还记录包号集合对齐、重复候选、请求/耗时/token 和附件/OCR覆盖。正式报告仍需使用 holdout 结果填写，不能把本地代理称为官方成绩。
+**当前状态**：[`EVALUATION.md`](EVALUATION.md) 已明确字段/记录/实体匹配、Hungarian 一对一对齐、金额和数量容差、空值，以及历史 `local_proxy` 开放抽取代理。根据赛题答疑新增 `official_qa` P/N 四格解释，Accuracy 使用 `(TP+TN)/(TP+FP+TN+FN)`；该解释仍是团队本地实现，不能把任一 profile 称为官方成绩。`route_evaluation_report.py` 还记录包号集合对齐、重复候选、请求/耗时/token 和附件/OCR覆盖。正式报告仍需使用 holdout 结果填写。
 
 **以下是修复前历史证据**：赛题只写准确率/精确率/召回率，没给定义；此前 `evaluation.py` 的本地代理、真阴性缺失、阈值和容差没有在交付文档中集中说明。
 
@@ -776,7 +776,7 @@ _NAMED_VALUE_RE = re.compile(r"^(?:分包名称|标段名称|采购包名称|包
 |---|---|---|
 | **模型调用预算只存在于离线脚本** | [`model_adapter.py:42-52`](../backend/app/model_adapter.py) 定义了 `model_call_budget`，但全仓库只有 [`experiments.py:62`](../backend/app/experiments.py) 一处使用；而 `/notices/import`、`/import-batch`、`/evaluation/draft` 全部没有预算包裹。**无鉴权，任何人 POST 一次就能烧掉整月额度** | 成本敞口 |
 | **无任何 CI** | 无 `.github`、无 workflow yml、无 `.pre-commit-config.yaml`、无 Makefile。ruff/pytest 配置都在 [`pyproject.toml:38-42`](../backend/pyproject.toml) 但没有任何东西强制执行；前端 scripts 只有 dev/build，无 test/lint | 综合 10 分 + 无回归闸门 |
-| **测试覆盖仍不完整** | 早期 coverage 记录显示 `corpus.py`/`graph_cli.py` 覆盖不足，解析器和评测 API 仍有未覆盖分支；Neo4j 五场景已有 Docker 集成测试，当前后端全量为 `339 passed、1 skipped`。覆盖率缺口不再等同于“Neo4j 未测试” | 持续补覆盖；不阻塞已完成的 Neo4j 路径 |
+| **测试覆盖仍不完整** | 早期 coverage 记录显示 `corpus.py`/`graph_cli.py` 覆盖不足，解析器和评测 API 仍有未覆盖分支；Neo4j 五场景已有 Docker 集成测试，当前后端全量为 `342 passed、1 skipped`。覆盖率缺口不再等同于“Neo4j 未测试” | 持续补覆盖；不阻塞已完成的 Neo4j 路径 |
 | **上传限制自相矛盾** | [`config.py:9-10`](../backend/app/config.py) `max_batch_upload_mb=500`，但 [`parsers.py:25`](../backend/app/parsers.py) `MAX_EXPANDED_BYTES = 200MB`。500MB 是**死配置**，永远不生效；且整批文件先读进内存 | 演示事故高概率来源 |
 | **模型异常被压成类型名** | [`model_adapter.py:177-178`](../backend/app/model_adapter.py) 丢弃异常对象、HTTP 状态码、响应体，只留类名。**401 / 429 / JSON 截断 / 超时四种截然不同的原因在界面上长得一模一样** | 排查全靠加日志重跑 |
 | **批量导入只捕获 `ValueError`** | [`ingestion.py:274-289`](../backend/app/ingestion.py) 只捕 `ValueError`，非 `ValueError`（如 `sqlite3.Error`）会穿出，已成功的摘要全部丢弃，用户拿到 500 | 一条坏公告毁整批 |

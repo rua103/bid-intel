@@ -675,7 +675,7 @@ def run(gold_path: Path, database_path: Path, report_path: Path | None) -> dict[
         "query_backend": "SQLite app.analytics",
         "identity_rule": "exact name after storage-compatible whitespace removal and casefold; no fuzzy alias merge",
         "frequency_rule": {
-            "scene2_scene3": "distinct project, only explicit nonwinner by default; include_winners=True is a full-participant control",
+            "scene2_scene3": "distinct project, winner/nonwinner/unknown by default; include_winners=False is an explicit nonwinner-only control",
             "scene5": "common package membership with project_count reported as distinct projects",
         },
         "import": imported["actual_counts"],

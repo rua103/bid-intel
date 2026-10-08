@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/v1/analytics/relation-clues", tags=["relation-cl
 def get_relation_clues(
     database: DatabasePath,
     kind: str = "all",
-    include_winners: bool = False,
+    include_winners: bool = True,
     limit: int = Query(default=100, ge=1, le=500),
     supplier_id: int | None = Query(default=None, ge=1),
     buyer_id: int | None = Query(default=None, ge=1),

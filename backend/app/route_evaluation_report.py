@@ -30,13 +30,22 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.evaluation import GoldDataset, PredictionDataset
+from app.evaluation import (
+    EvaluationConfig,
+    GoldDataset,
+    PredictionDataset,
+    evaluate_dataset,
+)
 
 MODES = ("rules", "hybrid", "model")
 REPORT_SCHEMA_VERSION = 1
 LOCAL_DISCLAIMER = (
     "团队本地 Gold 验证：指标采用仓库 local_proxy 口径，不是官方比赛成绩；"
     "官方字段匹配和评分规则如有不同，应以官方说明为准。"
+)
+OFFICIAL_QA_DISCLAIMER = (
+    "团队本地 Gold 验证：指标采用赛题答疑 P/N 四格解释（official_qa），不是官方比赛成绩；"
+    "组织方尚未公开完整字段、实体和错值匹配细则。"
 )
 OCR_MARKERS = (
     "ocr",
@@ -533,12 +542,15 @@ def build_report(
     dataset_role: str = "tuning",
     stage: str = "prep",
     tuning_gold_path: str | Path | None = None,
+    metric_profile: str = "local_proxy",
 ) -> dict[str, Any]:
     """Build the machine-readable GAP report without invoking extraction or a model."""
 
     gold_path = Path(gold_path).resolve(strict=True)
     manifest_path = Path(manifest_path).resolve(strict=True)
     run_dir = Path(run_dir).resolve(strict=True)
+    if metric_profile not in {"local_proxy", "official_qa"}:
+        raise ValueError("metric_profile 必须是 local_proxy 或 official_qa")
     if dataset_role not in {"tuning", "targeted", "holdout"}:
         raise ValueError("dataset_role 必须是 tuning、targeted 或 holdout")
     if stage not in {"prep", "targeted", "final"}:
@@ -632,6 +644,22 @@ def build_report(
         predicted_ids = {notice["notice_id"] for notice in prediction_data.get("notices", [])}
         if predicted_ids != set(notice_ids):
             raise ValueError(f"{mode}: prediction notice_id 与 run 范围不一致")
+        if metric_profile == "official_qa":
+            gold_subset = GoldDataset.model_validate(
+                {
+                    **{key: value for key, value in gold_data.items() if key != "notices"},
+                    "notices": [
+                        notice
+                        for notice in gold_data.get("notices", [])
+                        if notice["notice_id"] in set(notice_ids)
+                    ],
+                }
+            )
+            report = evaluate_dataset(
+                gold_subset,
+                PredictionDataset.model_validate(prediction_data),
+                EvaluationConfig(policy_profile="official_qa"),
+            ).model_dump(mode="json")
         telemetry = dict(summary_modes.get(mode) or {})
         entries = progress_modes.get(mode) or {}
         mode_entries = [entries.get(notice_id) or {} for notice_id in notice_ids]
@@ -690,7 +718,8 @@ def build_report(
     result = {
         "schema_version": REPORT_SCHEMA_VERSION,
         "evaluation_kind": "three_route_local_gold_gap_report",
-        "disclaimer": LOCAL_DISCLAIMER,
+        "metric_profile": metric_profile,
+        "disclaimer": OFFICIAL_QA_DISCLAIMER if metric_profile == "official_qa" else LOCAL_DISCLAIMER,
         "dataset_role": dataset_role,
         "stage": stage,
         "status": final_status,
@@ -727,6 +756,12 @@ def build_report(
             ),
             "请求、耗时和 token 来自 runner 的 telemetry；provider 未返回 usage 时 token 为 null。",
             "附件/OCR coverage 是输入清单与处理警告遥测，不等同于 OCR 内容正确率。",
+            (
+                "official_qa 使用互斥 P/N 四格：正确非空=TP、非空但值错=FP、应有值而缺失=FN、"
+                "双方缺失=TN；实体/完整记录没有可枚举的全体负样本，TN 仅来自可观察空槽。"
+                if metric_profile == "official_qa"
+                else "local_proxy 保留历史开放抽取代理，错误非空值同时计 FP/FN，不能与 official_qa 数字直接比较。"
+            ),
         ],
     }
     return result
@@ -749,6 +784,8 @@ def _fmt_num(value: Any) -> str:
 def render_markdown(report: dict[str, Any]) -> str:
     """Render a GAP-ready table while retaining the local-score disclaimer."""
 
+    official_qa = report.get("metric_profile") == "official_qa"
+    metric_cell_label = "TP/FP/TN/FN" if official_qa else "TP/FP/FN"
     lines = [
         "# Rules / Hybrid / Model 三路线评测",
         "",
@@ -790,7 +827,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         "## 字段级指标",
         "",
-        "| 字段 | rules TP/FP/FN | hybrid TP/FP/FN | model TP/FP/FN |",
+        f"| 字段 | rules {metric_cell_label} | hybrid {metric_cell_label} | model {metric_cell_label} |",
         "|---|---:|---:|---:|",
     ]
     fields = (
@@ -808,17 +845,18 @@ def render_markdown(report: dict[str, Any]) -> str:
             metrics = (
                 (report["modes"].get(mode, {}).get("evaluation") or {}).get("by_field") or {}
             ).get(field) or {}
-            cells.append(
-                f"{metrics.get('tp', 'N/A')}/{metrics.get('fp', 'N/A')}/{metrics.get('fn', 'N/A')} "
-                f"({_fmt_pct(metrics.get('weighted_score'))})"
-            )
+            metric_values = [metrics.get("tp", "N/A"), metrics.get("fp", "N/A")]
+            if official_qa:
+                metric_values.append(metrics.get("tn", "N/A"))
+            metric_values.append(metrics.get("fn", "N/A"))
+            cells.append(f"{'/'.join(str(value) for value in metric_values)} ({_fmt_pct(metrics.get('weighted_score'))})")
         lines.append(f"| `{field}` | {cells[0]} | {cells[1]} | {cells[2]} |")
 
     lines += [
         "",
         "## 记录级与实体指标",
         "",
-        "| 路线 | 记录 TP/FP/FN | 记录 F1 | buyer | winners | bidders | winner_amounts |",
+        f"| 路线 | 记录 {metric_cell_label} | 记录 F1 | buyer | winners | bidders | winner_amounts |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for mode in MODES:
@@ -828,11 +866,17 @@ def render_markdown(report: dict[str, Any]) -> str:
         entity_cells = []
         for name in ("buyer", "winners", "bidders", "winner_amounts"):
             metrics = entities.get(name) or {}
-            entity_cells.append(
-                f"{metrics.get('tp', 'N/A')}/{metrics.get('fp', 'N/A')}/{metrics.get('fn', 'N/A')}"
-            )
+            metric_values = [metrics.get("tp", "N/A"), metrics.get("fp", "N/A")]
+            if official_qa:
+                metric_values.append(metrics.get("tn", "N/A"))
+            metric_values.append(metrics.get("fn", "N/A"))
+            entity_cells.append("/".join(str(value) for value in metric_values))
+        record_values = [records.get("tp", "N/A"), records.get("fp", "N/A")]
+        if official_qa:
+            record_values.append(records.get("tn", "N/A"))
+        record_values.append(records.get("fn", "N/A"))
         lines.append(
-            f"| {mode} | {records.get('tp', 'N/A')}/{records.get('fp', 'N/A')}/{records.get('fn', 'N/A')} | "
+            f"| {mode} | {'/'.join(str(value) for value in record_values)} | "
             f"{_fmt_pct(records.get('f1'))} | {entity_cells[0]} | {entity_cells[1]} | {entity_cells[2]} | {entity_cells[3]} |"
         )
 
@@ -887,6 +931,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--stage", choices=("prep", "targeted", "final"), default="prep")
     parser.add_argument("--tuning-gold", type=Path)
+    parser.add_argument(
+        "--metric-profile",
+        choices=("local_proxy", "official_qa"),
+        default="local_proxy",
+        help="指标口径；official_qa 按赛题答疑 P/N 四格解释重新计算，不是官方成绩",
+    )
     parser.add_argument("--output-json", type=Path)
     parser.add_argument("--output-markdown", type=Path)
     args = parser.parse_args(argv)
@@ -900,6 +950,7 @@ def main(argv: list[str] | None = None) -> int:
             dataset_role=args.dataset_role,
             stage=args.stage,
             tuning_gold_path=args.tuning_gold,
+            metric_profile=args.metric_profile,
         )
         write_report(report, json_path=output_json, markdown_path=output_markdown)
     except (OSError, ValueError, ValidationError, json.JSONDecodeError) as exc:

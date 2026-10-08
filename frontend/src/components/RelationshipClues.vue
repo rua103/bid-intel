@@ -182,6 +182,8 @@ function semanticText(entry) {
   const description = entry.text ?? entry.description ?? entry.value ?? entry.definition ?? ''
   const scopeLabels = {
     participation_rule: '参与口径',
+    participation_outcomes: '参与结果',
+    include_winners: '包含中标方',
     award_rule: '中标口径',
     project_deduplication: '项目去重',
     package_deduplication: '采购包口径',
@@ -190,8 +192,11 @@ function semanticText(entry) {
   }
   const scope = entry.scope || {}
   const details = Object.entries(scopeLabels)
-    .filter(([key]) => typeof scope[key] === 'string' && scope[key])
-    .map(([key, label]) => `${label}：${scope[key]}`)
+    .filter(([key]) => scope[key] != null && scope[key] !== '')
+    .map(([key, label]) => {
+      const value = Array.isArray(scope[key]) ? scope[key].join('、') : typeof scope[key] === 'boolean' ? (scope[key] ? '是' : '否') : scope[key]
+      return `${label}：${value}`
+    })
   return [typeof description === 'string' ? description : '', ...details].filter(Boolean).join('；')
 }
 

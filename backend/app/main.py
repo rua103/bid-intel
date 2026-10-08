@@ -246,7 +246,7 @@ def get_buyer_bidders(
     response: Response,
     database_path: DatabasePath,
     buyer_id: int,
-    include_winners: bool = False,
+    include_winners: bool = True,
     top: int = Query(default=5, ge=1, le=100),
 ):
     return _analytics_response(
@@ -264,7 +264,7 @@ def get_supplier_co_bidders(
     response: Response,
     database_path: DatabasePath,
     supplier_id: int,
-    include_winners: bool = False,
+    include_winners: bool = True,
     top: int = Query(default=5, ge=1, le=100),
 ):
     return _analytics_response(

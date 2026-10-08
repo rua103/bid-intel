@@ -146,3 +146,14 @@ test('relation API entities, numeric metrics, definitions and time basis have re
     assert.equal(view.state.timeRangeOf({ time_range: { from: '起始', to: '结束' } }), '起始 至 结束')
   } finally { view.unmount() }
 })
+
+test('controlled query labels unknown outcomes and exposes participation scope', async () => {
+  const view = await mount('ControlledQuery', { apiBase: 'http://api.test', datasetId: 'a', fetchImpl: async () => response({ status: 'ok', payload: {} }) })
+  try {
+    assert.equal(view.state.outcomeLabel('winner'), '中标')
+    assert.equal(view.state.outcomeLabel('nonwinner'), '未中标')
+    assert.equal(view.state.outcomeLabel('unknown'), '结果未披露')
+    assert.match(view.state.participationLabel({ include_winners: true }), /包含中标/)
+    assert.match(view.state.participationLabel({ include_winners: false }), /结果未披露单独保留/)
+  } finally { view.unmount() }
+})

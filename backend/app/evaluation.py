@@ -13,10 +13,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.evaluation_policy import (
-    LOCAL_PROXY_POLICY,
     EvaluationPolicy,
     IntegerPartMatching,
     MissingValuePolicy,
+    policy_for_profile,
 )
 
 ITEM_FIELDS = (
@@ -30,11 +30,18 @@ ITEM_FIELDS = (
 )
 NUMERIC_FIELDS = {"unit_price", "quantity", "total_price", "award_amount"}
 NumericValue = str | int | float | None
-DISCLAIMER = (
+LOCAL_PROXY_DISCLAIMER = (
     "Local evaluation only, not an official competition score. Accuracy is the local "
     "open-extraction proxy TP/(TP+FP+FN); true negatives are undefined. Official "
     "matching and scoring rules must be confirmed before claiming official results."
 )
+OFFICIAL_QA_DISCLAIMER = (
+    "Team-local evaluation using the organiser QA answer's P/N confusion-matrix "
+    "interpretation; this is not an official competition score. The organiser has "
+    "not published complete field/entity matching rules."
+)
+# Kept as a compatibility alias for callers that imported the old constant.
+DISCLAIMER = LOCAL_PROXY_DISCLAIMER
 
 
 def normalize_name(value: str | None) -> str | None:
@@ -207,21 +214,22 @@ class EvaluationConfig(StrictModel):
         return Decimal(str(value))
 
     def policy(self) -> EvaluationPolicy:
-        if self.policy_profile == "local_proxy":
-            return LOCAL_PROXY_POLICY.model_copy(
-                update={
-                    "amount_tolerance": self.monetary_absolute_tolerance,
-                    "integer_part_matching": self.integer_part_matching,
-                    "missing_value_policy": self.missing_value_policy,
-                }
-            )
-        raise ValueError(f"unknown evaluation policy profile: {self.policy_profile}")
+        if self.policy_profile == "official_qa" and self.missing_value_policy != MissingValuePolicy.STRICT:
+            raise ValueError("official_qa requires strict missing-value classification")
+        return policy_for_profile(self.policy_profile).model_copy(
+            update={
+                "amount_tolerance": self.monetary_absolute_tolerance,
+                "integer_part_matching": self.integer_part_matching,
+                "missing_value_policy": self.missing_value_policy,
+            }
+        )
 
 
 class Metrics(StrictModel):
     tp: int = 0
     fp: int = 0
     fn: int = 0
+    tn: int = 0
     precision: float | None = None
     recall: float | None = None
     f1: float | None = None
@@ -241,8 +249,8 @@ class ItemAlignment(StrictModel):
 
 class EvaluationReport(StrictModel):
     schema_version: Literal["1.0"] = "1.0"
-    evaluation_kind: Literal["local_proxy"] = "local_proxy"
-    disclaimer: str = DISCLAIMER
+    evaluation_kind: Literal["local_proxy", "official_qa"] = "local_proxy"
+    disclaimer: str = LOCAL_PROXY_DISCLAIMER
     gold_status: Literal["draft", "reviewed"]
     provisional: bool
     config: EvaluationConfig
@@ -296,9 +304,7 @@ def evaluate_with_policy_profile(
     The built-in local profile preserves the historical evaluator defaults; callers
     must name a profile instead of silently assuming official rules.
     """
-    policy = LOCAL_PROXY_POLICY if profile == "local_proxy" else None
-    if policy is None:
-        raise ValueError(f"unknown evaluation policy profile: {profile}")
+    policy = policy_for_profile(profile)
     return evaluate_dataset(
         gold,
         predicted,
@@ -365,13 +371,17 @@ def maximum_weight_alignment(weights: Sequence[Sequence[int]]) -> list[tuple[int
     )
 
 
-def _metrics(counts: Sequence[int]) -> Metrics:
-    tp, fp, fn = counts
+def _metrics(counts: Sequence[int], *, official_qa: bool = False) -> Metrics:
+    if len(counts) not in (3, 4):
+        raise ValueError("metric counts must contain TP/FP/FN or TP/FP/FN/TN")
+    tp, fp, fn = counts[:3]
+    tn = counts[3] if len(counts) == 4 else 0
     precision = tp / (tp + fp) if tp + fp else None
     recall = tp / (tp + fn) if tp + fn else None
-    union = tp + fp + fn
-    accuracy = tp / union if union else None
-    f1 = 2 * tp / (2 * tp + fp + fn) if union else None
+    denominator = tp + fp + fn + tn if official_qa else tp + fp + fn
+    accuracy = (tp + tn) / denominator if denominator else None
+    f1_denominator = 2 * tp + fp + fn
+    f1 = 2 * tp / f1_denominator if f1_denominator else None
     weighted = (
         0.4 * accuracy + 0.3 * precision + 0.3 * recall
         if accuracy is not None and precision is not None and recall is not None
@@ -381,6 +391,7 @@ def _metrics(counts: Sequence[int]) -> Metrics:
         tp=tp,
         fp=fp,
         fn=fn,
+        tn=tn,
         precision=precision,
         recall=recall,
         f1=f1,
@@ -405,7 +416,17 @@ def _field_status(field: str, gold: Any, predicted: Any, config: EvaluationConfi
     return "correct" if values_equal(field, gold, predicted, config) else "wrong"
 
 
-def _add_status(counts: list[int], status: str) -> None:
+def _add_status(counts: list[int], status: str, *, official_qa: bool = False) -> None:
+    if official_qa:
+        if status == "correct":
+            counts[0] += 1  # TP: a non-empty field with the correct value.
+        elif status in ("wrong", "extra"):
+            counts[1] += 1  # FP: a non-empty field with a wrong/extra value.
+        elif status == "missing":
+            counts[2] += 1  # FN: Gold has a value but the prediction is missing.
+        elif status == "empty":
+            counts[3] += 1  # TN: both sides explicitly have no value.
+        return
     if status == "correct":
         counts[0] += 1
     if status in ("wrong", "extra"):
@@ -419,19 +440,30 @@ def _entity_counts(
     predicted: Sequence[EvaluationEntity],
     *,
     outcome: bool = False,
+    official_qa: bool = False,
 ) -> tuple[list[int], list[tuple[int, int]]]:
     weights = [
         [
             int(
                 normalize_name(g.name) == normalize_name(p.name)
-                and (not outcome or g.outcome == p.outcome)
+                and (not outcome or (official_qa or g.outcome == p.outcome))
             )
             for p in predicted
         ]
         for g in gold
     ]
     pairs = maximum_weight_alignment(weights)
-    return [len(pairs), len(predicted) - len(pairs), len(gold) - len(pairs)], pairs
+    if not official_qa:
+        return [len(pairs), len(predicted) - len(pairs), len(gold) - len(pairs)], pairs
+    # A same-name bidder with a wrong outcome is a non-empty but wrong P sample;
+    # pair it by name so it is counted once as FP under the QA interpretation.
+    counts = [0, 0, 0, 0]
+    for gold_index, pred_index in pairs:
+        same_outcome = not outcome or gold[gold_index].outcome == predicted[pred_index].outcome
+        _add_status(counts, "correct" if same_outcome else "wrong", official_qa=True)
+    counts[1] += len(predicted) - len(pairs)
+    counts[2] += len(gold) - len(pairs)
+    return counts, pairs
 
 
 def evaluate_dataset(
@@ -445,10 +477,12 @@ def evaluate_dataset(
     predicted = PredictionDataset.model_validate(predicted)
     config = config or EvaluationConfig()
     config.policy()
+    official_qa = config.policy_profile == "official_qa"
     if gold.status != "reviewed" and not allow_draft:
         raise ValueError("gold status is draft; review first or explicitly set allow_draft=True")
-    fields = {field: [0, 0, 0] for field in ITEM_FIELDS}
-    records = [0, 0, 0]
+    count_width = 4 if official_qa else 3
+    fields = {field: [0] * count_width for field in ITEM_FIELDS}
+    records = [0] * count_width
     entities = {
         role: [0, 0, 0]
         for role in (
@@ -460,10 +494,16 @@ def evaluate_dataset(
             "winner_amounts",
         )
     }
+    if official_qa:
+        entities = {role: [0, 0, 0, 0] for role in entities}
     gold_packages = {(n.notice_id, p.package_id): p for n in gold.notices for p in n.packages}
     pred_packages = {(n.notice_id, p.package_id): p for n in predicted.notices for p in n.packages}
     alignments: list[ItemAlignment] = []
-    warnings = [DISCLAIMER]
+    warnings = [OFFICIAL_QA_DISCLAIMER if official_qa else LOCAL_PROXY_DISCLAIMER]
+    if official_qa:
+        warnings.append(
+            "official_qa 采用互斥 P/N 四格：非空但值错误只计 FP；实体和完整记录没有可枚举的全体负样本，TN 仅来自可观察的空槽。"
+        )
     if gold.status == "draft":
         warnings.append("PROVISIONAL: draft annotations are not a reviewed gold standard.")
     for scope in sorted(gold_packages.keys() | pred_packages.keys()):
@@ -494,13 +534,22 @@ def evaluate_dataset(
                 for field in ITEM_FIELDS
             }
             for field, status in statuses.items():
-                _add_status(fields[field], status)
+                _add_status(fields[field], status, official_qa=official_qa)
             exact = (
                 g is not None
                 and p is not None
                 and all(status in ("correct", "empty") for status in statuses.values())
             )
-            if exact:
+            if official_qa:
+                if exact:
+                    _add_status(records, "correct", official_qa=True)
+                elif g is None:
+                    _add_status(records, "extra", official_qa=True)
+                elif p is None:
+                    _add_status(records, "missing", official_qa=True)
+                else:
+                    _add_status(records, "wrong", official_qa=True)
+            elif exact:
                 records[0] += 1
             else:
                 records[1] += int(p is not None)
@@ -533,7 +582,12 @@ def evaluate_dataset(
                 )
 
             gr, pr = role_rows(gp, role), role_rows(pp, role)
-            counts, _ = _entity_counts(gr, pr, outcome=role == "bidder_outcomes")
+            counts, _ = _entity_counts(
+                gr,
+                pr,
+                outcome=role == "bidder_outcomes",
+                official_qa=official_qa,
+            )
             entities[role] = [a + b for a, b in zip(entities[role], counts)]
         # A winner amount is correct only when both winner name and amount agree.
         gw = sorted(gp.winners if gp else [], key=lambda row: row.entity_id)
@@ -553,6 +607,7 @@ def evaluate_dataset(
             _add_status(
                 entities["winner_amounts"],
                 _field_status("award_amount", gw[gidx].award_amount, pw[pidx].award_amount, config),
+                official_qa=official_qa,
             )
         for index, row in enumerate(gw):
             if index not in mg and normalize_number(row.award_amount, monetary=True) is not None:
@@ -570,10 +625,15 @@ def evaluate_dataset(
         predicted_notice_count=len(pred_ids),
         missing_notice_ids=sorted(gold_ids - pred_ids),
         extra_notice_ids=sorted(pred_ids - gold_ids),
-        field_micro=_metrics([sum(row[index] for row in fields.values()) for index in range(3)]),
-        by_field={name: _metrics(count) for name, count in fields.items()},
-        records=_metrics(records),
-        entities={name: _metrics(count) for name, count in entities.items()},
+        evaluation_kind="official_qa" if official_qa else "local_proxy",
+        disclaimer=OFFICIAL_QA_DISCLAIMER if official_qa else LOCAL_PROXY_DISCLAIMER,
+        field_micro=_metrics(
+            [sum(row[index] for row in fields.values()) for index in range(count_width)],
+            official_qa=official_qa,
+        ),
+        by_field={name: _metrics(count, official_qa=official_qa) for name, count in fields.items()},
+        records=_metrics(records, official_qa=official_qa),
+        entities={name: _metrics(count, official_qa=official_qa) for name, count in entities.items()},
         alignments=alignments,
         warnings=warnings,
     )
@@ -600,6 +660,19 @@ def render_markdown(report: EvaluationReport) -> str:
     def number(value: float | None) -> str:
         return "N/A" if value is None else f"{value:.6f}"
 
+    official_qa = report.evaluation_kind == "official_qa"
+    if official_qa:
+        metric_definition = (
+            "Accuracy = (TP + TN) / (TP + FP + TN + FN)；P/N 四格互斥，非空但值错误只计 FP；"
+        )
+        weighted_definition = "Weighted = 0.4 × Accuracy + 0.3 × Precision + 0.3 × Recall。"
+        table_header = "| 指标 | TP | FP | TN | FN | Precision | Recall | F1 | Accuracy | Weighted |"
+        table_separator = "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|"
+    else:
+        metric_definition = "Accuracy = TP / (TP + FP + FN)，不计真阴性；"
+        weighted_definition = "Weighted = 0.4 × Accuracy + 0.3 × Precision + 0.3 × Recall（仅本地代理）。"
+        table_header = "| 指标 | TP | FP | FN | Precision | Recall | F1 | Accuracy | Weighted |"
+        table_separator = "|---|---:|---:|---:|---:|---:|---:|---:|---:|"
     lines = [
         "# 本地抽取评估报告",
         "",
@@ -608,25 +681,26 @@ def render_markdown(report: EvaluationReport) -> str:
         f"Gold 状态：`{report.gold_status}`；草稿预览：`{str(report.provisional).lower()}`。",
         f"Gold 公告数：{report.gold_notice_count}；预测公告数：{report.predicted_notice_count}。",
         "",
-        "Accuracy = TP / (TP + FP + FN)，不计真阴性；",
-        "Weighted = 0.4 × Accuracy + 0.3 × Precision + 0.3 × Recall（仅本地代理）。",
+        metric_definition,
+        weighted_definition,
         "分母为零时为 N/A；F1 = 2TP/(2TP+FP+FN)。",
         "",
-        "| 指标 | TP | FP | FN | Precision | Recall | F1 | Accuracy | Weighted |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        table_header,
+        table_separator,
     ]
     rows = [("字段 micro", report.field_micro), ("完整记录", report.records)]
     rows += [(f"字段/{key}", value) for key, value in report.by_field.items()]
     rows += [(f"实体/{key}", value) for key, value in report.entities.items()]
     for label, metric in rows:
-        lines.append(
-            f"| {label} | {metric.tp} | {metric.fp} | {metric.fn} | "
-            + " | ".join(
-                number(getattr(metric, field))
-                for field in ("precision", "recall", "f1", "accuracy", "weighted_score")
-            )
-            + " |"
+        cells = [f"{metric.tp}", f"{metric.fp}"]
+        if official_qa:
+            cells.append(f"{metric.tn}")
+        cells.extend([f"{metric.fn}"])
+        cells.extend(
+            number(getattr(metric, field))
+            for field in ("precision", "recall", "f1", "accuracy", "weighted_score")
         )
+        lines.append(f"| {label} | " + " | ".join(cells) + " |")
     lines += [
         "",
         "## 覆盖和对齐",
@@ -635,7 +709,13 @@ def render_markdown(report: EvaluationReport) -> str:
         f"多余公告 ID：{json.dumps(report.extra_notice_ids, ensure_ascii=False)}",
         "同一 notice_id + package_id 内，以七字段正确非空值数量为权重进行全局一对一最大权重匹配。",
         "相同权重按稳定 ID 排序后确定性求解；不同公告/包不匹配，零权重不匹配。",
-        "预测重复行按多重集计数，多出来的行计 FP。空值不加 TP，错误非空值同时计 FP 与 FN。",
+        "预测重复行按多重集计数，多出来的行计 FP。"
+        + (
+            " official_qa 中双方缺失计 TN，缺失 Gold 值而预测有值计 FP，Gold 有值而预测缺失计 FN；"
+            "双方非空但值错只计 FP。"
+            if official_qa
+            else " 空值不加 TP，错误非空值同时计 FP 与 FN。"
+        ),
         "",
         "## 本次参数",
         "",

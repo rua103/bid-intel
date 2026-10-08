@@ -114,14 +114,14 @@ def _sqlite_query(path: Path, scene: str, parameters: dict[str, Any]) -> dict[st
         return analytics.buyer_bidders(
             path,
             parameters["buyer_id"],
-            include_winners=parameters.get("include_winners", False),
+            include_winners=parameters.get("include_winners", True),
             top=parameters.get("top", 5),
         )
     if scene == "supplier_co_bidders":
         return analytics.supplier_co_bidders(
             path,
             parameters["supplier_id"],
-            include_winners=parameters.get("include_winners", False),
+            include_winners=parameters.get("include_winners", True),
             top=parameters.get("top", 5),
         )
     if scene == "common_buyers":

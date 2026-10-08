@@ -562,7 +562,7 @@ def query_relation_clues(
     path: Path,
     *,
     kind: str = "all",
-    include_winners: bool = False,
+    include_winners: bool = True,
     limit: int = 100,
     supplier_id: int | None = None,
     buyer_id: int | None = None,

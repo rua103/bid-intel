@@ -76,6 +76,8 @@ Web 工作台的 `/evaluation/draft` 生成空白 gold 结构和独立 predictio
 
 该 profile 不是主办方正式评分器。答疑没有明确重复记录、实体角色、完整记录和不可枚举负样本的详细边界，所以这些范围中的 TN 只表示当前可观察空槽，不代表公告全集。运行示例、限制和口径表见 [`EVALUATION_QA_POLICY.md`](EVALUATION_QA_POLICY.md)。旧 `local_proxy` 报告不回写、不改数字，也不能与 `official_qa` 结果直接比较。
 
+QA profile 的完整记录作为本地扩展：已匹配但不完整/有错的预测记录只记一次 FP，整条遗漏记 FN；字段层仍独立统计遗漏 FN。完整记录和主体名单不构造 TN，全空 item 在 schema 校验阶段被拒绝。同名中标方金额的双空可记 TN。这些规则是团队约定，不是答疑明确发布的完整评分协议。
+
 ## 命令行与 Python
 
 从 `backend` 目录运行：

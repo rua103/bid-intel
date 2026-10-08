@@ -1,8 +1,8 @@
 # 赛题五 QA 合规矩阵
 
-更新日期：2026-10-07
+更新日期：2026-10-08（后端 361 passed，含真实 Neo4j、无跳过；前端 31 passed 与构建通过）
 
-本文根据赛题原文摘录 [`D:\ICT\topic5_extracted.txt`](D:\ICT\topic5_extracted.txt)、当前仓库代码和已有测试整理。它是交付前的证据矩阵，不是主办方评分结论。
+本文根据赛题原文摘录 [`D:\ICT\topic5_extracted.txt`](D:\ICT\topic5_extracted.txt)、赛题答疑表、当前仓库代码和已有测试整理。它是交付前的证据矩阵，不是主办方评分结论。
 
 ## 使用边界
 
@@ -21,17 +21,17 @@
 | 品牌与产品供应商 | 题目将品牌称为产品供应商字段；业务术语又指生产厂商或授权经销商 | `backend/app/parsers.py`、`backend/app/model_adapter.py`、`docs/agent1-brand-supplier-report.md`；品牌/供应商回归测试 | 已实现 | 不能把品牌自动映射成法律主体，也不能声称已有独立 `product_supplier` 持久化实体 | 评审演示时分别展示品牌字段和中标供应商；若需法律实体维度，增加来源明确的独立字段 |
 | 逻辑推定单价/总价 | 原文要求七字段；赛题没有授权用数量×单价补造缺失金额 | `docs/ANNOTATION_GUIDE.md` 明确不推导；`evaluation_policy.py` 使用 Decimal 和缺失策略 | 已实现 | 不能把推定金额当官方答案；不能保证源文件已披露的小数可被恢复 | 设计文档说明“原文值/推定值”分层和排除规则 |
 | TP/FP/TN/FN | 答疑将有字段记 P、无字段/缺失记 N，要求 TP/FP/TN/FN；赛题公式为准确率×0.4+精确率×0.3+召回率×0.3 | `docs/EVALUATION_QA_POLICY.md`、`backend/app/evaluation_policy.py`、`backend/app/evaluation.py`、`backend/tests/test_official_qa_metrics.py` | 已实现（团队本地解释） | `official_qa` 不是主办方正式评分器；多值字段、重复记录、实体负样本边界未被官方形式化 | final 报告同时披露 profile、对齐范围和限制；若官方补充规则，版本化后重算 |
-| 任务二场景一 | 指定采购单位，输出合作中标供应商、产品供应商、合作次数和交易总金额 | `backend/app/analytics.py`、`backend/app/main.py`、`docs/QUERY_SEMANTICS.md`；五场景 API/查询测试 | 代码已实现但未现场验收 | 不能声称产品供应商金额与官方隐藏答案已对齐；产品供应商独立持久化仍有限制 | 用官方基准数据核对场景一；保留金额来源证据和未披露值 |
-| 任务二场景二 | 指定采购单位，输出 TOP5 参与投标主体及高频协同组合 | `analytics.py`、Neo4j 查询模板、前端查询组件、GAP 6a 报告 | 代码已实现但口径需冻结 | 赛题术语表把“投标参与方”特指未中标方；答疑若另有解释不能覆盖原文，`unknown` 不能自动当落标 | 在提交材料中明确采用 `nonwinner` 默认、`unknown` 单独保留，并用官方结果验收 |
-| 任务二场景三 | 指定中标供应商，输出共同竞标主体及全部参与主体、频次和金额 | `analytics.py`、`graph.py`、`analytics_backend.py`、`docs/QUERY_SEMANTICS.md`；SQLite/Neo4j 对照测试 | 代码已实现但未现场验收 | 本地 6471/6471 只证明两种实现一致，不证明官方答案正确 | 统一场景二/三的 winner/nonwinner/unknown 解释，重新跑查询 oracle |
+| 任务二场景一 | 指定采购单位，输出合作中标供应商、产品供应商、合作次数和交易总金额；答疑规定产品供应商采用任务一品牌字段 | `analytics.py` 的 `product_suppliers` 按 `brand` 聚合项目数、包数、明确标的总价和来源证据；新 SQLite oracle 已通过 | 代码和本地统一回归已通过 | 品牌不是法律实体；标的总价不等于中标组织的 award 交易额，不把未知金额补成成交额 | 保留中标供应商与品牌两组统计、金额来源及未披露值；官方平台另行验收 |
+| 任务二场景二 | 指定采购单位，输出 TOP5 参与投标主体及高频协同组合；答疑补充“中与不中都算” | SQLite、Neo4j 查询模板、API 和前端已采用 winner/nonwinner/unknown 默认；新 SQLite oracle 已通过 | 代码和本地统一回归已通过 | `unknown` 表示结果未披露，不能当落标；同项目跨包协同边界未获正式裁决 | 冻结当前口径并披露边界；`include_winners=false` 仅保留明确 `nonwinner` |
+| 任务二场景三 | 指定中标供应商，输出共同竞标主体及全部参与主体、频次和金额 | `analytics.py`、`graph.py`、`analytics_backend.py` 已同步默认口径；`qa-semantics-20261007-v2.json` 为新 SQLite oracle | 代码和本地统一回归已通过 | 历史双后端 6471/6471 不证明迁移后 Neo4j Gold 等价；新 SQLite 6471/6471 不代表官方成绩 | 以本轮真实集成验收记录说明 Neo4j 范围，不能复用历史数字冒充新结果 |
 | 任务二场景四 | 多个中标供应商的共同采购单位、合作频次和合作金额 | 五场景 API、SQLite/Neo4j 后端、受控查询 API | 代码已实现但未现场验收 | 频次粒度和金额口径没有被题面完全形式化 | 在设计文档明确按采购包/唯一中标记录的当前口径，并保留项目级辅助统计 |
 | 任务二场景五 | 多个中标供应商共同参与竞标项目、竞标结果、项目数量和项目总金额 | `analytics.py`、Neo4j Cypher、场景五金额回归测试、`docs/QUERY_SEMANTICS.md` | 代码已实现但未现场验收 | 不能把本地 Gold 查询一致性当官方场景达成率 | 用评分平台基准逐场景比对；报告项目级和包级明细及金额来源 |
-| winner/nonwinner/unknown | 题目术语明确参与投标方特指参与但未中标；中标供应商可多个 | `schemas.py`、`storage.py`、`docs/ANNOTATION_GUIDE.md`；查询默认过滤明确 `nonwinner`，`unknown` 保留 | 已实现，边界需人工确认 | 资格审查失败是否算参与、结果未披露是否计入默认 TOP5，题面没有完整裁决 | 交付文档记录当前可复现口径，并在答辩时向评审确认 |
+| winner/nonwinner/unknown | 原文术语特指未中标方，答疑补充“中与不中都算”；中标供应商可多个 | 查询默认纳入全部已记录参与主体；`unknown` 显示“结果未披露”；`include_winners=false` 仅包含明确 `nonwinner` | 已实现，边界需披露 | 不能将 `unknown` 推定为落标；资格审查失败等边界未被答疑完整形式化 | 交付文档记录当前可复现口径；若官方另行明确，版本化修改并重算 |
 | 资格性/符合性审查失败 | 题目定义审查概念，但没有明确失败主体在场景统计中的计入规则 | 解析器保留主体和 outcome/warning；`docs/QUERY_SEMANTICS.md` 已列为边界 | 需要人工确认 | 不能从“出现审查表”推断已提交投标，也不能把失败自动等同 `nonwinner` | 保留原文证据；对模糊情形使用 `unknown`，在最终报告单列数量 |
 | 跨包协同投标 | 题目定义同一或多个项目共同参与；未明确跨包计数单位 | 查询保留项目和包结构；`docs/QUERY_SEMANTICS.md` 说明项目级汇总与包级明细 | 需要人工确认 | 不能声称官方一定按包或按项目计频 | 同时展示项目去重计数、包级证据和参与结果，等待评审口径确认 |
 | 附件失效/解析失败 | 数据集含 zip 内 doc/docx/xlsx/pdf/图片；平台需自动解析 | `backend/app/archive_files.py`、附件审计脚本、`docs/DATA_QUALITY.md`、`docs/agent3-attachment-audit-report.md`；失败隔离测试 | 代码已实现但未现场验收 | 19 个程序失败、7 个不支持格式、87 个无效下载不能靠模型恢复；不能声称附件 100% 可读 | 随交付包提供聚合统计和 warning 分类；有源字节且可转换时继续修复 |
 | 隐藏约 100 题 | 赛题明确评分基准不对外发放 | 题目原文 PAGE 11；仓库没有该数据集 | 需要官方资源 | 不能证明隐藏题附件完整、不能提前计算官方准确率 | 只在官方平台按要求运行，记录输入规模、耗时和输出摘要 |
-| Qwen/DeepSeek 使用 | 要求 Qwen/DeepSeek 系列开源国产模型，基座+外挂调优或合规微调，并声明版本和参数规模 | `backend/app/model_adapter.py`、`.env.example`、`docs/MODEL_ENDPOINT_ACCEPTANCE.md` | 代码已实现但未现场验收 | `deepseek-v4-flash` 配置名不是版本/参数/赛事资源证明；mock 不代表真实模型 | 取得官方指定 API/模型说明，补版本、参数规模、基座/微调和资源来源登记 |
+| Qwen/DeepSeek 使用 | 要求 Qwen/DeepSeek 系列及赛事规定资源；决赛将由官方指定 API | `model_adapter.py`、`.env.example`、`MODEL_ENDPOINT_ACCEPTANCE.md` 已具备换端点配置与失败保护 | 等待决赛官方资源与现场验收 | 当前开发端点名不等于官方资源身份；mock 不代表决赛真实链路 | 官方 API 发放后登记随附模型说明并验收长样本；当前不再要求队员补开发端点证明 |
 | LoRA/QLoRA/微调合规 | 题面允许轻量化微调并要求基座符合赛事要求、提供佐证；当前项目没有训练过程 | `docs/MODEL_ENDPOINT_ACCEPTANCE.md` 明确缺少训练/资源证明；无训练产物 | 需要官方资源 | 不能声称做过 LoRA/QLoRA 或拥有合规微调权重 | 决赛采用官方指定 API 时记录资源来源；若微调，保留基座、数据、参数和许可证证据 |
 | 2 vCPU/4 GB/Ubuntu 24.04 | 统一平台环境由命题方赛前提供；题面没有要求参赛队提前证明本地同环境 | `docs/agent3-resource-limited-validation.md`、`docs/CONSOLIDATION_REVIEW_2026-10-07.md`；已有 Docker 近似验证 | 代码已实现但未现场验收 | Docker/Windows 近似运行不能称 Ubuntu 24.04 实机通过 | 收到平台后做一次部署、批处理、查询和内存/耗时验收 |
 | Neo4j | 题面“推荐采用 Neo4j”；任务要求关系建模、五场景可视化查询统计展示 | `backend/neo4j_runtime/`、`analytics_backend.py`、`docs/NEO4J_GRAPH_PROJECTION_AUDIT.md`；Docker 集成测试 | 已实现 | `/api/v1/graph` 仍是 SQLite 投影；不能声称所有可视化都由 Neo4j 驱动 | 若评审明确要求图展示也走 Neo4j，再单独迁移投影；当前边界需在文档披露 |
@@ -47,16 +47,16 @@
 
 1. **官方没有提供 Gold。** `gold.reviewed.json`、tuning 集、holdout 都是团队本地验证材料；它们可以支持回归和内部路线比较，不能替代主办方隐藏评分集。
 2. **`official_qa` 是对答疑文本的可复现解释。** 它补齐了可观察字段槽位的 TN，但官方尚未形式化多值字段、重复记录、实体级全体负样本和错值的全部细节。
-3. **投标参与方的默认解释以题目术语为准。** 题面写明“参与但未中标”，因此当前默认查询只统计明确 `nonwinner`；`winner` 和 `unknown` 保留在明细与可审计查询中。若评审现场另行说明，应版本化修改并重算查询验证。
+3. **投标参与方的默认解释采用答疑口径。** 评审答疑明确“中与不中都算”，因此当前默认查询纳入 `winner`、`nonwinner`、`unknown`，并将 `unknown` 显示为“结果未披露”。`include_winners=false` 只统计明确 `nonwinner`，不包含 `unknown`。新口径 `qa-semantics-20261007-v2.json` 已完成 SQLite 与独立 Gold oracle 的 `6471/6471` 校验，未运行 Neo4j；历史双后端同数量结果属于迁移前口径。若评审现场另行说明，应版本化修改并重算查询验证。
 4. **Neo4j 是推荐技术，不是题面硬性唯一实现。** 当前五类分析 API 支持 Neo4j 并回退 SQLite；图可视化投影继续读取 SQLite，已在架构和审计文档中披露。
-5. **模型合规不能从模型名推断。** 需要正式版本、参数规模、基座/微调状态和赛事资源来源证明；现有端点探测和 mock 回归只证明工程兼容性。
+5. **决赛模型由官方指定。** 当前保留换端点能力与待验收状态，官方 API 发放后依据随附说明登记模型信息并完成长样本验收；不重复向队员索要开发端点的资源证明。现有端点探测和 mock 回归只证明工程兼容性。
 
 ## 交付前动作清单
 
 - [ ] 以冻结代码重新完成 rules/hybrid/model 留出集评测，并固定 `official_qa` 指标版本。
-- [ ] 重新核对任务二 winner/nonwinner/unknown 口径，生成新一版 GAP 6a 查询报告。
+- [x] 同步任务二 winner/nonwinner/unknown 口径，生成新 SQLite oracle 报告 `qa-semantics-20261007-v2.json`（6471/6471）；本轮统一验收仍需按实际后端记录范围。
 - [ ] 用命题方统一平台验证真实模型、批处理速率和前端五场景响应时间。
-- [ ] 取得或登记赛事指定模型资源证明；不在仓库记录 API Key。
+- [ ] 决赛官方 API 发放后登记其模型说明并验证长样本；不在仓库记录 API Key。
 - [ ] 完成系统设计文档、过程性文档的 Word/PDF 版本；按用户安排暂缓 PPT 和视频。
 - [ ] 从干净检出整理源码及配套资料压缩包，排除 Gold、原始材料、数据库、`.env` 和 `.data` 运行产物。
 

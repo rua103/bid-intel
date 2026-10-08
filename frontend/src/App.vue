@@ -9,6 +9,7 @@ import ControlledQuery from './components/ControlledQuery.vue'
 import { resolveApiBase } from './utils/browser.js'
 import { createDatasetClient } from './utils/datasets.js'
 import { formatAmount } from './utils/amountPolicy.js'
+import { outcomeLabel, participationScopeLabel, productSupplierEvidence, productSupplierMetrics } from './utils/analyticsPresentation.js'
 import { navigationGroups, resolveSection, sectionHash, sectionTransition } from './utils/navigation.js'
 
 const apiBase = resolveApiBase(import.meta.env.VITE_API_BASE, window.location, import.meta.env.VITE_API_PORT || '8000')
@@ -56,11 +57,6 @@ const modelMessage = ref('')
 const modelMessageIsError = ref(false)
 const apiKeyPlaceholder = computed(() => modelConfig.value.api_key_configured ? `已配置（${modelConfig.value.model_api_key_masked}）留空保持不变` : 'sk-...')
 const prettyAmount = (value) => formatAmount(value)
-const outcomeLabel = (value) => ({
-  winner: '中标',
-  nonwinner: '未中标',
-  unknown: '结果未披露',
-}[String(value || '').toLowerCase()] || value || '结果未披露')
 const productSupplierRows = (supplier) => {
   const rows = supplier?.product_suppliers ?? supplier?.product_supplier_summary ?? supplier?.productSuppliers
   if (Array.isArray(rows) && rows.length) return rows
@@ -71,27 +67,7 @@ const productSuppliersOf = (payload) => Array.isArray(payload?.product_suppliers
 const productSupplierName = (row) => typeof row === 'string'
   ? row
   : row?.name ?? row?.canonical_name ?? row?.supplier_name ?? row?.brand ?? row?.value ?? '未命名产品供应商'
-const productSupplierMetrics = (row) => {
-  if (typeof row === 'string' || row?.legacy) return ''
-  const parts = []
-  if (row?.project_count != null) parts.push(`${row.project_count} 个项目`)
-  if (row?.package_count != null) parts.push(`${row.package_count} 个采购包`)
-  if (row?.transaction_amount_total != null || row?.amount_total != null || row?.total_amount != null) {
-    parts.push(`交易金额 ¥${prettyAmount(row.transaction_amount_total ?? row.amount_total ?? row.total_amount)}`)
-  }
-  return parts.join(' · ')
-}
-const productSupplierEvidence = (row) => row?.source_evidence ?? row?.evidence ?? row?.evidence_count
-  ? '有来源证据' : ''
-const participationLabel = (payload) => {
-  if (!payload) return ''
-  const outcomes = payload.participation_outcomes ?? payload.semantics?.participation_outcomes
-  if (Array.isArray(outcomes) && outcomes.length) {
-    return `参与口径：${outcomes.map(outcomeLabel).join('、')}`
-  }
-  if (payload.include_winners === true || payload.include_awardee === true) return '参与口径：包含中标、未中标和结果未披露'
-  return '参与口径：当前仅统计未中标；结果未披露不会当作未中标'
-}
+const participationLabel = (payload) => `参与口径：${participationScopeLabel(payload)}`
 const activeSectionLabel = computed(() => navigationGroups
   .flatMap((group) => group.items)
   .find((item) => item.id === activeSection.value)?.label || '首页概览')
@@ -629,7 +605,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
       <ControlledQuery :api-base="apiBase" :dataset-id="datasetId" :fetch-impl="apiFetch" />
       <div class="panel-heading">
         <div><span class="step">04</span><h3>主体关系分析</h3></div>
-        <span class="hint">查询频次按项目计；金额只累加已确认的中标记录</span>
+        <span class="hint">查询频次按项目计；中标金额与标的总价分别统计</span>
       </div>
       <p v-if="analyticsBackend" class="analytics-backend-note">
         当前分析查询使用 {{ analyticsBackend === 'neo4j' ? 'Neo4j' : 'SQLite' }}{{ analyticsFallback ? '（Neo4j 不可用，已回退）' : '' }}
@@ -643,15 +619,16 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
             <p v-if="!analyticsResults.awardees.awardees.length" class="empty-note">暂无已确认的中标关系</p>
             <p v-for="supplier in analyticsResults.awardees.awardees" :key="supplier.organization_id">
               <strong>{{ supplier.name }}</strong><span>{{ supplier.award_package_count }} 包 · ¥{{ prettyAmount(supplier.award_amount_total) }}</span>
-              <small>中标供应商；产品供应商/品牌：{{ productSupplierRows(supplier).map(productSupplierName).join('、') || '—' }}</small>
+              <small>中标供应商；标的品牌：{{ productSupplierRows(supplier).map(productSupplierName).join('、') || '—' }}</small>
               <small v-for="(productSupplier, productSupplierIndex) in productSupplierRows(supplier)" :key="`${supplier.organization_id}-product-${productSupplierIndex}`" class="product-supplier-detail">
                 {{ productSupplierName(productSupplier) }}<template v-if="productSupplierMetrics(productSupplier)">：{{ productSupplierMetrics(productSupplier) }}</template><template v-if="productSupplierEvidence(productSupplier)"> · {{ productSupplierEvidence(productSupplier) }}</template>
               </small>
             </p>
+            <small v-if="productSuppliersOf(analyticsResults.awardees).length" class="query-semantics">产品供应商汇总按标的品牌分组；品牌不等同于法律实体，金额仅累加已披露的标的总价。</small>
             <p v-for="(productSupplier, productSupplierIndex) in productSuppliersOf(analyticsResults.awardees)" :key="`product-supplier-${productSupplierIndex}-${productSupplierName(productSupplier)}`">
-              <strong>产品供应商：{{ productSupplierName(productSupplier) }}</strong>
+              <strong>标的品牌：{{ productSupplierName(productSupplier) }}</strong>
               <span>{{ productSupplierMetrics(productSupplier) || '暂无汇总' }}</span>
-              <small v-if="productSupplierEvidence(productSupplier)">金额与记录来源：{{ productSupplierEvidence(productSupplier) }}</small>
+              <small>来源状态：{{ productSupplierEvidence(productSupplier) }}</small>
             </p>
           </div>
         </article>
@@ -674,7 +651,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
           <button class="secondary" :disabled="!selectedSupplierId || analyticsLoading === 'coBidders'" @click="runScene('coBidders')">{{ analyticsLoading === 'coBidders' ? '查询中…' : '查询共同竞标方' }} <span>→</span></button>
           <div v-if="analyticsResults.coBidders" class="query-result">
             <small class="query-semantics">{{ participationLabel(analyticsResults.coBidders) }}</small>
-            <p v-for="bidder in analyticsResults.coBidders.top_co_bidders" :key="bidder.organization_id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.project_count }} 个项目 · {{ bidder.award_package_count }} 个采购包</span><small>参与结果：{{ outcomeLabel(bidder.outcome) }}；所选供应商在共同参与包中的中标金额 ¥{{ prettyAmount(bidder.selected_supplier_award_amount_total) }}</small></p>
+            <p v-for="bidder in analyticsResults.coBidders.top_co_bidders" :key="bidder.organization_id"><strong>{{ bidder.canonical_name }}</strong><span>{{ bidder.project_count }} 个项目 · {{ bidder.award_package_count }} 个采购包</span><small>共同参与包中的所选供应商中标金额 ¥{{ prettyAmount(bidder.selected_supplier_award_amount_total) }}</small></p>
             <p v-if="!analyticsResults.coBidders.top_co_bidders.length" class="empty-note">暂无已确认的共同投标关系</p>
           </div>
         </article>

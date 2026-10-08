@@ -206,6 +206,57 @@ def test_duplicate_candidates_and_package_alignment_are_explicit(tmp_path):
     assert report["recommendation"]["status"] == "pending_freeze_and_independent_holdout"
 
 
+@pytest.mark.parametrize("profile_location", ["evaluation_kind", "config"])
+def test_local_proxy_rejects_mismatched_stored_evaluation_profile(tmp_path, profile_location):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    evaluation_path = run_dir / "evaluation-model.json"
+    stored = json.loads(evaluation_path.read_text(encoding="utf-8"))
+    if profile_location == "config":
+        stored["config"]["policy_profile"] = "official_qa"
+    else:
+        stored["evaluation_kind"] = "official_qa"
+    evaluation_path.write_text(json.dumps(stored, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="口径.*local_proxy"):
+        build_report(
+            gold_path=gold_path,
+            manifest_path=manifest_path,
+            run_dir=run_dir,
+            dataset_role="tuning",
+            stage="prep",
+            metric_profile="local_proxy",
+        )
+
+
+def test_official_qa_rescores_predictions_without_changing_matching_policy_or_inputs(tmp_path):
+    gold_path, manifest_path, run_dir = _write_run(tmp_path)
+    for path in run_dir.glob("evaluation-*.json"):
+        stored = json.loads(path.read_text(encoding="utf-8"))
+        stored["config"]["monetary_absolute_tolerance"] = "0.50"
+        path.write_text(json.dumps(stored), encoding="utf-8")
+    originals = {path: path.read_bytes() for path in (gold_path, *run_dir.glob("*.json"))}
+
+    report = build_report(
+        gold_path=gold_path, manifest_path=manifest_path, run_dir=run_dir,
+        metric_profile="official_qa",
+    )
+    for mode in ("rules", "hybrid", "model"):
+        evaluation = report["modes"][mode]["evaluation"]
+        assert evaluation["evaluation_kind"] == "official_qa"
+        assert evaluation["config"]["policy_profile"] == "official_qa"
+        assert evaluation["config"]["monetary_absolute_tolerance"] == "0.50"
+        assert evaluation["field_micro"]["tn"] > 0
+        metric = evaluation["field_micro"]
+        assert metric["accuracy"] == pytest.approx(
+            (metric["tp"] + metric["tn"]) / sum(metric[key] for key in ("tp", "fp", "tn", "fn"))
+        )
+    assert "TP/FP/TN/FN" in render_markdown(report)
+    assert set(report["metric_code_sha256"]) == {
+        "evaluation.py", "evaluation_policy.py", "route_evaluation_report.py"
+    }
+    assert all(path.read_bytes() == original for path, original in originals.items())
+
+
 def test_final_stage_requires_disjoint_reviewed_tuning_gold_and_recommends(tmp_path):
     gold_path, manifest_path, run_dir = _write_run(tmp_path)
     tuning_path = _write_tuning_gold(tmp_path, notice_id="tuning-notice")

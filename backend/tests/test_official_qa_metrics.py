@@ -105,3 +105,25 @@ def test_official_qa_rejects_unknown_missing_value_semantics():
                 missing_value_policy=MissingValuePolicy.MISSING_IS_UNKNOWN,
             ),
         )
+
+
+@pytest.mark.parametrize("side", ["gold", "prediction"])
+@pytest.mark.parametrize("profile", ["local_proxy", "official_qa"])
+def test_all_empty_items_are_rejected_before_scoring(side, profile):
+    gold = _gold()
+    prediction = _prediction(gold)
+    target = gold if side == "gold" else prediction
+    target["notices"][0]["packages"][0]["items"][0].update(dict.fromkeys(FIELDS))
+    with pytest.raises(ValueError, match="at least one nonempty field"):
+        evaluate_dataset(gold, prediction, EvaluationConfig(policy_profile=profile))
+
+
+@pytest.mark.parametrize("brand", [None, "错误品牌"])
+def test_official_qa_inexact_matched_record_is_one_fp(brand):
+    gold = _gold()
+    prediction = _prediction(gold)
+    prediction["notices"][0]["packages"][0]["items"][0]["brand"] = brand
+    report = evaluate_dataset(gold, prediction, EvaluationConfig(policy_profile="official_qa"))
+    assert (report.records.tp, report.records.fp, report.records.fn, report.records.tn) == (0, 1, 0, 0)
+    assert report.by_field["brand"].fn == int(brand is None)
+    assert report.by_field["brand"].fp == int(brand is not None)

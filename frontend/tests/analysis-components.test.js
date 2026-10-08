@@ -52,6 +52,7 @@ test('manual query confirmation sends valid single-subject requests from the com
     }
     assert.deepEqual(requests.map((request) => request.scene), ['buyer_awardees', 'buyer_bidders', 'supplier_co_bidders'])
     assert.ok(requests.every((request) => !('supplier_ids' in request.filters)))
+    assert.ok(requests.every((request) => request.filters.include_winners === true))
     assert.equal(view.state.sourceLabel, '项目九')
   } finally { view.unmount() }
 })
@@ -90,6 +91,7 @@ test('dataset switches clear previous state and discard delayed query responses'
     assert.equal(view.state.proposal, null)
     assert.equal(view.state.result, null)
     assert.equal(view.state.manual.buyerId, '')
+    assert.equal(view.state.manual.includeAwardee, true)
     delayed.resolve(response({ status: 'ok', payload: 'dataset a response' }))
     await executing
     assert.equal(view.state.result, null)
@@ -107,6 +109,7 @@ test('relation clues include the reviewer session and current dataset header', a
   try {
     assert.equal(sent.options.credentials, 'include')
     assert.equal(sent.options.headers.get('X-Dataset-ID'), 'a')
+    assert.equal(new URL(sent.url).searchParams.has('include_winners'), false, 'inherit the API default instead of overriding it to exclude winners')
   } finally { view.unmount() }
 })
 
@@ -114,7 +117,9 @@ test('relation API entities, numeric metrics, definitions and time basis have re
   const view = await mount('RelationshipClues', { apiBase: 'http://api.test', fetchImpl: async () => response({ clues: [] }) })
   try {
     const scope = {
-      participation_rule: '仅统计 outcome=nonwinner；unknown 不推定为未中标',
+      participation_rule: '统计中标、未中标和结果未披露的参与记录',
+      participation_outcomes: ['winner', 'nonwinner', 'unknown'],
+      include_winners: true,
       award_rule: '中标项目/包仅按 awards 记录统计，保留多个中标方',
       project_deduplication: '按 project_id 去重',
       package_deduplication: '按 package_id 保留并展示',
@@ -135,7 +140,9 @@ test('relation API entities, numeric metrics, definitions and time basis have re
     assert.equal(view.state.semanticLabel(entry), '供应商共同投标')
     const explanation = view.state.semanticText(entry)
     assert.match(explanation, /同一采购包中的主体关系/)
-    assert.match(explanation, /参与口径：仅统计 outcome=nonwinner/)
+    assert.match(explanation, /参与口径：统计中标、未中标和结果未披露/)
+    assert.match(explanation, /参与结果：中标、未中标、结果未披露/)
+    assert.match(explanation, /包含中标方：是/)
     assert.match(explanation, /默认包号：保留 package_code=default/)
     assert.match(explanation, /时间依据：公告导入时间/)
     assert.doesNotMatch(explanation, /\[object Object\]|"scope"/)
@@ -154,6 +161,26 @@ test('controlled query labels unknown outcomes and exposes participation scope',
     assert.equal(view.state.outcomeLabel('nonwinner'), '未中标')
     assert.equal(view.state.outcomeLabel('unknown'), '结果未披露')
     assert.match(view.state.participationLabel({ include_winners: true }), /包含中标/)
-    assert.match(view.state.participationLabel({ include_winners: false }), /结果未披露单独保留/)
+    assert.equal(view.state.participationLabel({ include_winners: false }), '仅统计未中标；不包含中标和结果未披露')
+  } finally { view.unmount() }
+})
+
+test('controlled query uses nested API filters for parsed and executed participation scope', async () => {
+  const view = await mount('ControlledQuery', {
+    apiBase: 'http://api.test', datasetId: 'a',
+    fetchImpl: async (url) => response(url.endsWith('/parse')
+      ? { status: 'ready', intent: { scene: 'buyer_bidders', filters: { buyer_id: 1, include_winners: true } } }
+      : { status: 'ok', scene: 'buyer_bidders', filters: { buyer_id: 1, include_winners: true }, payload: {} }),
+  })
+  try {
+    await view.state.parseQuestion()
+    assert.equal(view.state.participationLabel(view.state.proposal), '包含中标、未中标和结果未披露')
+    await view.state.executeProposal()
+    assert.equal(view.state.participationLabel(view.state.result), '包含中标、未中标和结果未披露')
+    Object.assign(view.state.manual, { scene: 'bidders', buyerId: '1', includeAwardee: false })
+    view.state.runManual()
+    assert.equal(view.state.participationLabel(view.state.proposal), '仅统计未中标；不包含中标和结果未披露')
+    assert.equal(view.state.supportsParticipationFilter('common_projects'), false)
+    assert.equal(view.state.participationLabel({ scene: 'common_projects', filters: { include_winners: false } }), '包含中标、未中标和结果未披露')
   } finally { view.unmount() }
 })

@@ -641,6 +641,17 @@ def build_report(
         if report is None:
             route_rows[mode] = {"status": "pending", "mode": mode}
             continue
+        stored_profile = report.get("evaluation_kind")
+        stored_config = EvaluationConfig.model_validate_json(
+            json.dumps(report.get("config") or {})
+        )
+        if metric_profile == "local_proxy" and (
+            stored_profile != "local_proxy" or stored_config.policy_profile != "local_proxy"
+        ):
+            raise ValueError(
+                f"{mode}: evaluation 产物口径为 {stored_profile!r}，"
+                "与请求的 local_proxy 不一致；请重新生成该路线评测"
+            )
         predicted_ids = {notice["notice_id"] for notice in prediction_data.get("notices", [])}
         if predicted_ids != set(notice_ids):
             raise ValueError(f"{mode}: prediction notice_id 与 run 范围不一致")
@@ -658,7 +669,7 @@ def build_report(
             report = evaluate_dataset(
                 gold_subset,
                 PredictionDataset.model_validate(prediction_data),
-                EvaluationConfig(policy_profile="official_qa"),
+                stored_config.model_copy(update={"policy_profile": "official_qa"}),
             ).model_dump(mode="json")
         telemetry = dict(summary_modes.get(mode) or {})
         entries = progress_modes.get(mode) or {}
@@ -719,6 +730,10 @@ def build_report(
         "schema_version": REPORT_SCHEMA_VERSION,
         "evaluation_kind": "three_route_local_gold_gap_report",
         "metric_profile": metric_profile,
+        "metric_code_sha256": {
+            name: _sha256_file(Path(__file__).parent / name)
+            for name in ("evaluation.py", "evaluation_policy.py", "route_evaluation_report.py")
+        },
         "disclaimer": OFFICIAL_QA_DISCLAIMER if metric_profile == "official_qa" else LOCAL_DISCLAIMER,
         "dataset_role": dataset_role,
         "stage": stage,

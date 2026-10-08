@@ -62,7 +62,7 @@
         <label>最低金额<input v-model.number="manual.minAmount" type="number" min="0" step="0.01" /></label>
         <label>最高金额<input v-model.number="manual.maxAmount" type="number" min="0" step="0.01" /></label>
       </div>
-      <label class="checkbox"><input v-model="manual.includeAwardee" type="checkbox" /> 包含中标方（未勾选时仅统计未中标；结果未披露单独保留）</label>
+      <label v-if="supportsParticipationFilter(manual.scene)" class="checkbox"><input v-model="manual.includeAwardee" type="checkbox" /> 包含全部参与方（中标、未中标、结果未披露）；未勾选时仅统计未中标</label>
       <button class="primary" type="submit" :disabled="busy || !manual.scene">执行手动查询</button>
     </form>
 
@@ -74,7 +74,6 @@
         <div><dt>供应商</dt><dd>{{ proposal.supplier || proposal.filters?.supplier_id || proposal.supplier_id || proposal.filters?.supplier_ids?.join('、') || proposal.supplier_ids?.join('、') || '未指定' }}</dd></div>
         <div><dt>时间范围</dt><dd>{{ formatRange(proposal.filters?.start_date ?? proposal.start_date, proposal.filters?.end_date ?? proposal.end_date) }}</dd></div>
         <div><dt>金额范围</dt><dd>{{ formatAmount(proposal.filters?.min_amount ?? proposal.min_amount, proposal.filters?.max_amount ?? proposal.max_amount) }}</dd></div>
-        <div><dt>包含中标方</dt><dd>{{ (proposal.filters?.include_winners ?? proposal.include_awardee) ? '是' : '否' }}</dd></div>
         <div><dt>参与口径</dt><dd>{{ participationLabel(proposal) }}</dd></div>
       </dl>
       <p v-if="proposal.explanation" class="muted">{{ proposal.explanation }}</p>
@@ -102,6 +101,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { formatAmount as formatMoney } from '../utils/amountPolicy.js'
 import { buildControlledQueryRequest, controlledQueryHeaders } from '../utils/controlledQuery.js'
 import { createDatasetClient } from '../utils/datasets.js'
+import { outcomeLabel, participationScopeLabel as participationLabel, supportsParticipationFilter } from '../utils/analyticsPresentation.js'
 
 const props = defineProps({
   apiBase: { type: String, default: '' },
@@ -130,20 +130,12 @@ const showManual = ref(false)
 const organizations = ref([])
 const organizationsLoading = ref(false)
 const organizationsError = ref('')
-const emptyManual = () => ({ scene: '', buyerId: '', supplierId: '', supplierIds: [], startDate: '', endDate: '', minAmount: null, maxAmount: null, includeAwardee: false })
+const emptyManual = () => ({ scene: '', buyerId: '', supplierId: '', supplierIds: [], startDate: '', endDate: '', minAmount: null, maxAmount: null, includeAwardee: true })
 const manual = reactive(emptyManual())
 
 const sceneLabel = (value) => scenes.find((item) => item.value === value || ({ awardees: 'buyer_awardees', bidders: 'buyer_bidders', co_bidders: 'supplier_co_bidders' })[item.value] === value)?.label || value || '未指定'
 const formatRange = (start, end) => start || end ? `${start || '不限'} 至 ${end || '不限'}` : '不限'
 const formatAmount = (min, max) => min != null || max != null ? `¥${formatMoney(min ?? 0)} 至 ¥${max == null ? '不限' : formatMoney(max)}` : '不限'
-const outcomeLabel = (value) => ({ winner: '中标', nonwinner: '未中标', unknown: '结果未披露' }[String(value || '').toLowerCase()] || value || '结果未披露')
-const participationLabel = (payload) => {
-  if (!payload) return '未指定'
-  const outcomes = payload.participation_outcomes ?? payload.semantics?.participation_outcomes ?? payload.query_semantics?.participation_outcomes
-  if (Array.isArray(outcomes) && outcomes.length) return outcomes.map(outcomeLabel).join('、')
-  if (payload.include_winners === true || payload.include_awardee === true || payload.request?.filters?.include_winners === true) return '包含中标、未中标和结果未披露'
-  return '仅统计未中标；结果未披露单独保留，不等同未中标'
-}
 const manualNeedsBuyer = computed(() => ['awardees', 'bidders'].includes(manual.scene))
 const manualNeedsSupplier = computed(() => manual.scene === 'co_bidders')
 const manualNeedsSupplierList = computed(() => ['common_buyers', 'common_projects'].includes(manual.scene))

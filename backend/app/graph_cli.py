@@ -26,16 +26,18 @@ def _parser() -> argparse.ArgumentParser:
     scene.add_argument("--supplier-id", type=int)
     scene.add_argument("--supplier-ids", default="", help="comma-separated IDs for scenes 4/5")
     scene.add_argument("--top", type=int, default=5)
+    scene.set_defaults(include_winners=True)
     winner_flags = scene.add_mutually_exclusive_group()
     winner_flags.add_argument(
         "--include-winners",
         action="store_true",
-        help="include winning bidders (the default is to report non-winners only)",
+        help="include winner, nonwinner, and unknown participants (default)",
     )
     winner_flags.add_argument(
         "--exclude-winners",
-        action="store_true",
-        help="kept as an explicit spelling of the default",
+        dest="include_winners",
+        action="store_false",
+        help="report only explicitly nonwinning participants",
     )
     return parser
 

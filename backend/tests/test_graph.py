@@ -9,7 +9,9 @@ from fastapi.testclient import TestClient
 from app import analytics, analytics_backend
 from app.config import settings
 from app.graph import (
+    CYPHER_PRODUCT_SUPPLIERS,
     CYPHER_SCENES,
+    _read_scene,
     _sum_amounts,
     create_driver,
     graph_snapshot,
@@ -66,6 +68,93 @@ def test_cypher_scenes_are_parameterized_and_cover_five_operations():
     assert "b.outcome = 'nonwinner'" in CYPHER_SCENES["buyer_bidders"]
     assert "count(DISTINCT p) AS project_count" in CYPHER_SCENES["supplier_co_bidders"]
     assert "b.outcome = 'nonwinner'" in CYPHER_SCENES["supplier_co_bidders"]
+    assert "$dataset" in CYPHER_PRODUCT_SUPPLIERS
+    assert "$buyer_id" in CYPHER_PRODUCT_SUPPLIERS
+    assert "ORDER BY brand, project_id, package_id, item_id" in CYPHER_PRODUCT_SUPPLIERS
+
+
+class _Record:
+    def __init__(self, values):
+        self.values = values
+
+    def data(self):
+        return dict(self.values)
+
+
+class _RowsResult:
+    def __init__(self, rows):
+        self.rows = [_Record(row) for row in rows]
+
+    def __iter__(self):
+        return iter(self.rows)
+
+    def single(self):
+        return self.rows[0] if self.rows else None
+
+
+class _BuyerSceneTx:
+    """Minimal transaction double for the no-award item aggregation boundary."""
+
+    def __init__(self):
+        self.calls = []
+
+    def run(self, statement, **params):
+        self.calls.append((statement, params))
+        if statement.startswith("MATCH (o:Organization"):
+            return _RowsResult([{"id": 7, "canonical_name": "采购中心"}])
+        if statement == CYPHER_SCENES["buyer_awardees"]:
+            return _RowsResult([])
+        if statement == CYPHER_PRODUCT_SUPPLIERS:
+            return _RowsResult([
+                {
+                    "brand": " H3C ", "item_id": 3, "project_id": 1,
+                    "package_id": 1, "product_name": None, "total_price": "0.10",
+                    "source_file": "b.html", "source_location": "", "source_evidence": None,
+                },
+                {
+                    "brand": "H3C", "item_id": 4, "project_id": 1,
+                    "package_id": 2, "product_name": "设备", "total_price": "0.20",
+                    "source_file": "a.html", "source_location": "row:1", "source_evidence": "原文",
+                }
+            ])
+        raise AssertionError(f"unexpected Cypher: {statement[:80]}")
+
+
+def test_buyer_awardees_keeps_branded_items_when_buyer_has_no_awards():
+    tx = _BuyerSceneTx()
+    result = _read_scene(
+        tx,
+        "buyer_awardees",
+        {
+            "dataset": "dataset-a",
+            "buyer_id": 7,
+            "include_winners": True,
+            "top": 5,
+        },
+    )
+    assert result["buyer"] == {"id": 7, "canonical_name": "采购中心"}
+    assert result["awardees"] == []
+    assert result["product_suppliers"] == [
+        {
+            "name": "H3C",
+            "project_count": 1,
+            "package_count": 2,
+            "amount_total": "0.30",
+            "evidence": [
+                {
+                    "item_id": 3, "project_id": 1, "package_id": 1,
+                    "product_name": None, "total_price": "0.10", "source_file": "b.html",
+                    "source_location": "", "source_evidence": None, "amount_source": "item.total_price",
+                },
+                {
+                    "item_id": 4, "project_id": 1, "package_id": 2,
+                    "product_name": "设备", "total_price": "0.20", "source_file": "a.html",
+                    "source_location": "row:1", "source_evidence": "原文", "amount_source": "item.total_price",
+                },
+            ],
+        }
+    ]
+    assert all(params["dataset"] == "dataset-a" for _, params in tx.calls)
 
 
 def _fixture(path):
@@ -198,6 +287,110 @@ def test_sync_uses_one_transaction_and_scopes_every_mutation(tmp_path):
         sync_to_neo4j(path, driver, dataset=" ")
     with pytest.raises(ValueError):
         query_neo4j(driver, "common_projects", dataset="test-data", supplier_ids=[1, 1])
+
+
+def _unawarded_items_fixture(path):
+    initialize(path)
+    with connect(path) as db:
+        buyer = _org(db, "未披露中标方采购中心")
+        empty_buyer = _org(db, "空标的采购中心")
+        other_buyer = _org(db, "其他采购中心")
+        packages = []
+        for index, owner in enumerate((buyer, buyer, empty_buyer, other_buyer)):
+            notice = db.execute(
+                "INSERT INTO notices(source_files_json,warnings_json) VALUES ('[]','[]')"
+            ).lastrowid
+            project = db.execute(
+                "INSERT INTO projects(notice_id,project_name,buyer_organization_id) VALUES (?,?,?)",
+                (notice, f"未披露项目{index}", owner),
+            ).lastrowid
+            for code in (("1", "2") if index == 0 else ("1",)):
+                package = db.execute(
+                    "INSERT INTO packages(project_id,package_code) VALUES (?,?)", (project, code)
+                ).lastrowid
+                packages.append((notice, package))
+        # Raw brand order intentionally differs from item/project order. SQLite
+        # groups after Python strip(), preserving that original evidence order.
+        for package_index, brand, amount, product, evidence in (
+            (0, "H3C", "0.10", None, None),
+            (1, " H3C ", "0.20", "设备", "品牌 H3C"),
+            (1, "H3C", None, "设备", ""),
+            (2, "\tH3C\t", "9007199254740993.33", "设备", None),
+            (2, "H3C", "", "设备", None),
+            (2, "仅缺失金额品牌", None, "设备", None),
+            (2, "  ", "999", "应排除", None),
+            (2, None, "999", "应排除", None),
+            (4, "不属于当前买方", "999", "应排除", None),
+        ):
+            notice, package = packages[package_index]
+            db.execute(
+                "INSERT INTO procurement_items("
+                "notice_id,package_id,product_name,brand,total_price,source_file,"
+                "source_location,source_evidence,extraction_method) VALUES (?,?,?,?,?,?,?,?,?)",
+                (notice, package, product, brand, amount, "items.html", "", evidence, "test"),
+            )
+    return buyer, empty_buyer, packages[0][1]
+
+
+@pytest.mark.integration
+def test_live_buyer_products_without_awards_match_sqlite_and_isolate_datasets(tmp_path):
+    uri = os.getenv("BIDINTEL_TEST_NEO4J_URI")
+    password = os.getenv("BIDINTEL_TEST_NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("Neo4j integration requires BIDINTEL_TEST_NEO4J_URI and BIDINTEL_TEST_NEO4J_PASSWORD")
+    path, other_path = tmp_path / "unawarded.db", tmp_path / "other.db"
+    buyer, empty_buyer, package = _unawarded_items_fixture(path)
+    other_buyer, _, _ = _unawarded_items_fixture(other_path)
+    with connect(other_path) as db:
+        db.execute("UPDATE procurement_items SET brand='隔离数据集品牌',total_price='2.50'")
+    dataset = f"pytest-products-{uuid.uuid4()}"
+    other = dataset + "-other"
+    driver = create_driver(uri, os.getenv("BIDINTEL_TEST_NEO4J_USER", "neo4j"), password)
+    try:
+        sync_to_neo4j(path, driver, dataset=dataset)
+        sync_to_neo4j(other_path, driver, dataset=other)
+        actual = query_neo4j(driver, "buyer_awardees", dataset=dataset, buyer_id=buyer)
+        assert actual == analytics.buyer_awardees(path, buyer)
+        assert actual["awardees"] == []
+        assert [row["name"] for row in actual["product_suppliers"]] == ["H3C", "仅缺失金额品牌"]
+        supplier = actual["product_suppliers"][0]
+        assert supplier["project_count"] == 2
+        assert supplier["package_count"] == 3
+        assert supplier["amount_total"] == "9007199254740993.63"
+        assert [item["item_id"] for item in supplier["evidence"]] == [4, 2, 1, 3, 5]
+        assert supplier["evidence"][2]["product_name"] is None
+        assert supplier["evidence"][2]["source_evidence"] is None
+        assert supplier["evidence"][-1]["amount_source"] is None
+        assert actual["product_suppliers"][1]["amount_total"] is None
+        for buyer_id in (empty_buyer, 9999):
+            assert query_neo4j(
+                driver, "buyer_awardees", dataset=dataset, buyer_id=buyer_id,
+            ) == analytics.buyer_awardees(path, buyer_id)
+        assert query_neo4j(
+            driver, "buyer_awardees", dataset=other, buyer_id=other_buyer,
+        ) == analytics.buyer_awardees(other_path, other_buyer)
+
+        with connect(path) as db:
+            awardee = _org(db, "后来披露的中标方")
+            db.execute(
+                "INSERT INTO awards(package_id,organization_id,raw_name,award_amount) VALUES (?,?,?,?)",
+                (package, awardee, "后来披露的中标方", "0.10"),
+            )
+        sync_to_neo4j(path, driver, dataset=dataset)
+        with_award = query_neo4j(driver, "buyer_awardees", dataset=dataset, buyer_id=buyer)
+        assert with_award == analytics.buyer_awardees(path, buyer)
+        assert with_award["product_suppliers"] == actual["product_suppliers"]
+    finally:
+        with driver.session() as session:
+            session.run(
+                "MATCH (n:BidIntelNode) WHERE n.dataset IN $datasets DETACH DELETE n",
+                datasets=[dataset, other],
+            ).consume()
+            session.run(
+                "MATCH (n:BidIntelDataset) WHERE n.name IN $datasets DELETE n",
+                datasets=[dataset, other],
+            ).consume()
+        driver.close()
 
 
 @pytest.mark.integration

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createDatasetClient } from '../utils/datasets.js'
+import { outcomeLabel } from '../utils/analyticsPresentation.js'
 
 const props = defineProps({
   apiBase: { type: String, required: true },
@@ -194,7 +195,9 @@ function semanticText(entry) {
   const details = Object.entries(scopeLabels)
     .filter(([key]) => scope[key] != null && scope[key] !== '')
     .map(([key, label]) => {
-      const value = Array.isArray(scope[key]) ? scope[key].join('、') : typeof scope[key] === 'boolean' ? (scope[key] ? '是' : '否') : scope[key]
+      const value = Array.isArray(scope[key])
+        ? scope[key].map((item) => key === 'participation_outcomes' ? outcomeLabel(item) : item).join('、')
+        : typeof scope[key] === 'boolean' ? (scope[key] ? '是' : '否') : scope[key]
       return `${label}：${value}`
     })
   return [typeof description === 'string' ? description : '', ...details].filter(Boolean).join('；')

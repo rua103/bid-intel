@@ -115,22 +115,8 @@ CALL (packages) {
   WITH DISTINCT i.brand AS brand WHERE brand IS NOT NULL AND trim(brand) <> ''
   RETURN collect(brand) AS product_brands
 }
-CALL {
-  MATCH (:Organization {dataset:$dataset,id:$buyer_id})-[:PURCHASES]->(p:Project)-[:HAS_PACKAGE]->(k:Package)-[:HAS_ITEM]->(i:Item)
-  WHERE i.brand IS NOT NULL AND trim(i.brand) <> ''
-  WITH i.brand AS brand, collect(DISTINCT p.id) AS project_ids,
-       collect(DISTINCT k.id) AS package_ids, collect(i) AS items
-  RETURN collect({name:brand, project_count:size(project_ids), package_count:size(package_ids),
-                  amount_values:[item IN items | item.total_price],
-                  evidence:[item IN items | {item_id:item.id, project_id:item.project_id,
-                    package_id:item.package_id, product_name:item.product_name,
-                    total_price:item.total_price, source_file:item.source_file,
-                    source_location:item.source_location, source_evidence:item.source_evidence,
-                    amount_source:CASE WHEN item.total_price IS NOT NULL AND item.total_price <> ''
-                      THEN 'item.total_price' ELSE NULL END}]}) AS product_suppliers
-}
 RETURN s.id AS organization_id, s.name AS name, size(packages) AS award_package_count,
-       [a IN awards | a.award_amount] AS amount_values, product_brands, product_suppliers
+       [a IN awards | a.award_amount] AS amount_values, product_brands
 ORDER BY award_package_count DESC, name
 """,
     "buyer_bidders": """
@@ -219,6 +205,22 @@ RETURN k.id AS package_id,k.package_code AS package_code,properties(k)['package_
 ORDER BY project_id,package_id
 """,
 }
+
+
+# Read items independently of awards: a buyer can have brand-bearing items
+# without disclosed award records. Aggregate in Python to match SQLite's
+# brand.strip(), Decimal arithmetic, and original-brand evidence ordering.
+CYPHER_PRODUCT_SUPPLIERS = """
+MATCH (:Organization {dataset:$dataset,id:$buyer_id})-[:PURCHASES]->
+      (p:Project {dataset:$dataset})-[:HAS_PACKAGE]->(k:Package {dataset:$dataset})
+      -[:HAS_ITEM]->(i:Item {dataset:$dataset})
+WHERE i.brand IS NOT NULL
+RETURN i.brand AS brand, i.id AS item_id, p.id AS project_id, k.id AS package_id,
+       i.product_name AS product_name, i.total_price AS total_price,
+       i.source_file AS source_file, i.source_location AS source_location,
+       i.source_evidence AS source_evidence
+ORDER BY brand, project_id, package_id, item_id
+"""
 
 
 def create_driver(uri: str, user: str, password: str):
@@ -320,22 +322,42 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
             selected.append(org)
     rows = [record.data() for record in tx.run(CYPHER_SCENES[scene], **params)]
     if scene == "buyer_awardees":
-        product_supplier_payload = rows[0].get("product_suppliers", []) if rows else []
+        if primary is None:
+            return {"buyer": None, "awardees": []}
+        product_supplier_payload = [
+            record.data()
+            for record in tx.run(CYPHER_PRODUCT_SUPPLIERS, **params)
+        ]
         for row in rows:
             row["award_amount_total"] = _sum_amounts(row.pop("amount_values"))
             row["product_brands"] = sorted(row["product_brands"])
-            row.pop("product_suppliers", None)
-        product_rows = []
-        for supplier in product_supplier_payload:
-            product_rows.append(
-                {
-                    "name": supplier["name"],
-                    "project_count": supplier["project_count"],
-                    "package_count": supplier["package_count"],
-                    "amount_total": _sum_amounts(supplier.get("amount_values", [])),
-                    "evidence": supplier.get("evidence", []),
-                }
+        suppliers: dict[str, dict[str, Any]] = {}
+        for item in product_supplier_payload:
+            raw_name = str(item.pop("brand"))
+            if not raw_name.strip(" "):  # Match SQLite TRIM before Python strip().
+                continue
+            name = raw_name.strip()
+            supplier = suppliers.setdefault(name, {
+                "name": name, "project_ids": set(), "package_ids": set(),
+                "amount_values": [], "evidence": [],
+            })
+            supplier["project_ids"].add(item["project_id"])
+            supplier["package_ids"].add(item["package_id"])
+            supplier["amount_values"].append(item["total_price"])
+            item["amount_source"] = (
+                "item.total_price" if item["total_price"] not in (None, "") else None
             )
+            supplier["evidence"].append(item)
+        product_rows = [
+            {
+                "name": supplier["name"],
+                "project_count": len(supplier["project_ids"]),
+                "package_count": len(supplier["package_ids"]),
+                "amount_total": _sum_amounts(supplier["amount_values"]),
+                "evidence": supplier["evidence"],
+            }
+            for supplier in suppliers.values()
+        ]
         return {"buyer": primary, "awardees": rows, "product_suppliers": sorted(product_rows, key=lambda item: item["name"])}
     if scene == "buyer_bidders":
         return {"buyer": primary, "include_winners": params["include_winners"],

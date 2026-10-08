@@ -106,18 +106,20 @@ def sqlite_graph(path: Path, *, limit: int = 100) -> dict[str, Any]:
 CYPHER_SCENES = {
     "buyer_awardees": """
 MATCH (:Organization {dataset:$dataset,id:$buyer_id})-[:PURCHASES]->
-      (:Project {dataset:$dataset})-[:HAS_PACKAGE]->(k:Package {dataset:$dataset})
+      (project:Project {dataset:$dataset})-[:HAS_PACKAGE]->(k:Package {dataset:$dataset})
       -[a:AWARDED_TO]->(s:Organization {dataset:$dataset})
-WITH s, collect(DISTINCT k) AS packages, collect(DISTINCT a) AS awards
+WITH s, collect(DISTINCT project) AS projects, collect(DISTINCT k) AS packages,
+     collect(DISTINCT a) AS awards
 CALL (packages) {
   UNWIND packages AS k
   OPTIONAL MATCH (k)-[:HAS_ITEM]->(i:Item)
   WITH DISTINCT i.brand AS brand WHERE brand IS NOT NULL AND trim(brand) <> ''
   RETURN collect(brand) AS product_brands
 }
-RETURN s.id AS organization_id, s.name AS name, size(packages) AS award_package_count,
+RETURN s.id AS organization_id, s.name AS name, size(projects) AS award_project_count,
+       size(packages) AS award_package_count,
        [a IN awards | a.award_amount] AS amount_values, product_brands
-ORDER BY award_package_count DESC, name
+ORDER BY award_project_count DESC, name, organization_id
 """,
     "buyer_bidders": """
 MATCH (buyer:Organization {dataset:$dataset,id:$buyer_id})
@@ -167,12 +169,14 @@ CALL (supplier) {
 RETURN top_co_bidders,packages
 """,
     "common_buyers": """
-MATCH (buyer:Organization {dataset:$dataset})-[:PURCHASES]->(:Project)-[:HAS_PACKAGE]->
+MATCH (buyer:Organization {dataset:$dataset})-[:PURCHASES]->(project:Project)-[:HAS_PACKAGE]->
       (k:Package)-[a:AWARDED_TO]->(s:Organization)
 WHERE s.id IN $supplier_ids
-WITH buyer,s,collect(DISTINCT k) AS packages,collect(DISTINCT a) AS awards
-ORDER BY s.id
-WITH buyer,collect({organization_id:s.id,name:s.name,award_package_count:size(packages),
+WITH buyer,s,collect(DISTINCT k) AS packages,collect(DISTINCT a) AS awards,
+     collect(DISTINCT project.id) AS project_ids
+ORDER BY size(project_ids) DESC, s.name, s.id
+WITH buyer,collect({organization_id:s.id,name:s.name,
+                   award_project_count:size(project_ids),award_package_count:size(packages),
                    amount_values:[a IN awards | a.award_amount]}) AS suppliers,
            collect(s.id) AS seen
 WHERE all(id IN $supplier_ids WHERE id IN seen)
@@ -358,7 +362,8 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
             }
             for supplier in suppliers.values()
         ]
-        return {"buyer": primary, "awardees": rows, "product_suppliers": sorted(product_rows, key=lambda item: item["name"])}
+        return {"buyer": primary, "awardees": rows, "product_suppliers": sorted(
+            product_rows, key=lambda item: (-item["project_count"], item["name"]))}
     if scene == "buyer_bidders":
         return {"buyer": primary, "include_winners": params["include_winners"],
                 **(rows[0] if rows else {"top_bidders": [], "co_bidder_pairs": []})}
@@ -378,7 +383,11 @@ def _read_scene(tx: Any, scene: str, parameters: Mapping[str, Any]) -> dict[str,
                 all_amounts.extend(values)
                 supplier["award_amount_total"] = _sum_amounts(values)
             row["award_amount_total_unique_awards"] = _sum_amounts(all_amounts)
-        return {"selected_suppliers": selected, "buyers": rows}
+        return {
+            "selected_suppliers": selected,
+            "project_count_scope": "per_supplier_at_common_buyer",
+            "buyers": rows,
+        }
     projects: dict[int, dict[str, Any]] = {}
     all_amounts: list[str | None] = []
     for row in rows:

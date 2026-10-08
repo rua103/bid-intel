@@ -320,7 +320,11 @@ def validate_scene_1(
                 )
         expected_rows = sorted(
             expected.items(),
-            key=lambda pair: (-len(pair[1]["packages"]), imported["canonical_names"][pair[0]]),
+            key=lambda pair: (
+                -len({project_key for project_key, _ in pair[1]["packages"]}),
+                imported["canonical_names"][pair[0]],
+                imported["organization_ids"][pair[0]],
+            ),
         )
         actual = analytics.buyer_awardees(query_database(report), buyer_id)
         actual_rows = {normalize_name(row["name"]): row for row in actual["awardees"]}
@@ -335,12 +339,44 @@ def validate_scene_1(
                 continue
             if actual_row["award_package_count"] != len(expected_row["packages"]):
                 issues.append("award_package_count")
+            # GAP 2.12: cooperation frequency is project-level.  Keep the
+            # package count assertion above so a producer cannot silently
+            # repurpose the legacy field.
+            if actual_row.get("award_project_count") != len(
+                {project_key for project_key, _ in expected_row["packages"]}
+            ):
+                issues.append("award_project_count")
             if not equal_amount(actual_row["award_amount_total"], sum_amounts(expected_row["amounts"])):
                 issues.append("award_amount_total")
             if actual_row["product_brands"] != sorted(expected_row["brands"]):
                 issues.append("product_brands")
         if list(actual_rows) != [key for key, _ in expected_rows]:
             issues.append("awardee_order")
+        expected_brands: dict[str, dict[str, Any]] = {}
+        for package in index["packages"].values():
+            if package["buyer_key"] != buyer_key:
+                continue
+            for item in package["items"]:
+                raw_brand = item.get("brand")
+                if raw_brand is None or not str(raw_brand).strip():
+                    continue
+                brand = str(raw_brand).strip()
+                brand_row = expected_brands.setdefault(brand, {"projects": set(), "packages": set(), "amounts": []})
+                brand_row["projects"].add(package["notice_key"])
+                brand_row["packages"].add((package["notice_key"], package["package_code"]))
+                brand_row["amounts"].append(item.get("total_price"))
+        expected_brand_order = sorted(expected_brands, key=lambda name: (-len(expected_brands[name]["projects"]), name))
+        actual_brands = {row["name"]: row for row in actual.get("product_suppliers", [])}
+        if list(actual_brands) != expected_brand_order:
+            issues.append("brand_membership_or_project_rank")
+        for name, brand_row in expected_brands.items():
+            result = actual_brands.get(name)
+            if result is None:
+                continue
+            if result["project_count"] != len(brand_row["projects"]) or result["package_count"] != len(brand_row["packages"]):
+                issues.append("brand_project_or_package_count")
+            if not equal_amount(result["amount_total"], sum_amounts(brand_row["amounts"])):
+                issues.append("brand_disclosed_item_amount_total")
         record_case(report, "scene1_buyer_awardees", buyer_key, issues)
 
 
@@ -501,6 +537,8 @@ def validate_one_common_buyer_selection(
     returned_selected = {normalize_name(row["canonical_name"]) for row in actual["selected_suppliers"]}
     if returned_selected != set(selected):
         issues.append("selected_supplier_echo")
+    if actual.get("project_count_scope") != "per_supplier_at_common_buyer":
+        issues.append("project_count_scope")
     if set(actual_buyers) != set(expected):
         issues.append("common_buyer_membership")
     for buyer_key, suppliers in expected.items():
@@ -512,6 +550,12 @@ def validate_one_common_buyer_selection(
         }
         if set(actual_suppliers) != set(selected):
             issues.append("supplier_membership")
+        expected_order = sorted(selected, key=lambda key: (
+            -len({package_key[0] for package_key, _ in suppliers[key]}),
+            imported["canonical_names"][key], imported["organization_ids"][key],
+        ))
+        if list(actual_suppliers) != expected_order:
+            issues.append("supplier_project_frequency_rank")
         all_amounts: list[Any] = []
         for supplier_key in selected:
             supplier = actual_suppliers.get(supplier_key)
@@ -520,8 +564,11 @@ def validate_one_common_buyer_selection(
             award_rows = suppliers[supplier_key]
             expected_amount = sum_amounts([amount_value for _, amount_value in award_rows])
             all_amounts.extend(amount_value for _, amount_value in award_rows)
+            expected_project_count = len({package_key[0] for package_key, _ in award_rows})
             if supplier["award_package_count"] != len({package_key for package_key, _ in award_rows}):
                 issues.append("award_package_count")
+            if supplier.get("award_project_count") != expected_project_count:
+                issues.append("award_project_count")
             if not equal_amount(supplier["award_amount_total"], expected_amount):
                 issues.append("supplier_award_amount_total")
         if not equal_amount(row["award_amount_total_unique_awards"], sum_amounts(all_amounts)):
@@ -675,6 +722,8 @@ def run(gold_path: Path, database_path: Path, report_path: Path | None) -> dict[
         "query_backend": "SQLite app.analytics",
         "identity_rule": "exact name after storage-compatible whitespace removal and casefold; no fuzzy alias merge",
         "frequency_rule": {
+            "scene1": "award_project_count is distinct projects; award_package_count remains distinct packages",
+            "scene4": "per selected supplier at each common buyer: award_project_count is distinct projects; award_package_count remains distinct packages",
             "scene2_scene3": "distinct project, winner/nonwinner/unknown by default; include_winners=False is an explicit nonwinner-only control",
             "scene5": "common package membership with project_count reported as distinct projects",
         },
@@ -690,7 +739,7 @@ def run(gold_path: Path, database_path: Path, report_path: Path | None) -> dict[
         "notes": [
             "Expected values were computed from gold JSON and did not call analytics helpers.",
             "Gold entity_id values are mention-level: repeated exact names have multiple IDs; query identity comparison therefore follows storage's conservative exact-name normalization.",
-            "Neo4j was not exercised; production API relationship queries use SQLite and the gold test imports into an isolated SQLite file.",
+            "Neo4j was not exercised by this script; production APIs may use Neo4j with SQLite fallback. This validation imports into an isolated SQLite file.",
         ],
     }
     validate_scene_1(gold, index, imported, report)

@@ -618,7 +618,7 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
           <div v-if="analyticsResults.awardees" class="query-result">
             <p v-if="!analyticsResults.awardees.awardees.length" class="empty-note">暂无已确认的中标关系</p>
             <p v-for="supplier in analyticsResults.awardees.awardees" :key="supplier.organization_id">
-              <strong>{{ supplier.name }}</strong><span>{{ supplier.award_package_count }} 包 · ¥{{ prettyAmount(supplier.award_amount_total) }}</span>
+              <strong>{{ supplier.name }}</strong><span>{{ supplier.award_project_count }} 个合作项目 · {{ supplier.award_package_count }} 个采购包 · ¥{{ prettyAmount(supplier.award_amount_total) }}</span>
               <small>中标供应商；标的品牌：{{ productSupplierRows(supplier).map(productSupplierName).join('、') || '—' }}</small>
               <small v-for="(productSupplier, productSupplierIndex) in productSupplierRows(supplier)" :key="`${supplier.organization_id}-product-${productSupplierIndex}`" class="product-supplier-detail">
                 {{ productSupplierName(productSupplier) }}<template v-if="productSupplierMetrics(productSupplier)">：{{ productSupplierMetrics(productSupplier) }}</template><template v-if="productSupplierEvidence(productSupplier)"> · {{ productSupplierEvidence(productSupplier) }}</template>
@@ -666,7 +666,8 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
           <div class="split-results">
             <div v-if="analyticsResults.commonBuyers" class="query-result">
               <strong class="result-label">共同合作采购单位</strong>
-              <p v-for="entry in analyticsResults.commonBuyers.buyers" :key="entry.buyer.id"><strong>{{ entry.buyer.canonical_name }}</strong><span>中标金额合计 ¥{{ prettyAmount(entry.award_amount_total_unique_awards) }}</span><small>{{ entry.suppliers.map(s => `${s.name}：${s.award_package_count} 包`).join('；') }}</small></p>
+              <small class="query-semantics">各供应商分别统计与该采购单位的合作项目数；不要求在同一项目或同一采购包中标。</small>
+              <p v-for="entry in analyticsResults.commonBuyers.buyers" :key="entry.buyer.id"><strong>{{ entry.buyer.canonical_name }}</strong><span>中标金额合计 ¥{{ prettyAmount(entry.award_amount_total_unique_awards) }}</span><small>{{ entry.suppliers.map(s => `${s.name}：${s.award_project_count} 个合作项目 · ${s.award_package_count} 个采购包`).join('；') }}</small></p>
               <p v-if="!analyticsResults.commonBuyers.buyers.length" class="empty-note">暂无共同合作采购单位</p>
             </div>
             <div v-if="analyticsResults.commonProjects" class="query-result">

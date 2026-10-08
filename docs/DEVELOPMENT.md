@@ -61,7 +61,7 @@ npm test
 npm run build
 ```
 
-当前基线：后端 `361 passed, 0 skipped（含真实 Neo4j 集成）`（2 条 warning），Ruff 通过，前端 `31 passed`，生产构建通过但有大 chunk 警告。数字会随代码变化；提交前以本次实际命令输出为准。
+当前基线：后端 `364 passed, 0 skipped（含真实 Neo4j 集成）`（2 条 warning），Ruff 通过，前端 `33 passed`，生产构建通过但有大 chunk 警告。数字会随代码变化；提交前以本次实际命令输出为准。
 
 ### Neo4j 集成测试
 

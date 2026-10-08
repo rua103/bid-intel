@@ -280,7 +280,10 @@ def execute_intent(path: Path, intent: ControlledIntent) -> dict[str, Any]:
         "status": "ok",
         "scene": intent.scene.value,
         "filters": intent.filters.model_dump(mode="json"),
-        "query_semantics": "现有五类分析 API 的固定口径；自然语言仅用于意图解析，不构成证据",
+        "query_semantics": {
+            Scene.BUYER_AWARDEES: "合作次数按中标项目去重，采购包数单列；中标金额按唯一中标记录汇总，品牌金额仅累计已披露标的总价",
+            Scene.COMMON_BUYERS: "共同采购单位按所选供应商的合作采购单位取交集；项目数按各供应商分别去重，不要求共同项目或同包中标；金额按唯一中标记录汇总",
+        }.get(intent.scene, "现有五类分析 API 的固定口径；自然语言仅用于意图解析，不构成证据"),
         "analytics_backend": result.backend,
         "analytics_fallback": result.fell_back,
         "payload": result.payload,

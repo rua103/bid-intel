@@ -54,7 +54,7 @@ def buyer_awardees(path: Path, buyer_id: int) -> dict[str, Any]:
         if not buyer:
             return {"buyer": None, "awardees": []}
         rows = connection.execute(
-            """SELECT a.organization_id, o.canonical_name, p.id AS package_id,
+            """SELECT a.id AS award_id, a.organization_id, o.canonical_name, p.id AS package_id,
                       x.id AS project_id, a.award_amount
                FROM awards a
                JOIN packages p ON p.id = a.package_id
@@ -66,24 +66,32 @@ def buyer_awardees(path: Path, buyer_id: int) -> dict[str, Any]:
         ).fetchall()
         by_supplier: dict[int, dict[str, Any]] = {}
         package_ids: dict[int, set[int]] = {}
+        project_ids: dict[int, set[int]] = {}
+        seen_awards: set[int] = set()
         for row in rows:
+            if row["award_id"] in seen_awards:
+                continue
+            seen_awards.add(row["award_id"])
             supplier_id = int(row["organization_id"])
             item = by_supplier.setdefault(
                 supplier_id,
                 {
                     "organization_id": supplier_id,
                     "name": row["canonical_name"],
+                    "award_project_count": 0,
                     "award_package_count": 0,
                     "award_amount_total": None,
                     "product_brands": [],
                 },
             )
             package_ids.setdefault(supplier_id, set()).add(int(row["package_id"]))
+            project_ids.setdefault(supplier_id, set()).add(int(row["project_id"]))
             item["award_amount_total"] = _sum_decimal(
                 [item["award_amount_total"], row["award_amount"]]
             )
         for supplier_id, supplier in by_supplier.items():
             pids = sorted(package_ids[supplier_id])
+            supplier["award_project_count"] = len(project_ids[supplier_id])
             supplier["award_package_count"] = len(pids)
             marks = ",".join("?" for _ in pids)
             brands = connection.execute(
@@ -138,7 +146,10 @@ def buyer_awardees(path: Path, buyer_id: int) -> dict[str, Any]:
                 }
             )
         product_supplier_rows = []
-        for supplier in sorted(product_suppliers.values(), key=lambda item: item["name"]):
+        for supplier in sorted(
+            product_suppliers.values(),
+            key=lambda item: (-len(item["project_ids"]), item["name"]),
+        ):
             product_supplier_rows.append(
                 {
                     "name": supplier["name"],
@@ -149,7 +160,8 @@ def buyer_awardees(path: Path, buyer_id: int) -> dict[str, Any]:
                 }
             )
         awardees = sorted(
-            by_supplier.values(), key=lambda x: (-x["award_package_count"], x["name"])
+            by_supplier.values(),
+            key=lambda x: (-x["award_project_count"], x["name"], x["organization_id"]),
         )
         return {
             "buyer": buyer,
@@ -319,18 +331,19 @@ def common_award_buyers(path: Path, supplier_ids: list[int]) -> dict[str, Any]:
             for supplier in selected:
                 supplier_id = int(supplier["id"])
                 award_rows = connection.execute(
-                    """SELECT DISTINCT a.package_id, a.award_amount
+                    """SELECT a.id AS award_id, a.package_id, x.id AS project_id, a.award_amount
                        FROM awards a JOIN packages p ON p.id = a.package_id
                        JOIN projects x ON x.id = p.project_id
                        WHERE x.buyer_organization_id = ? AND a.organization_id = ?""",
                     (buyer_row["buyer_id"], supplier_id),
                 ).fetchall()
-                amounts = [row["award_amount"] for row in award_rows]
+                amounts = list({row["award_id"]: row["award_amount"] for row in award_rows}.values())
                 all_award_values.extend(amounts)
                 per_supplier.append(
                     {
                         "organization_id": supplier_id,
                         "name": supplier["canonical_name"],
+                        "award_project_count": len({row["project_id"] for row in award_rows}),
                         "award_package_count": len({row["package_id"] for row in award_rows}),
                         "award_amount_total": _sum_decimal(amounts),
                     }
@@ -338,11 +351,18 @@ def common_award_buyers(path: Path, supplier_ids: list[int]) -> dict[str, Any]:
             results.append(
                 {
                     "buyer": buyer,
-                    "suppliers": per_supplier,
+                    "suppliers": sorted(
+                        per_supplier,
+                        key=lambda row: (-row["award_project_count"], row["name"], row["organization_id"]),
+                    ),
                     "award_amount_total_unique_awards": _sum_decimal(all_award_values),
                 }
             )
-        return {"selected_suppliers": selected, "buyers": results}
+        return {
+            "selected_suppliers": selected,
+            "project_count_scope": "per_supplier_at_common_buyer",
+            "buyers": results,
+        }
 
 
 def common_bid_packages(path: Path, supplier_ids: list[int]) -> dict[str, Any]:

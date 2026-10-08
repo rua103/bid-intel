@@ -84,6 +84,10 @@ def _run_checks(gold: dict[str, Any], imported: dict[str, Any], database: Path, 
         "created_at_utc": datetime.now(UTC).isoformat(),
         "gold_sha256": gold["_sha256"],
         "database_path": str(database.resolve()),
+        "frequency_rule": {
+            "scene1": "award_project_count counts distinct projects; award_package_count retains package grain",
+            "scene4": "award_project_count is per supplier at each common buyer, not a common-project intersection",
+        },
         "scenes": {
             name: {"checked": 0, "failed": 0}
             for name in (
@@ -192,7 +196,11 @@ def main() -> int:
         cleanup_dataset=temporary_dataset,
     )
     print(json.dumps(result["comparison"], ensure_ascii=False, indent=2))
-    return 0 if result["comparison"]["mismatched"] == 0 else 1
+    return 0 if (
+        result["comparison"]["mismatched"] == 0
+        and result["sqlite_validation"]["summary"]["failed"] == 0
+        and result["neo4j_validation"]["summary"]["failed"] == 0
+    ) else 1
 
 
 if __name__ == "__main__":

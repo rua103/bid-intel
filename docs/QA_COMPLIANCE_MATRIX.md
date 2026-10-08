@@ -1,6 +1,6 @@
 # 赛题五 QA 合规矩阵
 
-更新日期：2026-10-08（后端 361 passed，含真实 Neo4j、无跳过；前端 31 passed 与构建通过）
+更新日期：2026-10-08（当前验收：后端 364 passed、含真实 Neo4j；前端 33 passed 与构建通过；2 warnings）
 
 本文根据赛题原文摘录 [`D:\ICT\topic5_extracted.txt`](D:\ICT\topic5_extracted.txt)、赛题答疑表、当前仓库代码和已有测试整理。它是交付前的证据矩阵，不是主办方评分结论。
 
@@ -21,10 +21,10 @@
 | 品牌与产品供应商 | 题目将品牌称为产品供应商字段；业务术语又指生产厂商或授权经销商 | `backend/app/parsers.py`、`backend/app/model_adapter.py`、`docs/agent1-brand-supplier-report.md`；品牌/供应商回归测试 | 已实现 | 不能把品牌自动映射成法律主体，也不能声称已有独立 `product_supplier` 持久化实体 | 评审演示时分别展示品牌字段和中标供应商；若需法律实体维度，增加来源明确的独立字段 |
 | 逻辑推定单价/总价 | 原文要求七字段；赛题没有授权用数量×单价补造缺失金额 | `docs/ANNOTATION_GUIDE.md` 明确不推导；`evaluation_policy.py` 使用 Decimal 和缺失策略 | 已实现 | 不能把推定金额当官方答案；不能保证源文件已披露的小数可被恢复 | 设计文档说明“原文值/推定值”分层和排除规则 |
 | TP/FP/TN/FN | 答疑将有字段记 P、无字段/缺失记 N，要求 TP/FP/TN/FN；赛题公式为准确率×0.4+精确率×0.3+召回率×0.3 | `docs/EVALUATION_QA_POLICY.md`、`backend/app/evaluation_policy.py`、`backend/app/evaluation.py`、`backend/tests/test_official_qa_metrics.py` | 已实现（团队本地解释） | `official_qa` 不是主办方正式评分器；多值字段、重复记录、实体负样本边界未被官方形式化 | final 报告同时披露 profile、对齐范围和限制；若官方补充规则，版本化后重算 |
-| 任务二场景一 | 指定采购单位，输出合作中标供应商、产品供应商、合作次数和交易总金额；答疑规定产品供应商采用任务一品牌字段 | `analytics.py` 的 `product_suppliers` 按 `brand` 聚合项目数、包数、明确标的总价和来源证据；新 SQLite oracle 已通过 | 代码和本地统一回归已通过 | 品牌不是法律实体；标的总价不等于中标组织的 award 交易额，不把未知金额补成成交额 | 保留中标供应商与品牌两组统计、金额来源及未披露值；官方平台另行验收 |
+| 任务二场景一 | 指定采购单位，输出合作中标供应商、产品供应商、合作次数和交易总金额；答疑规定产品供应商采用任务一品牌字段 | 新增中标方 `award_project_count`，保留 `award_package_count`；品牌保留项目/包数和明确标的总价；GAP 2.12 合成 oracle、真实 Neo4j/tuning Gold 对照见 `agent-gap-2.12-report.md` | 代码和本地统一回归已通过 | 品牌不是法律实体；标的总价不等于中标组织的 award 交易额，不把未知金额补成成交额；本地项目计频实现不等于官方评分确认 | 保留中标供应商与品牌两组统计、金额来源及未披露值；官方平台另行验收 |
 | 任务二场景二 | 指定采购单位，输出 TOP5 参与投标主体及高频协同组合；答疑补充“中与不中都算” | SQLite、Neo4j 查询模板、API 和前端已采用 winner/nonwinner/unknown 默认；新 SQLite oracle 已通过 | 代码和本地统一回归已通过 | `unknown` 表示结果未披露，不能当落标；同项目跨包协同边界未获正式裁决 | 冻结当前口径并披露边界；`include_winners=false` 仅保留明确 `nonwinner` |
 | 任务二场景三 | 指定中标供应商，输出共同竞标主体及全部参与主体、频次和金额 | `analytics.py`、`graph.py`、`analytics_backend.py` 已同步默认口径；`qa-semantics-20261007-v2.json` 为新 SQLite oracle | 代码和本地统一回归已通过 | 历史双后端 6471/6471 不证明迁移后 Neo4j Gold 等价；新 SQLite 6471/6471 不代表官方成绩 | 以本轮真实集成验收记录说明 Neo4j 范围，不能复用历史数字冒充新结果 |
-| 任务二场景四 | 多个中标供应商的共同采购单位、合作频次和合作金额 | 五场景 API、SQLite/Neo4j 后端、受控查询 API | 代码已实现但未现场验收 | 频次粒度和金额口径没有被题面完全形式化 | 在设计文档明确按采购包/唯一中标记录的当前口径，并保留项目级辅助统计 |
+| 任务二场景四 | 多个中标供应商的共同采购单位、合作频次和合作金额；术语表描述历史项目中的次数 | SQLite/真实 Neo4j、API/受控查询、前端和独立 oracle 同步：每供应商 `award_project_count`、保留包数及唯一中标金额，返回 `project_count_scope` | 代码和本地回归已通过 | 采购单位交集不等于共同项目/同包中标；团队解释不是官方已确认的评分规则 | 设计文档保留每供应商项目计频、包数和唯一 award 金额边界；官方平台另行验收 |
 | 任务二场景五 | 多个中标供应商共同参与竞标项目、竞标结果、项目数量和项目总金额 | `analytics.py`、Neo4j Cypher、场景五金额回归测试、`docs/QUERY_SEMANTICS.md` | 代码已实现但未现场验收 | 不能把本地 Gold 查询一致性当官方场景达成率 | 用评分平台基准逐场景比对；报告项目级和包级明细及金额来源 |
 | winner/nonwinner/unknown | 原文术语特指未中标方，答疑补充“中与不中都算”；中标供应商可多个 | 查询默认纳入全部已记录参与主体；`unknown` 显示“结果未披露”；`include_winners=false` 仅包含明确 `nonwinner` | 已实现，边界需披露 | 不能将 `unknown` 推定为落标；资格审查失败等边界未被答疑完整形式化 | 交付文档记录当前可复现口径；若官方另行明确，版本化修改并重算 |
 | 资格性/符合性审查失败 | 题目定义审查概念，但没有明确失败主体在场景统计中的计入规则 | 解析器保留主体和 outcome/warning；`docs/QUERY_SEMANTICS.md` 已列为边界 | 需要人工确认 | 不能从“出现审查表”推断已提交投标，也不能把失败自动等同 `nonwinner` | 保留原文证据；对模糊情形使用 `unknown`，在最终报告单列数量 |

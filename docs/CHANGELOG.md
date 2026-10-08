@@ -2,6 +2,14 @@
 
 > 每个条目中的测试数字、环境状态和路线结果都是该条目时点的历史快照；当前统一验收以顶部最新记录为准。保留历史数字不表示它们仍是当前基线，团队本地 Gold 和 mock 结果均不是官方成绩。
 
+## 2026-10-08 · GAP 2.12 场景一/四合作次数按项目去重
+
+- 场景一/四中标供应商新增 `award_project_count`，按项目频次降序、名称/ID 稳定排序；`award_package_count` 继续表示采购包数。场景一品牌 `project_count`、`package_count` 保持原义，按项目频次排序，金额仍仅来自披露标的总价。
+- 场景四继续取合作采购单位交集，项目数按每个供应商分别统计，增加 `project_count_scope=per_supplier_at_common_buyer`；不要求共同项目或同包中标。SQLite/Neo4j、前端与受控查询说明同步，金额按唯一 award 记录汇总，不采用 `SUM(DISTINCT amount)`，缺失值不补零。
+- 新增独立合成 oracle 和前端实际模板渲染测试。Docker Neo4j 5.26.14 下后端 **364 passed、0 skipped、2 warnings**（89.86 秒），Ruff 通过；前端 **33 passed**，构建通过，保留既有大 chunk 提示。
+- reviewed tuning Gold 24 条：SQLite/Neo4j 独立 oracle 各 **6471/6471**，返回对照 **6471/6471**，新报告位于 `.data/query-validation/gap-2.12-20261008-185019/tuning-neo4j.json`。保留旧报告，未读取/修改 holdout、Gold，未调用模型、重跑抽取、commit 或 push。
+- 依据原文术语表选择项目去重，场景四范围和跨公告项目识别仍需交付披露；不把本地验证写成官方评分确认。详见 [修复报告](agent-gap-2.12-report.md)。
+
 ## 2026-10-08 · 任务二查询口径与 QA 评测迁移
 
 - 按赛题答疑补充 `official_qa` 本地评测 profile：字段级支持互斥 TP/FP/TN/FN 和 `(TP+TN)/(TP+FP+TN+FN)`，历史 `local_proxy` 保持不变；两者均明确不是官方评分器。

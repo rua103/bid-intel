@@ -15,7 +15,7 @@
 | 后台任务 | 检查点、暂停、续跑、失败重试、损坏结果恢复和数据集隔离已实现 |
 | 评测状态 | 24 条 tuning Gold 与 24 条本地 holdout Gold 已建立；当前 hybrid/model 留出集仍有不完整公告，不能生成最终路线结论 |
 
-当前验证基线：后端 `361 passed, 0 skipped（含真实 Neo4j 集成）`（2 条 warning），Ruff 通过，前端 `31 passed`，生产构建通过但有大 chunk 警告。最终指标必须在代码和提示冻结后，使用独立 `gold.reviewed.json` 运行 `stage=final`；当前留出集运行仍有不完整公告。
+当前验证基线：后端 `364 passed, 0 skipped（含真实 Neo4j 集成）`（2 条 warning），Ruff 通过，前端 `33 passed`，生产构建通过但有大 chunk 警告。最终指标必须在代码和提示冻结后，使用独立 `gold.reviewed.json` 运行 `stage=final`；当前留出集运行仍有不完整公告。
 
 ## 文档导航
 

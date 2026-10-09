@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $processFile = Join-Path $repoRoot 'backend/.data/demo-processes.json'
 
@@ -53,10 +53,12 @@ function Test-RootIdentity([object]$Record, [object]$Metadata) {
         $actualStart = $process.StartTime.ToUniversalTime()
         if ([math]::Abs(($actualStart - $recordedStart).TotalSeconds) -gt 2) { return $false }
     } catch { return $false }
-    if ($Record.image_path -and $Metadata.ExecutablePath -and
-        ([string]$Record.image_path -ne [string]$Metadata.ExecutablePath)) { return $false }
-    if ($Record.command_line -and $Metadata.CommandLine -and
-        ([string]$Record.command_line -ne [string]$Metadata.CommandLine)) { return $false }
+    if ($Record.image_path -and $Metadata.ExecutablePath) {
+        if ([string]$Record.image_path -ne [string]$Metadata.ExecutablePath) { return $false }
+    }
+    if ($Record.command_line -and $Metadata.CommandLine) {
+        if ([string]$Record.command_line -ne [string]$Metadata.CommandLine) { return $false }
+    }
     return $true
 }
 
@@ -66,22 +68,28 @@ function Test-ScopedDescendant([object]$Record, [object]$Metadata) {
     $scope = $scope.TrimEnd('\')
     $commandLine = [string]$Metadata.CommandLine
     $imagePath = [string]$Metadata.ExecutablePath
-    return $commandLine.IndexOf($scope, [System.StringComparison]::OrdinalIgnoreCase) -ge 0 -or
-        $imagePath.StartsWith($scope, [System.StringComparison]::OrdinalIgnoreCase)
+    $commandMatches = $commandLine.IndexOf($scope, [System.StringComparison]::OrdinalIgnoreCase) -ge 0
+    $imageMatches = $imagePath.StartsWith($scope, [System.StringComparison]::OrdinalIgnoreCase)
+    return $commandMatches -or $imageMatches
 }
 
+$allRecordsProcessed = $false
 try {
     try {
-        $records = @(Get-Content -LiteralPath $processFile -Raw | ConvertFrom-Json)
+        $recordJson = Get-Content -LiteralPath $processFile -Raw
+        $records = ConvertFrom-Json -InputObject $recordJson
+        if ($records -isnot [array]) { $records = @($records) }
     } catch {
         Write-Warning '演示服务记录已损坏，无法安全判断其进程归属；未终止任何进程。'
         return
     }
 
+    $allRecordsProcessed = $true
     $allProcesses = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
     foreach ($record in $records) {
         if (-not $record.id -or -not $record.started_utc) {
             Write-Warning '跳过缺少 PID 或启动时间的演示服务记录。'
+            $allRecordsProcessed = $false
             continue
         }
         $rootId = [int]$record.id
@@ -91,6 +99,7 @@ try {
 
         if ($rootMetadata -and -not $rootIdentityValid) {
             Write-Warning "PID $rootId 已被其他进程复用，跳过该记录及其子进程。"
+            $allRecordsProcessed = $false
             continue
         }
 
@@ -99,8 +108,7 @@ try {
         $childrenToStop = @($tree | Sort-Object depth -Descending | Where-Object {
             $metadata = $_.process
             $created = $metadata.CreationDate.ToUniversalTime()
-            $created -ge $recordedStart.AddSeconds(-2) -and
-                ($rootIdentityValid -or (Test-ScopedDescendant $record $metadata))
+            $created -ge $recordedStart.AddSeconds(-2) -and ($rootIdentityValid -or (Test-ScopedDescendant $record $metadata))
         })
         foreach ($child in $childrenToStop) {
             Stop-Process -Id ([int]$child.process.ProcessId) -Force -ErrorAction SilentlyContinue
@@ -110,6 +118,12 @@ try {
         }
     }
 } finally {
-    Remove-Item -LiteralPath $processFile -Force -ErrorAction SilentlyContinue
+    if ($allRecordsProcessed) {
+        Remove-Item -LiteralPath $processFile -Force -ErrorAction SilentlyContinue
+    }
 }
-Write-Host '演示服务已停止。日志保留在 backend/.data/demo-logs。'
+if ($allRecordsProcessed) {
+    Write-Host '演示服务已停止。日志保留在 backend/.data/demo-logs。'
+} else {
+    Write-Warning '部分演示服务记录未能安全处理；记录文件已保留，请检查后重试。'
+}

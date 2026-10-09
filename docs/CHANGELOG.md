@@ -2,6 +2,42 @@
 
 > 每个条目中的测试数字、环境状态和路线结果都是该条目时点的历史快照；当前统一验收以顶部最新记录为准。保留历史数字不表示它们仍是当前基线，团队本地 Gold 和 mock 结果均不是官方成绩。
 
+## 2026-10-09 · 有界并发任务与三路线评测器整合
+
+- 将宿主机共享额度、后台任务协调、可恢复模型缓存和三路线有界评测器整合到主工作区。多个同机 API worker、任务进程及评测进程在共用本地 `JOB_RUNTIME_DIR` 时共享模型、文档和队列配额；默认模型并发为 2。该方案不提供 NFS 或跨主机分布式额度。
+- 全量后端 **501 passed、3 skipped、2 warnings**，Ruff 通过；前端 **33 passed**，生产构建通过并保留大 chunk 提示。`git diff --check` 通过。
+- 真实服务商并发、生产附件负载和 Ubuntu 24.04 决赛环境尚未实测；断线后远端是否已处理请求无法判定，显式续跑可能产生重复费用。本次未调用真实模型 API、未提交或 push。
+
+## 2026-10-09 · Gold 原文修订版
+
+- 按公告 HTML 和报价附件逐项来源核对，另存 holdout Gold 修订版及修改台账；没有覆盖原 `gold.reviewed.json`。
+- 修订 19 项：更正 16 个标的名称、补入 3 条原文服务行；覆盖服务名称复制错误、表头污染、漏标服务及按公告数量/金额对应的报价细目名称。原 Gold 共 117 条，修订版 120 条，24 条公告；严格 Gold schema 校验通过。
+- 文件留在 Git 忽略的 `backend/.data/annotation-tasks/official-holdout-20260929/revisions/20261009-source-verified-v2/`，含 `gold.reviewed.v2.json` 和 `gold-revision-ledger.json`。旧 Gold hash `8c1c98e3a5eccd9ec731c990c65bde4215e40c9a6e189039872bf6c3ef7bced9`，修订版 hash `fae7e54480a0a140323bf2c3772bd488880b5c870e09ef43e771652f02b4d38d`。
+- 旧路线报告没有重写。v2 仍需独立复核六条报价细目名称，之后只能用作本地开发回归；本次未调用 API。
+- **后续状态（2026-10-09）**：用户确认来源修订工作可接受，原记录中的“待独立复核六条报价细目”不再是当前待办。v2 尚未对旧预测离线重评分；该报告仍待生成，并须保留旧预测、旧报告及 Gold hash。该集合已经用于诊断，只能支持本地开发回归，不能作为独立测试或官方 ground-truth。
+
+## 2026-10-09 · 附件用途、跨文件候选与评测诊断统一验收
+
+- 新增附件用途控制，解析后确认的纯历史业绩/资格材料不进入标的、主体、元数据或模型请求通道，来源及警告仍保留。混合材料按连续证据分节过滤，禁用其元数据及跨文件全文关联通道；当前评审材料保留参与主体。不明用途、缺失证据和 primary 公告中的历史内容仍是边界。
+- 生产跨文件候选融合改为独立证据接口：要求明确文件关联、字段相容、一对一对应及包号证据，保留不同采购实例和冲突记录；全部原值、来源和合并依据保存于现有证据字段。旧去重函数仅在生产入口处理同源回放，不能绕过新边界。评测冻结哈希增加两个新抽取模块。
+- 只读缓存诊断：两份可定位历史附件候选分别 `5→0`、`9→0`；跨文件模型原始缓存 `332→309` 条、`59→59` 包。后者不是原最终预测的 317 条口径，也没有同时应用用途过滤；这些数字不是修复后的三路线成绩。
+- 新增只读评测诊断，区分完整预测精确率、固定 Gold 完整覆盖、最大完整记录配对和 TN 来源，不修改现有评分公式。既有三路线已于 10 月 9 日完成 24/24；model/hybrid 均完整匹配 `19/117`，不能把本地 QA 记录 recall 95% 当完整覆盖。该审计完成时回源发现 Gold 表头污染、不同服务重复同名和服务漏标，原 Gold/预测/报告均未改；随后来源核对修订版另记于本文件上条。
+- 当前工作树统一后端回归 **453 passed、3 skipped、2 warnings**；3 个跳过项为未配置真实 Neo4j 的集成测试；`ruff check app tests scripts` 通过。新增模块与接入边界共 **85 项**回归。没有调用付费 API、重跑模型或修改前端；本轮未 commit/push。
+- 设计、实际缓存口径和限制见 [附件用途报告](agent-attachment-scope-report.md)、[跨文件融合报告](agent-candidate-reconciliation-report.md)、[评测与 Gold 审计](agent-evaluation-semantics-audit.md)。本集已用于诊断修复，后续同集验证按开发回归记录；需要独立泛化结论时应另建未参与调优的留出集。
+
+## 2026-10-08 · DeepSeek 官方 Chat Completions 思考参数兼容
+
+- DeepSeek 官方 `https://api.deepseek.com` 的 Chat Completions schema 使用 `thinking: {"type":"disabled"}` 关闭思考模式，不包含旧网关专用的 `chat_template_kwargs`。连接探测、抽取和受控查询统一按 DeepSeek 模型名前缀发送官方字段；其他模型仍保留原兼容参数。
+- DeepSeek 官方 Chat Completions 文档确认 `deepseek-flash`、`response_format: {"type":"json_object"}` 及 `stream_options.include_usage`（须同时启用 `stream`）是支持项。多轮对话文档与本项目单轮抽取请求无关，不需要 Responses API 改造。
+- 官方 API 的真实短探测确认：此前 400 是因为 `response_format=json_object` 请求没有在提示词中要求 JSON，而非模型名、Key 或 `thinking` 字段。探测现显式要求返回 JSON；400 提示不再未经证据就归因于 `thinking`。
+- 修复后官方端点的真实短请求通过：`deepseek-v4-pro` 返回 HTTP 200 和有效 JSON，当前本地后端探测 `deepseek-v4-pro`、`deepseek-flash` 均返回成功。这里只验证短连接，不代表长输入、SSE 抽取或正式长样本已验收。
+- 后端全量回归 **367 passed, 3 skipped**，Ruff、前端 `33 passed` 与生产构建通过。
+
+## 2026-10-08 · Windows PowerShell 5.1 演示停止脚本
+
+- `Stop-Demo.ps1` 增加 UTF-8 BOM 以支持 Windows PowerShell 5.1；进程清单解析改为兼容 JSON 数组，并仅在所有记录处理完成后删除清单，避免失败时丢失重试信息。
+- Windows PowerShell 5.1 语法解析通过；本机实际停止演示服务后 5173/8000 端口释放，再用 `Start-Demo.ps1` 成功重启。
+
 ## 2026-10-08 · GAP 2.12 场景一/四合作次数按项目去重
 
 - 场景一/四中标供应商新增 `award_project_count`，按项目频次降序、名称/ID 稳定排序；`award_package_count` 继续表示采购包数。场景一品牌 `project_count`、`package_count` 保持原义，按项目频次排序，金额仍仅来自披露标的总价。

@@ -6,6 +6,12 @@ import time
 import unicodedata
 from pathlib import PurePosixPath
 
+from app.attachment_scope import (
+    classify_attachment_scope,
+    filter_attachment_items,
+    filter_attachment_participants,
+)
+from app.candidate_reconciliation import reconcile_candidates
 from app.config import Settings, effective_settings
 from app.model_adapter import extract_unstructured_items
 from app.package_codes import (
@@ -316,6 +322,7 @@ def _merge_model_items(
 
 def _deduplicate(
     items: list[ItemCandidate], warnings: list[str] | None = None,
+    *, cross_source: bool = True,
 ) -> list[ItemCandidate]:
     """Merge only unambiguous, mutually compatible rows from different files."""
     warnings = warnings if warnings is not None else []
@@ -385,6 +392,8 @@ def _deduplicate(
                             f'{left.product_name or right.product_name or "未命名标的"} / '
                             + ','.join(conflicts)
                         )
+                continue
+            if not cross_source:
                 continue
             if not key(left.product_name) or key(left.product_name) != key(right.product_name):
                 continue
@@ -580,6 +589,8 @@ def _ingest_expanded(
     items: list[ItemCandidate] = []
     participants: list[ParticipantCandidate] = []
     texts: list[str] = []
+    source_texts: dict[str, str] = {}
+    source_metadata: dict[str, NoticeMetadata] = {}
     model_metadata = NoticeMetadata()
     model_settings = model_settings or effective_settings()
     mode = extraction_mode or model_settings.extraction_mode
@@ -612,10 +623,36 @@ def _ingest_expanded(
             warnings.extend(parse_warnings)
             warnings.append(f'{document.filename}: 检测到未填写模板占位，保留来源；不作为成交结果或送入模型')
             continue
+        scope = (
+            classify_attachment_scope(document.filename, text)
+            if document != primary_document else None
+        )
+        if scope is not None:
+            parsed_items, scope_warnings = filter_attachment_items(
+                document.filename, text, parsed_items, scope,
+            )
+            parse_warnings.extend(scope_warnings)
+            parsed_participants, participant_warnings = filter_attachment_participants(
+                document.filename, text, parsed_participants, scope,
+            )
+            parse_warnings.extend(participant_warnings)
         participants.extend(parsed_participants)
+        if scope is not None and not any((
+            scope.extract_items, scope.extract_participants, scope.extract_metadata,
+        )):
+            warnings.extend(parse_warnings)
+            continue
         if mode == "model":
             parsed_items = []
-        if text:
+        allow_metadata = scope is None or scope.extract_metadata
+        # Mixed attachments retain current rows, but their historical sections
+        # must not establish whole-document package aliases or source links.
+        if text and (scope is None or (scope.extract_items and scope.scope != "mixed")):
+            source_texts[document.filename] = text
+        local_metadata = (
+            extract_metadata(text) if mode != "model" and allow_metadata else NoticeMetadata()
+        )
+        if text and allow_metadata:
             if document == primary_document:
                 texts.insert(0, text)
             else:
@@ -630,6 +667,15 @@ def _ingest_expanded(
                     include_participants=include_participants,
                 )
             )
+            if scope is not None:
+                model_items, scope_warnings = filter_attachment_items(
+                    document.filename, text, model_items, scope,
+                )
+                parse_warnings.extend(scope_warnings)
+                model_participants, participant_warnings = filter_attachment_participants(
+                    document.filename, text, model_participants, scope,
+                )
+                parse_warnings.extend(participant_warnings)
             if mode == "hybrid":
                 parsed_items = _merge_model_items(parsed_items, model_items, parse_warnings)
             else:
@@ -637,7 +683,16 @@ def _ingest_expanded(
             participants.extend(model_participants)
             if document == primary_document:
                 model_metadata = parsed_metadata
+            if allow_metadata:
+                local_metadata = NoticeMetadata(**{
+                    field: (getattr(local_metadata, field)
+                            if getattr(local_metadata, field) is not None
+                            else getattr(parsed_metadata, field))
+                    for field in NoticeMetadata.model_fields
+                })
             parse_warnings.extend(model_warnings)
+        if allow_metadata:
+            source_metadata[document.filename] = local_metadata
         items.extend(parsed_items)
         warnings.extend(parse_warnings)
     rule_metadata = {}
@@ -657,7 +712,12 @@ def _ingest_expanded(
         warnings.append("规则基线：不调用模型；提取表格标的、明确投标主体及标签元数据")
     elif not model_is_configured:
         warnings.append("未配置合规 Qwen/DeepSeek 模型；非表格标的尚未自动抽取")
-    deduplicated_items = _deduplicate(items, warnings)
+    # The legacy helper still serves direct callers. Production cross-file joins
+    # use explicit source/package evidence and may not bypass ambiguous matches.
+    deduplicated_items = reconcile_candidates(
+        _deduplicate(items, warnings, cross_source=False), warnings,
+        metadata=metadata, source_texts=source_texts, source_metadata=source_metadata,
+    )
     deduplicated_participants = _deduplicate_participants(participants, warnings)
     result = ImportResult(
         notice_id=0,

@@ -35,12 +35,12 @@
 
 ## 二、现在到哪了
 
-- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。当前后端全量测试 `364 passed / 0 skipped（含真实 Neo4j 集成）`（2 条 warning）、Ruff clean；前端 `33 passed` 并可构建，生产构建通过但有大 chunk 警告。
+- ✅ **受支持格式的基础链路已回归**：解析（HTML/DOC/DOCX/XLS/XLSX/PDF）→ 抽取 → SQLite 入库 → 五类查询 → 前端。2026-10-09 当前工作树后端全量 `501 passed / 3 skipped`（2 条 warning），Ruff clean；3 个可选集成测试因外部运行条件未配置而跳过，本轮没有配置 Neo4j。前端 `33 passed` 与生产构建通过（有大 chunk 提示）。
 - ✅ **模型抽取已修好**并用真实公告验证（原本 0 条 → 19 条）。**P0 七项已完成本地回归**，验收边界见 [`CHANGELOG.md`](CHANGELOG.md)。
 - ✅ **P1-1 结构化投标主体抽取已实现**：从带有投标/评审/报价/成交上下文的结构化表格提取主体、包号和明示结果，保留来源证据；仅凭排名不会推断中标。1038 条全量规则/OCR回灌已有主体和中标候选，但仍需独立 Gold 验证，不能把入库数量当准确率。
 - ✅ **P1-4 演示三件套已加入**：Windows 启动/停止脚本、包含 XLSX 附件的虚构 HTML/ZIP 样例、无需模型的离线合成数据集。离线数据有 3 条公告和 7 条投标参与记录，可走五类查询；不能用于比赛评分。
 - ✅ **P1-5 评审登录已实现**：单评审账号 + HMAC 签名 HttpOnly Cookie，账号配置脚本和操作指南已加入。自动化覆盖本机登录/API 保护/退出流程；第二台物理设备的局域网登录、Cookie 与防火墙访问尚未验收。
-- ✅ **24 条调优 Gold 与 24 条独立 holdout Gold 已建立**，均为团队本地原文核验，不是官方 ground-truth；当前 hybrid/model 留出集仍有不完整公告，尚未形成最终路线结论。
+- ✅ **24 条调优 Gold 与 24 条本地 holdout Gold 已建立**，均不是官方 ground-truth。10 月 9 日三路线均完成 24/24；另存 source-verified v2（24 公告、120 标的）和逐条修改台账，原 Gold 与旧报告保留，用户已确认来源修订可接受。v2 尚待对旧预测离线重评分；该集合已用于调试，后续同集仅为开发回归，不是未触碰的独立测试。见 [评测审计](agent-evaluation-semantics-audit.md) 与 [来源复核](agent-gold-source-verification.md)。
 - ⚠️ **官方全量处理已完成，结果仍待核验**：1038 条公告已进入独立数据集，后台任务最终 1038/1038 完成、0 失败。使用 `rules + 本地 RapidOCR`，没有真实模型调用；修复后全量回灌为 5009 条投标参与候选、1315 条中标记录，另有标的候选和 warning 仍需对照原文人工核验。附件统计显示 12,124 个成功或部分解析、986 个按参考材料保留、19 个程序解析失败和 7 个不支持文件；87 个无效下载响应保持原样，未伪造附件内容。**这不是准确率结果**，必须对照原文人工标注；细节见 [官方接入检查](OFFICIAL_INTAKE_REVIEW.md) 和 [附件统计](benchmarks/official-attachments-20260930.json)。
 - ⚠️ **速度基线有范围**：本次规则 + OCR 使用 3 个进程，逐条检查点估算活动处理时间约 66 分 45 秒，中位每条 1.127 秒、P95 41.249 秒。它不代表 hybrid/model 模式速度；优化模型调用前先读第七节。
 
@@ -112,20 +112,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 
 1. **不要把 `backend/.data/` 或 `backend/.env` 打包外发。** `model_config.json` 里是**明文 API Key**（已 gitignore，不会被提交，但别手动发出去，也别 `git add -f`，更不要贴进任何文档或 commit message）。
 2. **不要把 `.data/` 的路径写成文档里的链接**——gitignore 了，别人 clone 下来是死链。
-3. **不要给模型请求加顶层 `thinking` / `enable_thinking` / `reasoning_effort`**，也**不要**把 `chat_template_kwargs` 那个写法"简化"掉（原因见 6.1）。回归测试锁定默认 payload；新端点必须先通过[换端点验收清单](MODEL_ENDPOINT_ACCEPTANCE.md)。
+3. **推理控制参数按服务方协议发送。** DeepSeek 官方 Chat Completions 使用 `thinking: {"type":"disabled"}`；旧兼容网关可使用其文档指定的 `chat_template_kwargs`。不要跨端点复制参数；新端点先通过[换端点验收清单](MODEL_ENDPOINT_ACCEPTANCE.md)。
 4. **不要把 `docs/benchmarks/*` 或合成压测的 100% 说成官方成绩。**
 5. **不要把自动抽取结果当金标。** 标注集与留出验证集要分开。
 6. 没有独立人工金标和明确评测口径时，**不要对外宣称准确率数字**；官方数据到手本身不满足这两个条件。
 
 ## 六、已经解决的坑（不要重新发现，代价很高）
 
-### 6.1 模型抽取曾经是 0 条 —— 三层叠加原因
+### 6.1 模型抽取曾经是 0 条 —— 三层叠加原因（旧校内网关实测）
+
+以下三条是 **2026-10-01 旧校内兼容网关** 的历史记录，不能外推到 DeepSeek 官方 `https://api.deepseek.com`。官方端点的请求字段以 [`MODEL_ENDPOINT_ACCEPTANCE.md`](MODEL_ENDPOINT_ACCEPTANCE.md) 和服务方当前文档为准。
 
 | 层 | 症状 | 结论 |
 |---|---|---|
 | ① 非流式请求 | 6 次请求全部 `ReadTimeout`，耗时齐刷刷停在 45.7~45.9 秒 | 改 `httpx.stream` 读 SSE。`httpx` 的 timeout 是**读超时**，非流式下退化成"整段生成总时长上限"，**调大超时值没用** |
-| ② 顶层 `thinking` 参数 | `thinking:{"type":"disabled"}` 返回**空内容**且延迟翻三倍 | 删掉。加了反而更糟 |
-| ③ **推理 token 吃光输出预算** | 请求成功返回，但输出被 `max_tokens` 截断，整篇 0 条 | **唯一有效**：`body["chat_template_kwargs"] = {"enable_thinking": False}` |
+| ② 顶层 `thinking` 参数 | 旧网关中 `thinking:{"type":"disabled"}` 返回**空内容**且延迟翻三倍 | 旧网关删掉；官方 DeepSeek 按当前文档使用 `thinking:{"type":"disabled"}` |
+| ③ **推理 token 吃光输出预算** | 旧网关请求成功返回，但输出被 `max_tokens` 截断，整篇 0 条 | 旧网关的有效写法是 `body["chat_template_kwargs"] = {"enable_thinking": False}`；官方 DeepSeek 使用 `thinking` 字段 |
 
 **第 ③ 层是真正卡住抽取的那层**，由 `MODEL_DISABLE_THINKING=true`（默认）控制。
 
@@ -133,7 +135,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Stop-Demo.ps1
 
 完整排查经过见 [`CHANGELOG.md`](CHANGELOG.md)。
 
-### 6.2 模型网关的行为（当前配置）
+### 6.2 旧模型网关的行为（历史实测，不能外推到新端点）
 
 实际地址与密钥在 `backend/.data/model_config.json`（本地，未提交）——**自己读，别写进文档**。截至 2026-10-01，本机模型 ID 为 `deepseek-v4-flash`。该 ID 不足以证明发布版本、参数规模、微调状态或资源来源；此前记录称使用校内网关，赛事资源来源仍未验证。其他已知特性：
 
@@ -288,7 +290,7 @@ token 量差 4.5 倍，**吐字速率几乎一样**。所以模型没有"变慢"
 
 ```bash
 cd backend
-./.venv/Scripts/python.exe -m pytest -q             # Neo4j 环境全量基线 364 passed；未配置 Neo4j 时跳过 3 项；DOC 用例需 LibreOffice
+./.venv/Scripts/python.exe -m pytest -q             # 10-09 本轮 501 passed、3 skipped、2 warnings；可选外部集成需单独配置
 ./.venv/Scripts/python.exe -m ruff check app tests  # 期望 All checks passed
 ```
 

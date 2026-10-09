@@ -1,18 +1,24 @@
+import time
 from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
+from filelock import FileLock
 from pydantic import BaseModel
 
 from app.datasets import DatabasePath
 from app.jobs import (
+    JobQueueFull,
     create_job,
     job_path,
+    job_state_lock,
     jobs_root,
     launch,
+    queue_job,
     read_json,
     read_notice_progress,
     snapshot,
+    write_json,
 )
 
 router = APIRouter(prefix='/api/v1/jobs', tags=['batch jobs'])
@@ -36,8 +42,14 @@ def checked_job(job_id: str, database: Path) -> Path:
 
 @router.get('')
 def list_jobs(database: DatabasePath):
-    return [snapshot(path.parent) for path in sorted(jobs_root().glob('*/job.json'))
-            if Path(read_json(path)['database']).resolve() == database.resolve()]
+    result = []
+    for path in sorted(jobs_root().glob('*/job.json')):
+        try:
+            if Path(read_json(path)['database']).resolve() == database.resolve():
+                result.append(snapshot(path.parent))
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+    return result
 
 
 @router.post('', status_code=202)
@@ -55,6 +67,8 @@ def start_job(payload: JobCreate, database: DatabasePath):
         launch(job_path(job['id']))
         return job
     except (ValueError, OSError) as exc:
+        if isinstance(exc, JobQueueFull):
+            raise HTTPException(status_code=429, detail=str(exc)) from exc
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -72,12 +86,36 @@ def get_report(job_id: str, database: DatabasePath):
 @router.post('/{job_id}/pause', status_code=202)
 def pause_job(job_id: str, database: DatabasePath):
     root = checked_job(job_id, database)
-    (root / 'stop').touch()
+    with FileLock(str(jobs_root() / 'admission.lock'), timeout=300), job_state_lock(root):
+        (root / 'stop').touch()
+        job = read_json(root / 'job.json')
+        if job.get('status') == 'queued':
+            job.update(status='paused', finished_at=time.time())
+            write_json(root / 'job.json', job)
     return {'message': '已请求暂停，将在当前文件处理后保存进度'}
+
+
+@router.post('/{job_id}/stop', status_code=202)
+def stop_job(job_id: str, database: DatabasePath):
+    """Gracefully stop scheduling and retain checkpoints for an explicit resume."""
+    root = checked_job(job_id, database)
+    with FileLock(str(jobs_root() / 'admission.lock'), timeout=300), job_state_lock(root):
+        (root / 'stop').touch()
+        (root / 'cancel').touch()
+        job = read_json(root / 'job.json')
+        if job.get('status') in {'queued', 'paused', 'interrupted'}:
+            job.update(status='stopped', finished_at=time.time())
+            write_json(root / 'job.json', job)
+    return {'message': '已请求停止排队；在途请求结束后保留已完成公告和检查点'}
 
 
 @router.post('/{job_id}/resume', status_code=202)
 def resume_job(job_id: str, database: DatabasePath, retry_failed: bool = False):
     root = checked_job(job_id, database)
-    launch(root, retry_failed=retry_failed)
-    return {'message': '已提交续跑；完成的公告不会重复入库'}
+    try:
+        job = queue_job(root, retry_failed=retry_failed)
+    except JobQueueFull as exc:
+        raise HTTPException(status_code=429, detail=str(exc)) from exc
+    if job.get('status') == 'queued':
+        launch(root)
+    return {'message': '已提交续跑；完成的公告不会重复入库', 'status': job.get('status')}

@@ -21,9 +21,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app import analytics_backend
+from app.bounded_runtime import ModelAdmissionError
 from app.config import effective_settings
 from app.datasets import DatabasePath, resolve_database
-from app.model_adapter import _stream_completion
+from app.model_adapter import _stream_completion, apply_thinking_setting, async_stream_completion
 
 logger = logging.getLogger(__name__)
 
@@ -156,8 +157,9 @@ def _model_parse_intent(question: str, path: Path | None) -> dict[str, Any]:
             {"role": "user", "content": f"主体目录：{catalog}\n用户问题：{question}"},
         ],
     }
-    if settings.model_disable_thinking:
-        body["chat_template_kwargs"] = {"enable_thinking": False}
+    apply_thinking_setting(
+        body, settings.model_name, disable_thinking=settings.model_disable_thinking,
+    )
     try:
         content, usage = _stream_completion(
             endpoint,
@@ -173,6 +175,48 @@ def _model_parse_intent(question: str, path: Path | None) -> dict[str, Any]:
         raise
     except Exception as exc:
         logger.warning("controlled query model parse failed: %s", type(exc).__name__)
+        raise RuntimeError("模型意图解析失败，请改用手动选择场景和参数") from exc
+
+
+async def _model_parse_intent_async(question: str, path: Path | None) -> dict[str, Any]:
+    """Use async network I/O on the Web event loop for the interactive query API."""
+    settings = effective_settings()
+    if not (settings.model_base_url and settings.model_api_key and settings.model_name):
+        raise RuntimeError("模型不可用，请改用手动选择场景和参数")
+    if not settings.model_name.casefold().startswith(("qwen", "deepseek")):
+        raise RuntimeError("当前模型不符合 Qwen/DeepSeek 配置要求，请改用手动选择场景和参数")
+    endpoint = settings.model_base_url.rstrip("/")
+    if not endpoint.endswith("/chat/completions"):
+        endpoint += "/chat/completions"
+    catalog = json.dumps(_organization_catalog(path), ensure_ascii=False)
+    body: dict[str, Any] = {
+        "model": settings.model_name,
+        "temperature": 0,
+        "max_tokens": max(256, min(settings.model_max_output_tokens, 1536)),
+        "response_format": {"type": "json_object"},
+        "stream": True,
+        "stream_options": {"include_usage": True},
+        "messages": [
+            {"role": "system", "content": CONTROLLED_QUERY_PROMPT},
+            {"role": "user", "content": f"主体目录：{catalog}\n用户问题：{question}"},
+        ],
+    }
+    apply_thinking_setting(
+        body, settings.model_name, disable_thinking=settings.model_disable_thinking,
+    )
+    try:
+        content, usage = await async_stream_completion(
+            endpoint, settings.model_api_key, body,
+            read_timeout=settings.model_timeout_seconds,
+            total_seconds=settings.model_stream_total_seconds,
+        )
+        if usage.get("_finish_reason") == "length" or not content.strip():
+            raise RuntimeError("模型意图输出不完整")
+        return _safe_parse_json(json.loads(content.strip()))
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        logger.warning("controlled query async model parse failed: %s", type(exc).__name__)
         raise RuntimeError("模型意图解析失败，请改用手动选择场景和参数") from exc
 
 
@@ -296,14 +340,21 @@ def router_for(database_dependency: Any = resolve_database) -> APIRouter:
     router = APIRouter(prefix="/api/v1/controlled-query", tags=["controlled-query"])
 
     @router.post("/parse")
-    def parse_endpoint(payload: ParseRequest, database_path: DatabasePath):
+    async def parse_endpoint(payload: ParseRequest, database_path: DatabasePath):
         try:
-            intent = parse_question(
-                payload.question,
-                mock_intent=payload.mock_intent,
-                database_path=database_path,
-            )
+            if INJECTION_RE.search(payload.question):
+                raise ValueError("仅支持五类只读分析场景，拒绝写请求或任意查询")
+            if payload.mock_intent is None and _mock_parser is None:
+                raw = await _model_parse_intent_async(payload.question, database_path)
+                intent = ControlledIntent.model_validate(raw)
+            else:
+                intent = parse_question(payload.question, mock_intent=payload.mock_intent,
+                                        database_path=database_path)
         except RuntimeError as exc:
+            if isinstance(exc, ModelAdmissionError):
+                raise HTTPException(
+                    status_code=429, detail=str(exc), headers={"Retry-After": "5"},
+                ) from exc
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

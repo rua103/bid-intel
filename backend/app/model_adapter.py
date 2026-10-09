@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -11,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 import httpx
 from pydantic import ValidationError
 
+from app.bounded_runtime import ModelAdmissionError, RuntimeConfigurationError, current_runtime
 from app.config import Settings
 from app.package_codes import (
     DEFAULT_PACKAGE_CODE,
@@ -62,6 +64,100 @@ def _compact(text: str) -> str:
     return re.sub(r"\s+", "", text)
 
 
+async def async_stream_completion(
+    endpoint: str,
+    api_key: str,
+    body: dict[str, object],
+    *,
+    read_timeout: int,
+    total_seconds: int,
+    limiter=None,
+    stop_path=None,
+) -> tuple[str, dict[str, object]]:
+    """Asynchronously read one OpenAI-compatible SSE response.
+
+    The client keeps consuming through the terminal marker so a usage frame
+    sent after ``finish_reason`` is retained. Missing ``[DONE]`` is treated as
+    an interrupted transport, even if the bytes seen so far happen to parse as
+    JSON. This helper performs exactly one request and never retries or changes
+    endpoint/model parameters.
+    """
+    if limiter is None:
+        limiter, runtime_stop = current_runtime()
+        stop_path = stop_path or runtime_stop
+    parts: list[str] = []
+    usage: dict[str, object] = {}
+    finish_reason: str | None = None
+    complete = False
+    try:
+        started = time.monotonic()
+        async with asyncio.timeout(max(1, total_seconds)):
+            async with limiter.model_slot(
+                stop_path=stop_path,
+                timeout=min(max(1, total_seconds), limiter.limits.model_wait_timeout_seconds),
+            ):
+                remaining = max(0.001, max(1, total_seconds) - (time.monotonic() - started))
+                timeout = httpx.Timeout(
+                    connect=min(15, remaining), read=min(max(5, read_timeout), remaining),
+                    write=min(30, remaining), pool=min(15, remaining),
+                )
+                deadline = started + max(1, total_seconds)
+                # httpx constructs SSL/proxy transports synchronously. Keep this
+                # setup off the Web event loop so health/query routes stay live.
+                client = await asyncio.to_thread(httpx.AsyncClient, timeout=timeout)
+                async with client, client.stream(
+                    "POST",
+                    endpoint,
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json=body,
+                ) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if time.monotonic() > deadline:
+                            raise httpx.ReadTimeout("模型流式响应超过总时长上限")
+                        if not line.startswith("data:"):
+                            continue
+                        payload = line[5:].strip()
+                        if not payload:
+                            continue
+                        if payload == "[DONE]":
+                            complete = True
+                            continue
+                        try:
+                            chunk = json.loads(payload)
+                        except ValueError:
+                            continue
+                        if isinstance(chunk.get("usage"), dict):
+                            usage = chunk["usage"]
+                        for choice in chunk.get("choices") or []:
+                            if choice.get("finish_reason"):
+                                finish_reason = str(choice["finish_reason"])
+                            piece = (choice.get("delta") or {}).get("content")
+                            if piece:
+                                parts.append(piece)
+    except TimeoutError as exc:
+        raise httpx.ReadTimeout("模型流式响应超过总时长上限") from exc
+    if not complete:
+        raise httpx.RemoteProtocolError("模型 SSE 响应未收到 [DONE] 终止帧")
+    if finish_reason:
+        usage = {**usage, "_finish_reason": finish_reason}
+    return "".join(parts), usage
+
+
+def apply_thinking_setting(
+    body: dict[str, object], model_name: str, *, disable_thinking: bool,
+) -> None:
+    """Add the provider-specific request field for disabling model reasoning."""
+    if not disable_thinking:
+        return
+    if model_name.strip().casefold().startswith("deepseek"):
+        # DeepSeek's documented OpenAI-compatible Chat Completions field.
+        body["thinking"] = {"type": "disabled"}
+    else:
+        # Retain the legacy gateway form for non-DeepSeek compatible services.
+        body["chat_template_kwargs"] = {"enable_thinking": False}
+
+
 def _brand_is_supplier_labelled(evidence: str, brand: str | None) -> bool:
     """Reject a model brand that is explicitly supplied as a company column."""
     if not brand:
@@ -100,6 +196,7 @@ def _stream_completion(
     *,
     read_timeout: int,
     total_seconds: int,
+    on_request_started=None,
 ) -> tuple[str, dict[str, object]]:
     """Read one SSE completion and return ``(content, usage)``.
 
@@ -109,11 +206,32 @@ def _stream_completion(
     inter-chunk idle limit. ``reasoning_content`` deltas are dropped on purpose so
     chain-of-thought never reaches the extracted JSON.
     """
+    limiter, stop_path = current_runtime()
+    # File-backed slots are shared by all app/job/evaluator processes in this
+    # host deployment, so the quota cannot multiply with process count.
+    started = time.monotonic()
+    total_deadline = started + max(1, total_seconds)
+    with limiter.model_slot_sync(
+        stop_path=stop_path,
+        timeout=min(max(1, total_seconds), limiter.limits.model_wait_timeout_seconds),
+    ):
+        remaining = total_deadline - time.monotonic()
+        if remaining <= 0:
+            raise httpx.ReadTimeout("模型并发等待已耗尽请求总时长")
+        timeout = httpx.Timeout(
+            connect=min(15, remaining), read=min(max(5, read_timeout), remaining),
+            write=min(30, remaining), pool=min(15, remaining),
+        )
+        if on_request_started is not None:
+            on_request_started()
+        return _read_sync_stream(endpoint, api_key, body, timeout=timeout, deadline=total_deadline)
+
+
+def _read_sync_stream(endpoint, api_key, body, *, timeout, deadline):
     parts: list[str] = []
     usage: dict[str, object] = {}
     finish_reason: str | None = None
-    deadline = time.monotonic() + max(1, total_seconds)
-    timeout = httpx.Timeout(connect=15, read=max(5, read_timeout), write=30, pool=15)
+    complete = False
     with httpx.stream(
         "POST",
         endpoint,
@@ -128,7 +246,10 @@ def _stream_completion(
             if not line.startswith("data:"):
                 continue
             payload = line[5:].strip()
-            if not payload or payload == "[DONE]":
+            if not payload:
+                continue
+            if payload == "[DONE]":
+                complete = True
                 continue
             try:
                 chunk = json.loads(payload)
@@ -142,6 +263,8 @@ def _stream_completion(
                 piece = (choice.get("delta") or {}).get("content")
                 if piece:
                     parts.append(piece)
+    if not complete:
+        raise httpx.RemoteProtocolError("模型 SSE 响应未收到 [DONE] 终止帧")
     if finish_reason:
         # Keep transport metadata separate from provider token usage.
         usage = {**usage, "_finish_reason": finish_reason}
@@ -163,8 +286,17 @@ def _model_failure_warning(
             return prefix + f"接口鉴权失败（HTTP {status}），检查 API Key、权限和模型访问范围"
         if status == 429:
             return prefix + "服务限流（HTTP 429），检查额度/并发并在解除限流后重试"
+        if status == 402:
+            return prefix + "接口账户余额或调用额度不足（HTTP 402），检查 DeepSeek 账户余额、套餐和支付状态"
         if status in (400, 422):
-            parameters = "、chat_template_kwargs" if settings.model_disable_thinking else ""
+            if settings.model_disable_thinking:
+                parameter = (
+                    "thinking 参数" if settings.model_name.strip().casefold().startswith("deepseek")
+                    else "chat_template_kwargs 参数"
+                )
+                parameters = f"、{parameter}"
+            else:
+                parameters = ""
             return prefix + (
                 f"端点拒绝请求参数（HTTP {status}），检查模型名、JSON 模式{parameters}的兼容性"
             )
@@ -228,10 +360,9 @@ def extract_unstructured_items(
             {"role": "user", "content": f"来源文件：{filename}\n公告文本：\n{excerpt}"},
         ],
     }
-    if settings.model_disable_thinking:
-        # Must be a chat-template kwarg. Top-level "thinking"/"enable_thinking" and
-        # "reasoning_effort" are all ignored by the configured gateway (measured).
-        body["chat_template_kwargs"] = {"enable_thinking": False}
+    apply_thinking_setting(
+        body, settings.model_name, disable_thinking=settings.model_disable_thinking,
+    )
     try:
         if usage is not None:
             usage.requests += 1
@@ -425,27 +556,43 @@ def test_model_connection(
         "temperature": 0,
         "max_tokens": 16,
         "response_format": {"type": "json_object"},
-        "messages": [{"role": "user", "content": "ping"}],
+        "messages": [
+            {"role": "system", "content": "Respond with a valid JSON object only."},
+            {"role": "user", "content": 'Reply with this JSON object: {"ok":true}'},
+        ],
     }
-    if disable_thinking:
-        body["chat_template_kwargs"] = {"enable_thinking": False}
+    apply_thinking_setting(body, model_name, disable_thinking=disable_thinking)
     try:
-        response = httpx.post(
-            endpoint,
-            headers={"Authorization": f"Bearer {api_key.strip()}"},
-            json=body,
-            timeout=30,
-        )
+        limiter, _ = current_runtime()
+        with limiter.model_slot_sync(
+            timeout=limiter.limits.model_wait_timeout_seconds,
+        ):
+            response = httpx.post(
+                endpoint,
+                headers={"Authorization": f"Bearer {api_key.strip()}"},
+                json=body,
+                timeout=30,
+            )
+    except (ModelAdmissionError, RuntimeConfigurationError) as exc:
+        return False, str(exc)
     except httpx.HTTPError as exc:
         return False, f"连接失败：{type(exc).__name__}"
     if response.status_code in (401, 403):
         return False, f"鉴权失败（HTTP {response.status_code}），请检查 API Key"
     if response.status_code == 429:
         return False, "服务限流（HTTP 429），检查额度/并发后重试"
+    if response.status_code == 402:
+        return False, "接口账户余额或调用额度不足（HTTP 402），检查 DeepSeek 账户余额、套餐和支付状态"
     if response.status_code in (400, 422):
-        parameters = "、chat_template_kwargs" if disable_thinking else ""
+        try:
+            error = response.json().get("error", {})
+            detail = str(error.get("message", "")) if isinstance(error, dict) else ""
+        except (ValueError, AttributeError):
+            detail = ""
+        if "prompt must contain the word 'json'" in detail.casefold():
+            return False, "JSON 模式探测失败：端点要求提示词明确包含 JSON；当前探测已包含该要求，请重启后端再试"
         return False, (
-            f"端点拒绝请求参数（HTTP {response.status_code}），检查模型名、JSON 模式{parameters}的兼容性"
+            f"端点拒绝连接探测（HTTP {response.status_code}），检查模型名、JSON 模式和请求参数兼容性"
         )
     if response.status_code >= 400:
         return False, f"服务返回错误（HTTP {response.status_code}），检查端点状态和请求配置"

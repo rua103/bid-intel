@@ -74,7 +74,7 @@ def _hash_code() -> dict[str, str]:
         for name in (
             "gold_route_evaluation.py", "evaluation.py", "schemas.py", "config.py",
             "archive_files.py", "parsers.py", "ingestion.py", "model_adapter.py",
-            "package_codes.py",
+            "package_codes.py", "attachment_scope.py", "candidate_reconciliation.py",
         )
     }
 
@@ -607,7 +607,8 @@ def _archive_attempt(
     fields = (
         "status", "notice_id", "elapsed_seconds", "ingestion_seconds", "expansion_seconds",
         "parse_seconds", "parse_cache_hits", "parse_cache_misses", "model_seconds",
-        "model_cache_hits", "model_cache_misses", "model_calls", "api_usage", "errors",
+        "model_cache_hits", "model_cache_misses", "model_calls", "api_usage",
+        "provider_kv_tokens", "historical_cached_requests", "errors",
     )
     archive = {field: entry[field] for field in fields if field in entry}
     history = progress.setdefault("attempt_history", {}).setdefault(mode, {}).setdefault(notice_id, [])
@@ -644,13 +645,19 @@ def _summary(progress: dict[str, Any], records: list[dict[str, Any]], reports: d
             "attempt_count": len(attempts),
             "parse_seconds": round(sum(entry.get("parse_seconds", 0) for entry in attempts), 3),
             "model_seconds": round(
-                sum(call.get("elapsed_seconds", 0) for call in calls)
+                sum(call.get("elapsed_seconds") or 0 for call in calls)
                 if calls else sum(entry.get("model_seconds", 0) for entry in attempts),
                 3,
             ),
             "source_documents_parsed": sum(entry.get("parse_cache_hits", 0) + entry.get("parse_cache_misses", 0) for entry in attempts),
             "parse_cache_hits": sum(entry.get("parse_cache_hits", 0) for entry in attempts),
             "model_cache_hits": sum(entry.get("model_cache_hits", 0) for entry in attempts),
+            "local_cache_restored_requests": sum(
+                entry.get("historical_cached_requests", 0) for entry in attempts
+            ),
+            "provider_kv_tokens": sum(
+                entry.get("provider_kv_tokens", 0) for entry in attempts
+            ),
             "requests": len(calls) if calls else sum(row.get("requests", 0) for row in api),
             "successful_responses": (
                 sum(call.get("transport") == "success" for call in calls)
@@ -732,10 +739,12 @@ def _write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         field_score = report.get("field_micro", {}).get("weighted_score")
         record_score = report.get("records", {}).get("weighted_score")
         fmt = lambda value: "N/A" if value is None else f"{value:.4%}"
+        median_seconds = row["elapsed_seconds_median"]
+        median_display = "N/A" if median_seconds is None else f"{median_seconds:.1f}s"
         lines.append(
             f"| {mode} | {row['completed_notices']}/{summary['notice_count']} | {fmt(field_score)} | "
             f"{fmt(record_score)} | {row['elapsed_seconds_sum']:.1f}s | "
-            f"{row['elapsed_seconds_median']:.1f}s | "
+            f"{median_display} | "
             f"{row['requests']} | {row['successful_responses']} | "
             f"{row['prompt_tokens'] if row['prompt_tokens'] is not None else 'N/A'} | "
             f"{row['completion_tokens'] if row['completion_tokens'] is not None else 'N/A'} |"

@@ -26,12 +26,10 @@ class Settings(BaseSettings):
     model_timeout_seconds: int = 120
     # Backstop against an endless stream; generation is already bounded by max_tokens.
     model_stream_total_seconds: int = 600
-    # Measured on the configured gateway: without this, deepseek-v4-flash spends
-    # ~5000 reasoning tokens before emitting any JSON (208s per notice, and the
-    # JSON gets truncated at max_tokens). Only chat_template_kwargs works --
-    # top-level "thinking"/"enable_thinking" and "reasoning_effort" are ignored.
-    # With it: reasoning -> 0, ~35s per notice, complete JSON. Turn this off only
-    # if a new endpoint rejects the field.
+    # Disables reasoning with the provider's documented request field. DeepSeek
+    # uses thinking={"type":"disabled"}; legacy compatible gateways use
+    # chat_template_kwargs={"enable_thinking":false}. Verify a new endpoint before
+    # running long extraction jobs.
     model_disable_thinking: bool = True
     extraction_mode: str = "hybrid"
     ocr_enabled: bool = False
@@ -39,7 +37,14 @@ class Settings(BaseSettings):
     ocr_timeout_seconds: int = 30
     libreoffice_path: str = ""
     document_conversion_timeout_seconds: int = 120
-    job_workers: int = 3
+    # Notice slots, document CPU slots, API requests and admission are separate.
+    job_workers: int = Field(default=2, ge=1, le=8)
+    document_workers: int = Field(default=1, ge=1, le=8)
+    model_concurrency: int = Field(default=2, ge=1, le=64)
+    model_wait_queue_capacity: int = Field(default=8, ge=1, le=1024)
+    model_wait_timeout_seconds: int = Field(default=15, ge=1, le=300)
+    job_queue_capacity: int = Field(default=8, ge=1, le=1024)
+    job_runtime_dir: str = ''
     intake_root: str = ''
     job_max_expanded_mb: int = 2048
     job_max_member_mb: int = 512

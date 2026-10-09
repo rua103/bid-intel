@@ -450,8 +450,8 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', syncSectionFromHa
         <span class="hint">{{ modelConfig.configured ? `已启用 ${modelConfig.model_name}` : '未配置：仅用表格映射，不抽取投标主体' }}</span>
       </div>
       <div class="config-grid">
-        <label><span>接口地址</span><input v-model="modelConfig.model_base_url" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" /></label>
-        <label><span>模型名</span><input v-model="modelConfig.model_name" placeholder="qwen-plus / deepseek-chat" /></label>
+        <label><span>接口地址</span><input v-model="modelConfig.model_base_url" placeholder="https://api.deepseek.com" /></label>
+        <label><span>模型名</span><input v-model="modelConfig.model_name" placeholder="deepseek-flash / qwen-plus" /></label>
         <label><span>API Key</span><input v-model="modelKeyInput" type="password" :placeholder="apiKeyPlaceholder" /></label>
       </div>
       <div class="button-row">

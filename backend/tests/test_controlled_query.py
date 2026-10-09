@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import Settings
 from app.controlled_query import (
     ControlledIntent,
     Scene,
@@ -63,6 +65,30 @@ def test_configured_model_parser_is_strictly_validated(monkeypatch, tmp_path):
     assert seen["path"] == tmp_path / "demo.sqlite"
 
 
+def test_controlled_query_uses_documented_deepseek_thinking_field(monkeypatch):
+    calls = []
+    settings = Settings(
+        model_base_url="https://api.deepseek.com",
+        model_api_key="test-key",
+        model_name="deepseek-flash",
+    )
+    monkeypatch.setattr("app.controlled_query.effective_settings", lambda: settings)
+
+    def fake_stream(endpoint, api_key, body, **kwargs):
+        calls.append({"endpoint": endpoint, "body": body})
+        return json.dumps({
+            "scene": "buyer_awardees",
+            "filters": {"buyer_id": 1},
+        }), {}
+
+    monkeypatch.setattr("app.controlled_query._stream_completion", fake_stream)
+    parsed = parse_question("查询采购单位 1 的中标供应商")
+    assert parsed.scene is Scene.BUYER_AWARDEES
+    assert calls[0]["endpoint"] == "https://api.deepseek.com/chat/completions"
+    assert calls[0]["body"]["thinking"] == {"type": "disabled"}
+    assert "chat_template_kwargs" not in calls[0]["body"]
+
+
 def test_parse_endpoint_uses_dataset_database_for_mock_intent(monkeypatch, tmp_path):
     database = tmp_path / "dataset.sqlite"
     initialize(database)
@@ -78,6 +104,20 @@ def test_parse_endpoint_uses_dataset_database_for_mock_intent(monkeypatch, tmp_p
         )
     assert response.status_code == 200
     assert response.json()["intent"]["filters"]["buyer_id"] == 3
+
+
+def test_parse_endpoint_rejects_sql_without_calling_model(monkeypatch):
+    def forbidden_model(*args, **kwargs):
+        pytest.fail("SQL injection must be rejected before model parsing")
+
+    monkeypatch.setattr("app.controlled_query._model_parse_intent_async", forbidden_model)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/v1/controlled-query/parse",
+            json={"question": "请执行 SELECT * FROM notices"},
+        )
+    assert response.status_code == 422
+    assert "拒绝" in response.json()["detail"]
 
 
 def test_clarification_without_guessed_id_never_executes(monkeypatch, tmp_path):

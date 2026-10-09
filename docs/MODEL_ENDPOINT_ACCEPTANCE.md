@@ -4,7 +4,7 @@
 
 ## 当前配置能够证明什么
 
-截至 2026-10-01，本机生效模型 ID 为 `deepseek-v4-flash`。生效配置还表明端点和 API Key 已设置，但本文不记录其地址或凭据。该名称是配置值，不是发布方出具的版本证明。
+截至 2026-10-08，DeepSeek 官方文档列出的 Chat Completions 模型包括 `deepseek-flash` 和 `deepseek-v4-pro`，官方 OpenAI 兼容 Base URL 为 `https://api.deepseek.com`。模型名及地址应以服务方当前文档为准；本机页面截图中的 `deepseek-flash` 与该模型 ID 一致。模型名本身不是发布方出具的版本/资源合规证明。
 
 当前代码配置保存 `model_base_url`、`model_api_key` 和 `model_name`；`.env` 另含输入上限、输出预算、超时及推理开关。它不记录模型发布版本、参数规模、是否微调、资源提供方或资源授权证明。名称只做 `qwen` / `deepseek` 前缀筛选，不能据此认定赛题合规。仓库既有记录称此前实测端点来自校内网关；现有记录没有证明该资源就是命题方提供的标准模型资源。
 
@@ -15,22 +15,22 @@
 | 设置 | 用途 | 当前默认/行为 |
 |---|---|---|
 | `MODEL_BASE_URL` | OpenAI 兼容 API 根地址，也可直接填 `/chat/completions` 地址 | 可通过网页模型配置面板或 `.env` 设置；网页保存值优先于 `.env` |
-| `MODEL_NAME` | 服务端公布的精确模型 ID | 生效值为 `deepseek-v4-flash`；前缀校验不验证版本或来源 |
+| `MODEL_NAME` | 服务端公布的精确模型 ID | 当前 DeepSeek 示例为 `deepseek-flash`；前缀校验不验证版本或来源 |
 | `MODEL_API_KEY` | 服务端鉴权 | 网页配置写入本机忽略目录 `backend/.data/model_config.json`；不得提交或复制到文档 |
 | `MODEL_MAX_CHARS` | 单次发送的公告文本上限 | `12000` 字符，超过部分不会发送 |
 | `MODEL_MAX_OUTPUT_TOKENS` | 单次生成上限 | `4096` tokens |
 | `MODEL_TIMEOUT_SECONDS` | SSE 两个数据块之间的最大空闲时间 | `120` 秒；不是整次请求总时限 |
 | `MODEL_STREAM_TOTAL_SECONDS` | 整次 SSE 的墙钟上限 | `600` 秒 |
-| `MODEL_DISABLE_THINKING` | 是否在请求中发送 `chat_template_kwargs.enable_thinking=false` | 默认 `true`；不是模型面板中的字段，来自进程环境 / `.env` |
+| `MODEL_DISABLE_THINKING` | 是否在请求中关闭推理 | 默认 `true`；DeepSeek 官方 Chat Completions 使用 `thinking: {"type":"disabled"}`，旧兼容网关使用 `chat_template_kwargs` |
 
-抽取使用 `stream=true`、`stream_options.include_usage=true` 和 `response_format=json_object`。当 `MODEL_DISABLE_THINKING=true` 时，还发送 `chat_template_kwargs`。端点若拒绝请求，代码不会删掉该参数后偷偷重发；会返回可操作 warning，并让后台公告保持失败、可显式重试。
+抽取使用 `stream=true`、`stream_options.include_usage=true` 和 `response_format=json_object`。DeepSeek 官方 Chat Completions 支持这些字段，并以 `thinking: {"type":"disabled"}` 关闭推理；`chat_template_kwargs` 是旧网关兼容写法，不能发给 DeepSeek 官方端点。来源：[Chat Completions API](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)、[思考模式](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode)。端点若拒绝参数，代码不会移除参数后偷偷重试；会返回可操作 warning，并让后台公告保持失败、可显式重试。
 
 ## 换端点步骤
 
 1. **先取得资源证明。** 向资源提供方确认精确模型 ID、正式发布版本、参数规模、基座/微调状态和资源来源。记录官方文档或赛事资源说明的位置；如果缺少任何一项，明确标为待确认，不能从模型名猜测。
-2. **配置新地址与凭据。** 在网页“模型配置”面板填写 API 根地址、服务端公布的精确模型 ID 和 API Key。地址可以是 API 根路径，程序会补 `/chat/completions`；若已包含该路径则原样使用。也可用 `backend/.env` 配置。网页保存项会覆盖 `.env` 中的端点、模型名和 Key；空白 Key 更新会保留已保存 Key。确认页面只显示打码值，避免共享完整配置文件。
-3. **运行模型配置探测。** 页面“测试连接”发送小型 JSON 模式请求；HTTP 200 只表示短请求成功返回，不能证明端点确实应用了每个可选参数。401/403 表示凭据或权限问题；429 表示限流/额度问题；400/422 表示端点拒绝了请求参数，检查模型 ID、JSON 模式和 `chat_template_kwargs`。这一步不代表 SSE、长输入或完整结构化输出已通过。
-4. **处理推理开关兼容性。** 若端点拒绝 `chat_template_kwargs`，先从服务方确认该端点的推理控制方式和输出预算。不要只为让连接测试变绿就关闭开关。只有确认端点不需要该参数，或有已验证的替代设置时，才在 `.env` 设置 `MODEL_DISABLE_THINKING=false` 并重启后端；这会令抽取请求不再发送该字段。再次运行配置探测和后续真实样本。
+2. **配置新地址与凭据。** 在网页“模型配置”面板填写 API 根地址、服务端公布的精确模型 ID 和 API Key。DeepSeek 官方 OpenAI 兼容 Base URL 为 `https://api.deepseek.com`，程序会补 `/chat/completions`。网页保存项会覆盖 `.env` 中的端点、模型名和 Key；空白 Key 更新会保留已保存 Key。确认页面只显示打码值，避免共享完整配置文件。
+3. **运行模型配置探测。** 页面“测试连接”发送小型 JSON 模式请求，并在提示词中明确要求返回 JSON（DeepSeek 官方 JSON 模式的要求）；HTTP 200 只表示短请求成功返回，不能证明端点确实应用了每个可选参数。401/403 表示凭据或权限问题；429 表示限流/额度问题；400/422 表示端点拒绝连接探测，需结合端点错误信息检查模型名、JSON 模式和请求参数。这一步不代表 SSE、长输入或完整结构化输出已通过。
+4. **处理推理开关兼容性。** DeepSeek 官方 Chat Completions 在关闭推理时使用 `thinking: {"type":"disabled"}`。项目会按 DeepSeek 模型名前缀发送该字段；不会发送旧网关的 `chat_template_kwargs`。其他端点使用的参数形式须以其文档及长样本验收为准，不要只为让连接测试变绿就无依据地关闭开关。
 5. **运行本地 mock 回归。** 在 `backend` 目录执行：
 
    ```powershell
@@ -49,4 +49,4 @@
 .venv/Scripts/python.exe -m app.jobs run <job-directory> --retry-failed
 ```
 
-warning 会区分鉴权错误、限流、流式超时、非法/截断 JSON 和 HTTP 参数拒绝。遇到 `chat_template_kwargs` 不兼容时不会自动降级参数，也不会用单元测试结果宣称真实 API 可用。
+warning 会区分鉴权错误、限流、流式超时、非法/截断 JSON 和 HTTP 参数拒绝，并按 DeepSeek 官方 `thinking` 或旧网关 `chat_template_kwargs` 提示兼容性。mock 测试不代表真实 API 可用。

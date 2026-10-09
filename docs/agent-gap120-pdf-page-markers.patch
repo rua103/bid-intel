@@ -1,0 +1,31 @@
+--- a/backend/app/attachment_scope.py
++++ b/backend/app/attachment_scope.py
+@@ -49,7 +49,13 @@
+ _FILENAME_EVALUATION = re.compile(r"评审|评分|评标|开标|投标人名单|资格审查结果")
+ _CONTRACT_FIELDS = re.compile(r"合同签订(?:日期|时间)|合同复印|合同扫描|验收(?:日期|时间)|项目单位地址")
+ _REQUEST_LANGUAGE = re.compile(r"(?:应|须|需|要求|请)(?:当|要)?(?:提供|提交|附|填写)|格式见|详见|评分标准")
+-_HEADING_PREFIX = re.compile(r"^[第\d一二三四五六七八九十章节附件附表()（）.、:：\-]*$")
++# PDF parsers prefix extracted pages without preserving all line boundaries.
++# Accept only their known leading marker; keep it in evidence offset accounting.
++_PDF_PAGE_MARKER = r"\[page:[1-9]\d*(?:/(?:pdfplumber|ocr))?\]"
++_HEADING_PREFIX = re.compile(
++    rf"^(?:{_PDF_PAGE_MARKER})?"
++    r"[第\d一二三四五六七八九十章节附件附表()（）.、:：\-]*$"
++)
+ _OTHER_SECTION = re.compile(r"^[^\d]{2,35}(?:参数|说明|清单|信息|内容|报价|明细|结果|一览表|要求)$")
+ _SECTION_PROSE = re.compile(r"[，,。；;、]|相应|等内容|应当|须提供|及")
+ _PRODUCT_HEADER = re.compile(r"品目名称|货物名称|产品名称|商品名称|标的名称|采购标的|名称")
+@@ -87,7 +93,12 @@
+     """
+     headings: list[tuple[int, int, str]] = []
+     offset = 0
+-    for raw_line in unicodedata.normalize("NFKC", text).splitlines():
++    normalized = unicodedata.normalize("NFKC", text)
++    if re.match(rf"^\s*{_PDF_PAGE_MARKER}", normalized):
++        # Recover page boundaries in the parser's flattened PDF text, retaining
++        # marker characters so compact-text evidence offsets remain unchanged.
++        normalized = re.sub(rf"(?<!\S)(?={_PDF_PAGE_MARKER})", "\n", normalized)
++    for raw_line in normalized.splitlines():
+         line = _compact(raw_line)
+         matches: list[tuple[int, int, str]] = []
+         for pattern, scope in ((_HISTORY, "history"), (_CURRENT_ITEMS, "current"),

@@ -14,6 +14,13 @@
 - 原 PDF 9/9 条模型候选均有正文连续证据，过滤结果从 9 条保留变为 0 条保留；来源文件与解析 warning 仍保留。新增 20 项页标记测试；主工作区相关回归 **106 passed、2 warnings**，完整后端 **521 passed、3 skipped、2 warnings**，Ruff 通过。没有调用模型 API、改旧预测或重跑路线。
 - 这是本地调试样例，不是独立留出集或最终成绩；格式完全相同的字面页标记可能与真实页边界歧义，压平的页内结构仍无法恢复。详见 [PDF 验证报告](agent-gap120-pdf-validation-report.md)。
 
+## 2026-10-10 · GAP 1.20/1.21 cache-only 回放与 Gold v2 离线重评分
+
+- 新增 fail-closed cache-only 回放器：缺 parse/model cache 立即隔离，禁止重解析、写回缓存或调用同步/异步模型 transport；故意 miss 测试和实际回放的 transport 请求均为 0。
+- 14/24 公告完成只读用途过滤与跨文件融合回放；10 条因缺 parse cache 隔离。hybrid 候选 `153→146`，model `149→139`；这些是完整缓存子集，不是 24 条全量新成绩。旧预测、Gold、旧报告和缓存 hash 未改变。
+- Gold v2 已对旧三路线预测完成 `local_proxy` 离线重评分：rules `55.13% / 12.30%`、hybrid `51.71% / 9.32%`、model `55.89% / 7.92%`（字段/完整记录加权分）。该结果只反映 Gold 版本变化，不是官方成绩，也不构成独立 holdout。
+- 合入提交 `d4fffb9` 后主工作区完整后端回归 **523 passed、3 skipped、2 warnings**，Ruff 通过。报告：[agent-gap-priority1-cache-only-replay-report.md](agent-gap-priority1-cache-only-replay-report.md)。
+
 ## 2026-10-09 · Gold 原文修订版
 
 - 按公告 HTML 和报价附件逐项来源核对，另存 holdout Gold 修订版及修改台账；没有覆盖原 `gold.reviewed.json`。

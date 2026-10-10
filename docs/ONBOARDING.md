@@ -41,7 +41,7 @@
 - ✅ **P1-1 结构化投标主体抽取已实现**：从带有投标/评审/报价/成交上下文的结构化表格提取主体、包号和明示结果，保留来源证据；仅凭排名不会推断中标。1038 条全量规则/OCR回灌已有主体和中标候选，但仍需独立 Gold 验证，不能把入库数量当准确率。
 - ✅ **P1-4 演示三件套已加入**：Windows 启动/停止脚本、包含 XLSX 附件的虚构 HTML/ZIP 样例、无需模型的离线合成数据集。离线数据有 3 条公告和 7 条投标参与记录，可走五类查询；不能用于比赛评分。
 - ✅ **P1-5 评审登录已实现**：单评审账号 + HMAC 签名 HttpOnly Cookie，账号配置脚本和操作指南已加入。自动化覆盖本机登录/API 保护/退出流程；第二台物理设备的局域网登录、Cookie 与防火墙访问尚未验收。
-- ✅ **24 条调优 Gold 与 24 条本地 holdout Gold 已建立**，均不是官方 ground-truth。10 月 9 日三路线均完成 24/24；另存 source-verified v2（24 公告、120 标的）和逐条修改台账，原 Gold 与旧报告保留，用户已确认来源修订可接受。v2 尚待对旧预测离线重评分；该集合已用于调试，后续同集仅为开发回归，不是未触碰的独立测试。见 [评测审计](agent-evaluation-semantics-audit.md) 与 [来源复核](agent-gold-source-verification.md)。
+- ✅ **24 条调优 Gold 与 24 条本地 holdout Gold 已建立**，均不是官方 ground-truth。10 月 9 日三路线均完成 24/24；source-verified v2（24 公告、120 标的）已对旧 rules/hybrid/model 预测完成 `local_proxy` 离线重评分，原 Gold、预测与旧报告保留。cache-only 改后回放完成 14/24，10 条因缺 parse cache 隔离，未重解析或调用模型；该集合已用于调试，后续同集仅为开发回归，不是未触碰的独立测试。见 [评测审计](agent-evaluation-semantics-audit.md)、[来源复核](agent-gold-source-verification.md) 和 [优先级 1 回放报告](agent-gap-priority1-cache-only-replay-report.md)。
 - ⚠️ **官方全量处理已完成，结果仍待核验**：1038 条公告已进入独立数据集，后台任务最终 1038/1038 完成、0 失败。使用 `rules + 本地 RapidOCR`，没有真实模型调用；修复后全量回灌为 5009 条投标参与候选、1315 条中标记录，另有标的候选和 warning 仍需对照原文人工核验。附件统计显示 12,124 个成功或部分解析、986 个按参考材料保留、19 个程序解析失败和 7 个不支持文件；87 个无效下载响应保持原样，未伪造附件内容。**这不是准确率结果**，必须对照原文人工标注；细节见 [官方接入检查](OFFICIAL_INTAKE_REVIEW.md) 和 [附件统计](benchmarks/official-attachments-20260930.json)。
 - ⚠️ **速度基线有范围**：本次规则 + OCR 使用 3 个进程，逐条检查点估算活动处理时间约 66 分 45 秒，中位每条 1.127 秒、P95 41.249 秒。它不代表 hybrid/model 模式速度；优化模型调用前先读第七节。
 
